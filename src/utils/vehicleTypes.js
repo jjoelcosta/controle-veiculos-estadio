@@ -44,18 +44,11 @@ export const vehicleTypes = [
 ];
 
 export const parkingLocations = [
-  'Estacionamento A - VIP',
-  'Estacionamento B - Imprensa',
-  'Estacionamento C - Staff',
-  'Estacionamento D - Geral Norte',
-  'Estacionamento E - Geral Sul',
-  'Estacionamento F - Eventos',
-  'Estacionamento G - Administrativo',
-  'Garagem Subsolo 1',
-  'Garagem Subsolo 2',
-  'Área Externa - Portão 1',
-  'Área Externa - Portão 2',
-  'Área de Carga e Descarga'
+  'Estacionamento Subsolo - Zona Mista',
+  'Estacionamento Subsolo - Basement',
+  'Estacionamento - Esfera',
+  'Estacionamento Brita - Portão M',
+  'Estacionamento Externo - Portão L'
 ];
 
 export const getVehicleType = (typeValue) => {
