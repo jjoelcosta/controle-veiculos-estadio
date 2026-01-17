@@ -11,24 +11,24 @@ export default function VehicleRegistry() {
   // Estados principais
   const [vehicles, setVehicles] = useState([]);
   const [owners, setOwners] = useState([]);
-  const [currentView, setCurrentView] = useState('vehicles'); // 'vehicles' | 'vehicleDetail' | 'owners' | 'ownerDetail'
+  const [currentView, setCurrentView] = useState('vehicles');
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [selectedOwner, setSelectedOwner] = useState(null);
 
-  // Carregar dados ao iniciar
+  // ✅ CARREGAR DADOS AO INICIAR (ASYNC/AWAIT!)
   useEffect(() => {
-    setVehicles(storage.loadVehicles());
-    setOwners(storage.loadOwners());
+    const loadData = async () => {
+      try {
+        const vehiclesData = await storage.loadVehicles();
+        const ownersData = await storage.loadOwners();
+        setVehicles(vehiclesData);
+        setOwners(ownersData);
+      } catch (error) {
+        console.error('Erro ao carregar dados:', error);
+      }
+    };
+    loadData();
   }, []);
-
-  // Salvar automaticamente quando houver mudanças
-  useEffect(() => {
-    storage.saveVehicles(vehicles);
-  }, [vehicles]);
-
-  useEffect(() => {
-    storage.saveOwners(owners);
-  }, [owners]);
 
   // Handlers de navegação
   const handleViewVehicleDetail = (vehicle) => {
@@ -59,60 +59,78 @@ export default function VehicleRegistry() {
     setCurrentView('vehicles');
   };
 
-  // Handlers de CRUD para veículos
-  const handleAddVehicle = (vehicleData) => {
-    const newVehicle = {
-      ...vehicleData,
-      id: `vehicle_${Date.now()}`,
-      createdAt: new Date().toLocaleString('pt-BR')
-    };
-    setVehicles([...vehicles, newVehicle]);
-  };
-
-  const handleUpdateVehicle = (vehicleId, vehicleData) => {
-    setVehicles(vehicles.map(v => 
-      v.id === vehicleId 
-        ? { ...vehicleData, id: vehicleId, updatedAt: new Date().toLocaleString('pt-BR') }
-        : v
-    ));
-  };
-
-  const handleDeleteVehicle = (vehicleId) => {
-    setVehicles(vehicles.filter(v => v.id !== vehicleId));
-    if (selectedVehicle?.id === vehicleId) {
-      handleBackToVehicles();
+  // ✅ HANDLERS DE CRUD PARA VEÍCULOS (ASYNC!)
+  const handleAddVehicle = async (vehicleData) => {
+    try {
+      const newVehicle = await storage.addVehicle(vehicleData);
+      setVehicles([...vehicles, newVehicle]);
+    } catch (error) {
+      console.error('Erro ao adicionar veículo:', error);
+      alert('Erro ao cadastrar veículo. Verifique sua conexão.');
     }
   };
 
-  // Handlers de CRUD para proprietários
-  const handleAddOwner = (ownerData) => {
-    const newOwner = {
-      ...ownerData,
-      id: `owner_${Date.now()}`,
-      createdAt: new Date().toLocaleString('pt-BR')
-    };
-    setOwners([...owners, newOwner]);
-    return newOwner.id;
+  const handleUpdateVehicle = async (vehicleId, vehicleData) => {
+    try {
+      const updatedVehicle = await storage.updateVehicle(vehicleId, vehicleData);
+      setVehicles(vehicles.map(v => v.id === vehicleId ? updatedVehicle : v));
+    } catch (error) {
+      console.error('Erro ao atualizar veículo:', error);
+      alert('Erro ao atualizar veículo. Verifique sua conexão.');
+    }
   };
 
-  const handleUpdateOwner = (ownerId, ownerData) => {
-    setOwners(owners.map(o => 
-      o.id === ownerId 
-        ? { ...ownerData, id: ownerId, updatedAt: new Date().toLocaleString('pt-BR') }
-        : o
-    ));
+  const handleDeleteVehicle = async (vehicleId) => {
+    try {
+      await storage.deleteVehicle(vehicleId);
+      setVehicles(vehicles.filter(v => v.id !== vehicleId));
+      if (selectedVehicle?.id === vehicleId) {
+        handleBackToVehicles();
+      }
+    } catch (error) {
+      console.error('Erro ao deletar veículo:', error);
+      alert('Erro ao deletar veículo. Verifique sua conexão.');
+    }
   };
 
-  const handleDeleteOwner = (ownerId) => {
+  // ✅ HANDLERS DE CRUD PARA PROPRIETÁRIOS (ASYNC!)
+  const handleAddOwner = async (ownerData) => {
+    try {
+      const newOwner = await storage.addOwner(ownerData);
+      setOwners([...owners, newOwner]);
+      return newOwner.id;
+    } catch (error) {
+      console.error('Erro ao adicionar proprietário:', error);
+      alert('Erro ao cadastrar proprietário. Verifique sua conexão.');
+    }
+  };
+
+  const handleUpdateOwner = async (ownerId, ownerData) => {
+    try {
+      const updatedOwner = await storage.updateOwner(ownerId, ownerData);
+      setOwners(owners.map(o => o.id === ownerId ? updatedOwner : o));
+    } catch (error) {
+      console.error('Erro ao atualizar proprietário:', error);
+      alert('Erro ao atualizar proprietário. Verifique sua conexão.');
+    }
+  };
+
+  const handleDeleteOwner = async (ownerId) => {
     const ownerVehicles = vehicles.filter(v => v.ownerId === ownerId);
     if (ownerVehicles.length > 0) {
       return { success: false, message: `Este proprietário tem ${ownerVehicles.length} veículo(s) cadastrado(s)` };
     }
-    setOwners(owners.filter(o => o.id !== ownerId));
-    if (selectedOwner?.id === ownerId) {
-      handleBackToOwners();
+    try {
+      await storage.deleteOwner(ownerId);
+      setOwners(owners.filter(o => o.id !== ownerId));
+      if (selectedOwner?.id === ownerId) {
+        handleBackToOwners();
+      }
+      return { success: true };
+    } catch (error) {
+      console.error('Erro ao deletar proprietário:', error);
+      return { success: false, message: error.message };
     }
-    return { success: true };
   };
 
   // Renderização condicional baseada na view atual
