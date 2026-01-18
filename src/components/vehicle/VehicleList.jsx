@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Car, Plus, Search, Filter, Download, User, MapPin, Building2, Briefcase, X } from 'lucide-react';
+import { Plus, Search, Filter, Download, User, MapPin, Building2, Briefcase, X } from 'lucide-react';
 import VehicleCard from './VehicleCard';
 import VehicleForm from './VehicleForm';
+import Header from '../ui/Header';
 import { useModal } from '../ui/Modal';
 import { useToast } from '../ui/Toast';
 
@@ -141,39 +142,37 @@ export default function VehicleList({
     success('Arquivo CSV exportado com sucesso!');
   };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
+    return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-6">
       <div className="max-w-7xl mx-auto">
-        <div className="bg-white rounded-2xl shadow-xl p-8">
+        
+        {/* 🆕 HEADER COM LOGO */}
+        <Header 
+          logoUrl={null} // ← COLOQUE URL DO LOGO AQUI
+          companyName="Estádio Nacional"
+          subtitle="Sistema de Controle de Veículos"
+          vehicleCount={vehicles.length}
+          ownerCount={owners.length}
+        />
+
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl p-8 border border-gray-200">
           
-          {/* Cabeçalho */}
-          <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-3">
-                <Car className="text-blue-600" size={36} />
-                Sistema de Controle de Veículos
-              </h1>
-              <p className="text-gray-600 mt-2">
-                🏟️ Estacionamento do Estádio
-              </p>
-            </div>
-            
-            <div className="flex gap-3">
-              <button
-                onClick={onNavigateToOwners}
-                className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg flex items-center gap-2 transition-colors shadow-md"
-              >
-                <User size={20} />
-                Proprietários ({owners.length})
-              </button>
-              <button
-                onClick={handleAddClick}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg flex items-center gap-2 transition-colors shadow-md"
-              >
-                <Plus size={20} />
-                Novo Veículo
-              </button>
-            </div>
+          {/* Botões de Ação */}
+          <div className="flex justify-end gap-3 mb-6">
+            <button
+              onClick={onNavigateToOwners}
+              className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white px-6 py-3 rounded-xl flex items-center gap-2 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+            >
+              <User size={20} />
+              Proprietários ({owners.length})
+            </button>
+            <button
+              onClick={handleAddClick}
+              className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-6 py-3 rounded-xl flex items-center gap-2 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+            >
+              <Plus size={20} />
+              Novo Veículo
+            </button>
           </div>
 
           {/* Formulário */}

@@ -54,3 +54,16 @@ export const parkingLocations = [
 export const getVehicleType = (typeValue) => {
   return vehicleTypes.find(vt => vt.value === typeValue) || vehicleTypes[0];
 };
+
+export const brandColors = {
+  primary: {
+    light: '#3B82F6', // blue-500
+    main: '#2563EB',  // blue-600
+    dark: '#1D4ED8'   // blue-700
+  },
+  secondary: {
+    light: '#8B5CF6', // purple-500
+    main: '#7C3AED',  // purple-600
+    dark: '#6D28D9'   // purple-700
+  }
+};

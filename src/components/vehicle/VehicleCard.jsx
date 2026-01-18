@@ -1,5 +1,5 @@
 import React from 'react';
-import { Edit2, Trash2, Phone, Building2, MapPin } from 'lucide-react';
+import { Edit2, Trash2, Phone, Building2, MapPin, Calendar } from 'lucide-react';
 import { getVehicleType } from '../../utils/vehicleTypes';
 
 export default function VehicleCard({ vehicle, owner, onEdit, onDelete, onClick }) {
@@ -8,80 +8,106 @@ export default function VehicleCard({ vehicle, owner, onEdit, onDelete, onClick 
 
   return (
     <div 
-      className="bg-gradient-to-br from-gray-50 to-gray-100 p-5 rounded-xl border-2 border-gray-200 hover:shadow-lg transition-all cursor-pointer"
+      className="group bg-white rounded-2xl border-2 border-gray-200 hover:border-blue-400 hover:shadow-2xl transition-all duration-300 cursor-pointer overflow-hidden transform hover:-translate-y-1"
       onClick={onClick}
     >
-      {/* Cabeçalho: Placa e Ícone */}
-      <div className="flex justify-between items-start mb-3">
-        <div className="font-mono font-bold text-xl text-blue-600 bg-white px-3 py-1 rounded border-2 border-blue-300">
-          {vehicle.plate}
+      {/* Header com Gradiente */}
+      <div className={`bg-gradient-to-r ${getGradientByType(vehicle.type)} p-4`}>
+        <div className="flex justify-between items-start">
+          {/* Placa */}
+          <div className="bg-white/95 backdrop-blur-sm px-4 py-2 rounded-lg shadow-lg border-2 border-white/50">
+            <div className="font-mono font-black text-2xl text-gray-800 tracking-wider">
+              {vehicle.plate}
+            </div>
+          </div>
+          {/* Ícone */}
+          <div className="bg-white/20 backdrop-blur-sm p-3 rounded-full">
+            <VehicleIcon className="text-white" size={28} />
+          </div>
         </div>
-        <VehicleIcon className={vehicleType.iconColor} size={24} />
       </div>
 
-      {/* Badges: Tipo e Localização */}
-      <div className="mb-2 flex gap-2 flex-wrap">
-        <span className={`${vehicleType.badgeBg} ${vehicleType.badgeText} px-2 py-1 rounded text-xs font-semibold`}>
-          {vehicle.type}
-        </span>
-        {vehicle.parkingLocation && (
-          <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-semibold flex items-center gap-1">
-            <MapPin size={10} />
-            {vehicle.parkingLocation.split(' - ')[0]}
+      {/* Body */}
+      <div className="p-5">
+        {/* Badges */}
+        <div className="flex gap-2 flex-wrap mb-4">
+          <span className={`${vehicleType.badgeBg} ${vehicleType.badgeText} px-3 py-1 rounded-full text-xs font-bold`}>
+            {vehicle.type}
           </span>
-        )}
-      </div>
-
-      {/* Marca e Modelo */}
-      <div className="text-gray-800 font-semibold mb-2">
-        {vehicle.brand} {vehicle.model}
-      </div>
-
-      {/* Informações do Proprietário */}
-      <div className="space-y-1 text-sm">
-        <div className="text-gray-700 flex items-center gap-1">
-          👤 {owner?.name || 'Proprietário não encontrado'}
+          {vehicle.parkingLocation && (
+            <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1">
+              <MapPin size={12} />
+              {vehicle.parkingLocation.split(' - ')[0]}
+            </span>
+          )}
         </div>
-        {owner?.phone && (
-          <div className="text-gray-600 flex items-center gap-1">
-            <Phone size={12} /> {owner.phone}
-          </div>
-        )}
-        {owner?.company && (
-          <div className="text-gray-600 flex items-center gap-1">
-            <Building2 size={12} /> {owner.company}
-          </div>
-        )}
-      </div>
 
-      {/* Botões de Ação */}
-      <div className="flex gap-2 mt-4 pt-3 border-t border-gray-300">
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onEdit();
-          }}
-          className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded transition-colors flex items-center justify-center gap-1 text-sm"
-        >
-          <Edit2 size={14} />
-          Editar
-        </button>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete();
-          }}
-          className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 rounded transition-colors flex items-center justify-center gap-1 text-sm"
-        >
-          <Trash2 size={14} />
-          Excluir
-        </button>
-      </div>
+        {/* Marca e Modelo */}
+        <div className="text-xl font-bold text-gray-800 mb-3">
+          {vehicle.brand} {vehicle.model}
+        </div>
 
-      {/* Data de Cadastro */}
-      <div className="text-xs text-gray-400 mt-3">
-        🕐 {vehicle.createdAt}
+        {/* Proprietário */}
+        <div className="bg-gray-50 rounded-xl p-3 mb-4 space-y-2">
+          <div className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+            👤 {owner?.name || 'Proprietário não encontrado'}
+          </div>
+          {owner?.phone && (
+            <div className="text-xs text-gray-600 flex items-center gap-2">
+              <Phone size={12} className="text-blue-600" /> 
+              {owner.phone}
+            </div>
+          )}
+          {owner?.company && (
+            <div className="text-xs text-gray-600 flex items-center gap-2">
+              <Building2 size={12} className="text-purple-600" /> 
+              {owner.company}
+            </div>
+          )}
+        </div>
+
+        {/* Botões */}
+        <div className="flex gap-2">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit();
+            }}
+            className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white py-2.5 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 text-sm font-semibold shadow-md hover:shadow-lg"
+          >
+            <Edit2 size={16} />
+            Editar
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
+            className="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white py-2.5 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 text-sm font-semibold shadow-md hover:shadow-lg"
+          >
+            <Trash2 size={16} />
+            Excluir
+          </button>
+        </div>
+
+        {/* Data */}
+        <div className="text-xs text-gray-400 mt-3 flex items-center gap-1">
+          <Calendar size={12} />
+          {vehicle.createdAt}
+        </div>
       </div>
     </div>
   );
+}
+
+// Função auxiliar para gradientes por tipo
+function getGradientByType(type) {
+  const gradients = {
+    'Carro': 'from-blue-500 to-blue-600',
+    'Moto': 'from-green-500 to-green-600',
+    'Caminhão': 'from-orange-500 to-orange-600',
+    'Van': 'from-purple-500 to-purple-600',
+    'Ônibus': 'from-red-500 to-red-600'
+  };
+  return gradients[type] || 'from-gray-500 to-gray-600';
 }
