@@ -1,14 +1,74 @@
 import { supabase } from '../lib/supabase';
 
 export const storage = {
-  // Carregar veículos
-  loadVehicles: async () => {
+  // =====================================================
+  // AUTENTICAÇÃO
+  // =====================================================
+  
+  login: async (email, password) => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+      
+      if (error) throw error;
+      return { success: true, user: data.user, session: data.session };
+    } catch (error) {
+      console.error('Erro no login:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  logout: async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      return { success: true };
+    } catch (error) {
+      console.error('Erro no logout:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  getSession: async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      return session;
+    } catch (error) {
+      console.error('Erro ao obter sessão:', error);
+      return null;
+    }
+  },
+
+  getCurrentUser: async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      return user;
+    } catch (error) {
+      console.error('Erro ao obter usuário:', error);
+      return null;
+    }
+  },
+
+  // =====================================================
+  // VEÍCULOS
+  // =====================================================
+  
+  loadVehicles: async (filters = {}) => {
+    try {
+      let query = supabase
         .from('vehicles')
         .select('*')
         .order('created_at', { ascending: false });
-      
+
+      // Filtros no backend
+      if (filters.plate) query = query.ilike('plate', `%${filters.plate}%`);
+      if (filters.brand) query = query.eq('brand', filters.brand);
+      if (filters.type) query = query.eq('type', filters.type);
+      if (filters.parkingLocation) query = query.eq('parking_location', filters.parkingLocation);
+
+      const { data, error } = await query;
       if (error) throw error;
       
       return (data || []).map(v => ({
@@ -28,33 +88,6 @@ export const storage = {
     }
   },
 
-  // Carregar proprietários
-  loadOwners: async () => {
-    try {
-      const { data, error } = await supabase
-        .from('owners')
-        .select('*')
-        .order('created_at', { ascending: false });
-      
-      if (error) throw error;
-      
-      return (data || []).map(o => ({
-        id: o.id,
-        name: o.name,
-        phone: o.phone,
-        company: o.company,
-        position: o.position,
-        sector: o.sector,
-        createdAt: new Date(o.created_at).toLocaleString('pt-BR'),
-        updatedAt: o.updated_at ? new Date(o.updated_at).toLocaleString('pt-BR') : null
-      }));
-    } catch (error) {
-      console.error('Erro ao carregar proprietários:', error);
-      return [];
-    }
-  },
-
-  // Adicionar veículo
   addVehicle: async (vehicle) => {
     try {
       const { data, error } = await supabase
@@ -88,7 +121,6 @@ export const storage = {
     }
   },
 
-  // Atualizar veículo
   updateVehicle: async (id, vehicle) => {
     try {
       const { data, error } = await supabase
@@ -125,7 +157,6 @@ export const storage = {
     }
   },
 
-  // Deletar veículo
   deleteVehicle: async (id) => {
     try {
       const { error } = await supabase
@@ -141,7 +172,35 @@ export const storage = {
     }
   },
 
-  // Adicionar proprietário
+  // =====================================================
+  // PROPRIETÁRIOS
+  // =====================================================
+  
+  loadOwners: async () => {
+    try {
+      const { data, error } = await supabase
+        .from('owners')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      
+      return (data || []).map(o => ({
+        id: o.id,
+        name: o.name,
+        phone: o.phone,
+        company: o.company,
+        position: o.position,
+        sector: o.sector,
+        createdAt: new Date(o.created_at).toLocaleString('pt-BR'),
+        updatedAt: o.updated_at ? new Date(o.updated_at).toLocaleString('pt-BR') : null
+      }));
+    } catch (error) {
+      console.error('Erro ao carregar proprietários:', error);
+      return [];
+    }
+  },
+
   addOwner: async (owner) => {
     try {
       const { data, error } = await supabase
@@ -173,7 +232,6 @@ export const storage = {
     }
   },
 
-  // Atualizar proprietário
   updateOwner: async (id, owner) => {
     try {
       const { data, error } = await supabase
@@ -208,7 +266,6 @@ export const storage = {
     }
   },
 
-  // Deletar proprietário
   deleteOwner: async (id) => {
     try {
       const { error } = await supabase
