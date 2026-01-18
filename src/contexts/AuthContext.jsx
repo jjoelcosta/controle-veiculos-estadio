@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { storage } from '../utils/storage';
 
 const AuthContext = createContext();
 
@@ -23,6 +22,7 @@ export const AuthProvider = ({ children }) => {
 
     // Escutar mudanças de autenticação
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      console.log('Auth state changed:', _event, session?.user?.email);
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
@@ -33,11 +33,21 @@ export const AuthProvider = ({ children }) => {
 
   const checkSession = async () => {
     try {
-      const session = await storage.getSession();
-      setSession(session);
-      setUser(session?.user ?? null);
+      const { data: { session }, error } = await supabase.auth.getSession();
+      
+      if (error) {
+        console.error('Erro ao verificar sessão:', error);
+        setSession(null);
+        setUser(null);
+      } else {
+        console.log('Sessão encontrada:', session?.user?.email);
+        setSession(session);
+        setUser(session?.user ?? null);
+      }
     } catch (error) {
       console.error('Erro ao verificar sessão:', error);
+      setSession(null);
+      setUser(null);
     } finally {
       setLoading(false);
     }
@@ -45,22 +55,39 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
-      const result = await storage.login(email, password);
-      if (result.success) {
-        setSession(result.session);
-        setUser(result.user);
-        return { success: true };
+      console.log('Tentando login com:', email);
+      
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password: password
+      });
+      
+      if (error) {
+        console.error('Erro no login:', error);
+        throw error;
       }
-      return result;
+
+      console.log('Login bem-sucedido:', data.user.email);
+      setSession(data.session);
+      setUser(data.user);
+      return { success: true, user: data.user };
+      
     } catch (error) {
       console.error('Erro no login:', error);
-      return { success: false, error: error.message };
+      return { 
+        success: false, 
+        error: error.message === 'Invalid login credentials' 
+          ? 'Email ou senha incorretos' 
+          : error.message 
+      };
     }
   };
 
   const logout = async () => {
     try {
-      await storage.logout();
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
       setSession(null);
       setUser(null);
       return { success: true };

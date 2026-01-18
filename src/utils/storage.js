@@ -1,56 +1,7 @@
 import { supabase } from '../lib/supabase';
 
 export const storage = {
-  // =====================================================
-  // AUTENTICAÇÃO
-  // =====================================================
   
-  login: async (email, password) => {
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
-      
-      if (error) throw error;
-      return { success: true, user: data.user, session: data.session };
-    } catch (error) {
-      console.error('Erro no login:', error);
-      return { success: false, error: error.message };
-    }
-  },
-
-  logout: async () => {
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-      return { success: true };
-    } catch (error) {
-      console.error('Erro no logout:', error);
-      return { success: false, error: error.message };
-    }
-  },
-
-  getSession: async () => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      return session;
-    } catch (error) {
-      console.error('Erro ao obter sessão:', error);
-      return null;
-    }
-  },
-
-  getCurrentUser: async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      return user;
-    } catch (error) {
-      console.error('Erro ao obter usuário:', error);
-      return null;
-    }
-  },
-
   // =====================================================
   // VEÍCULOS
   // =====================================================
