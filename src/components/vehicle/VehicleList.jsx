@@ -68,16 +68,18 @@ export default function VehicleList({
   };
 
   const handleDeleteClick = (vehicle) => {
-    openModal({
-      title: 'Confirmar Exclusão',
-      message: `Tem certeza que deseja excluir o veículo ${vehicle.plate}?`,
-      variant: 'danger',
-      onConfirm: () => {
-        onDelete(vehicle.id);
-        success('Veículo excluído com sucesso!');
-      }
-    });
-  };
+  openModal({
+    title: 'Remover Veículo',
+    message: `Deseja remover o veículo ${vehicle.plate} da lista?\n\nEle poderá ser restaurado posteriormente.`,
+    variant: 'warning', // ← mudou de 'danger' para 'warning'
+    confirmText: 'Sim, Remover',
+    cancelText: 'Cancelar',
+    onConfirm: () => {
+      onDelete(vehicle.id);
+      success('Veículo removido com sucesso!');
+    }
+  });
+};
 
   const handleFormSubmit = (vehicleData) => {
     if (editingVehicle) {
@@ -148,12 +150,12 @@ export default function VehicleList({
         
         {/* 🆕 HEADER COM LOGO */}
         <Header 
-          logoUrl={null} // ← COLOQUE URL DO LOGO AQUI
-          companyName="Estádio Nacional de Brasília"
-          subtitle="Sistema de Controle de Veículos - Segurança"
-          vehicleCount={vehicles.length}
-          ownerCount={owners.length}
-        />
+            logoUrl="null"
+            companyName="ARENA BRB / ARENA 360"
+            subtitle="Sistema de Controle de Veículos - Segurança"
+            vehicleCount={vehicles.length}
+            ownerCount={owners.length}
+          />
 
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl p-8 border border-gray-200">
           

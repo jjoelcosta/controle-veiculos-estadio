@@ -121,13 +121,13 @@ export default function LoginPage() {
             {/* Credenciais de Teste */}
             <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
               <p className="text-sm font-semibold text-blue-900 mb-2">
-                🔑 Credenciais de Teste:
+                🔑 SEGURANÇA ARENA 360
               </p>
               <p className="text-xs text-blue-700 font-mono">
-                Email: admin@estadio.com
+                Ambiente de desenvolvimento
               </p>
               <p className="text-xs text-blue-700 font-mono">
-                Senha: Admin@123
+                Gerência de Segurança
               </p>
             </div>
           </div>

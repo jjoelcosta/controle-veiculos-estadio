@@ -5,19 +5,19 @@ export const Modal = ({ isOpen, onClose, onConfirm, title, message, confirmText 
   if (!isOpen) return null;
 
   const variants = {
-    danger: {
-      buttonBg: 'bg-red-600 hover:bg-red-700',
-      iconColor: 'text-red-600'
-    },
-    warning: {
-      buttonBg: 'bg-yellow-600 hover:bg-yellow-700',
-      iconColor: 'text-yellow-600'
-    },
-    info: {
-      buttonBg: 'bg-blue-600 hover:bg-blue-700',
-      iconColor: 'text-blue-600'
-    }
-  };
+  danger: {
+    buttonBg: 'bg-red-600 hover:bg-red-700',
+    iconColor: 'text-red-600'
+  },
+  warning: {
+    buttonBg: 'bg-orange-600 hover:bg-orange-700',
+    iconColor: 'text-orange-600'
+  },
+  info: {
+    buttonBg: 'bg-blue-600 hover:bg-blue-700',
+    iconColor: 'text-blue-600'
+  }
+};
 
   const config = variants[variant] || variants.danger;
 

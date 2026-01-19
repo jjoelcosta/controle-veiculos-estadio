@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Save, X, MapPin } from 'lucide-react';
 import { vehicleTypes, parkingLocations } from '../../utils/vehicleTypes';
 import { useToast } from '../ui/Toast';
+import LoadingButton from '../ui/LoadingButton';
 
 export default function VehicleForm({ 
   initialData = null, 
@@ -10,6 +11,7 @@ export default function VehicleForm({
   onCancel 
 }) {
   const { success, error } = useToast();
+  const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({
     plate: '',
     brand: '',
@@ -30,7 +32,7 @@ export default function VehicleForm({
     setFormData({ ...formData, [field]: value });
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     // Validações
     if (!formData.plate?.trim()) {
       error('Por favor, informe a placa do veículo');
@@ -45,8 +47,15 @@ export default function VehicleForm({
       return;
     }
 
-    onSubmit(formData);
-    success(initialData ? 'Veículo atualizado com sucesso!' : 'Veículo cadastrado com sucesso!');
+    setSaving(true);
+    try {
+      await onSubmit(formData);
+      success(initialData ? 'Veículo atualizado com sucesso!' : 'Veículo cadastrado com sucesso!');
+    } catch (err) {
+      error('Erro ao salvar veículo. Tente novamente.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (owners.length === 0) {
@@ -80,28 +89,34 @@ export default function VehicleForm({
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
         {/* Placa */}
         <div>
-          <label className="block text-sm font-medium mb-1 text-gray-700">
+          <label htmlFor="vehicle-plate" className="block text-sm font-medium mb-1 text-gray-700">
             Placa *
           </label>
           <input
+            id="vehicle-plate"
+            name="plate"
             type="text"
             value={formData.plate}
             onChange={(e) => handleChange('plate', e.target.value.toUpperCase())}
             placeholder="ABC-1234"
             maxLength={8}
-            className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
+            disabled={saving}
+            className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
           />
         </div>
 
         {/* Tipo */}
         <div>
-          <label className="block text-sm font-medium mb-1 text-gray-700">
-            Tipo *
+          <label htmlFor="vehicle-type" className="block text-sm font-medium mb-1 text-gray-700">
+            Tipo de Veículo *
           </label>
           <select
+            id="vehicle-type"
+            name="type"
             value={formData.type}
             onChange={(e) => handleChange('type', e.target.value)}
-            className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
+            disabled={saving}
+            className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {vehicleTypes.map(vt => (
               <option key={vt.value} value={vt.value}>{vt.value}</option>
@@ -111,42 +126,51 @@ export default function VehicleForm({
 
         {/* Marca */}
         <div>
-          <label className="block text-sm font-medium mb-1 text-gray-700">
+          <label htmlFor="vehicle-brand" className="block text-sm font-medium mb-1 text-gray-700">
             Marca *
           </label>
           <input
+            id="vehicle-brand"
+            name="brand"
             type="text"
             value={formData.brand}
             onChange={(e) => handleChange('brand', e.target.value)}
             placeholder="Toyota, Honda..."
-            className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
+            disabled={saving}
+            className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
           />
         </div>
 
         {/* Modelo */}
         <div>
-          <label className="block text-sm font-medium mb-1 text-gray-700">
-            Modelo
+          <label htmlFor="vehicle-model" className="block text-sm font-medium mb-1 text-gray-700">
+            Modelo e Cor
           </label>
           <input
+            id="vehicle-model"
+            name="model"
             type="text"
             value={formData.model}
             onChange={(e) => handleChange('model', e.target.value)}
-            placeholder="Corolla, Civic..."
-            className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
+            placeholder="Corolla Prata, Civic Preto..."
+            disabled={saving}
+            className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
           />
         </div>
 
         {/* Local de Estacionamento */}
         <div className="md:col-span-2">
-          <label className="block text-sm font-medium mb-1 text-gray-700 flex items-center gap-1">
+          <label htmlFor="vehicle-parking" className="block text-sm font-medium mb-1 text-gray-700 flex items-center gap-1">
             <MapPin size={14} className="text-green-600" />
             Local Autorizado para Estacionar
           </label>
           <select
+            id="vehicle-parking"
+            name="parkingLocation"
             value={formData.parkingLocation}
             onChange={(e) => handleChange('parkingLocation', e.target.value)}
-            className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
+            disabled={saving}
+            className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <option value="">Selecione o local...</option>
             {parkingLocations.map(location => (
@@ -158,13 +182,16 @@ export default function VehicleForm({
 
       {/* Proprietário */}
       <div className="mb-4">
-        <label className="block text-sm font-medium mb-1 text-gray-700">
+        <label htmlFor="vehicle-owner" className="block text-sm font-medium mb-1 text-gray-700">
           Proprietário *
         </label>
         <select
+          id="vehicle-owner"
+          name="ownerId"
           value={formData.ownerId}
           onChange={(e) => handleChange('ownerId', e.target.value)}
-          className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
+          disabled={saving}
+          className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <option value="">Selecione um proprietário...</option>
           {owners.map(owner => (
@@ -177,16 +204,18 @@ export default function VehicleForm({
 
       {/* Botões */}
       <div className="flex gap-3">
-        <button
+        <LoadingButton
+          loading={saving}
           onClick={handleSubmit}
-          className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+          className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-medium transition-colors"
         >
           <Save size={18} />
           {initialData ? 'Salvar Alterações' : 'Cadastrar'}
-        </button>
+        </LoadingButton>
         <button
           onClick={onCancel}
-          className="bg-gray-400 hover:bg-gray-500 text-white px-6 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+          disabled={saving}
+          className="bg-gray-400 hover:bg-gray-500 text-white px-6 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <X size={18} />
           Cancelar

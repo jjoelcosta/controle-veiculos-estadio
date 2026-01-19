@@ -49,22 +49,23 @@ export default function Header({
         </div>
 
         {/* Estatísticas e Usuário */}
-        <div className="flex gap-4 items-center">
+        <div className="flex gap-4 items-center flex-wrap">
+          {/* Estatísticas */}
           <div className="flex gap-4">
-            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border-2 border-white/20">
-              <div className="text-3xl font-bold">{vehicleCount}</div>
-              <div className="text-blue-100 text-sm">Veículos</div>
+            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border-2 border-white/20 min-w-[100px]">
+              <div className="text-2xl md:text-3xl font-bold">{vehicleCount}</div>
+              <div className="text-blue-100 text-xs md:text-sm">Veículos</div>
             </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border-2 border-white/20">
-              <div className="text-3xl font-bold">{ownerCount}</div>
-              <div className="text-blue-100 text-sm">Proprietários</div>
+            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border-2 border-white/20 min-w-[100px]">
+              <div className="text-2xl md:text-3xl font-bold">{ownerCount}</div>
+              <div className="text-blue-100 text-xs md:text-sm">Proprietários</div>
             </div>
           </div>
 
           {/* Usuário e Logout */}
           {user && (
-            <div className="flex items-center gap-3 bg-white/10 backdrop-blur-sm rounded-xl p-4 border-2 border-white/20">
-              <div className="text-right">
+            <div className="flex items-center gap-3 bg-white/10 backdrop-blur-sm rounded-xl p-3 md:p-4 border-2 border-white/20">
+              <div className="text-right hidden md:block">
                 <div className="text-sm font-semibold">{user.email}</div>
                 <div className="text-xs text-blue-100">Conectado</div>
               </div>

@@ -83,10 +83,11 @@ export default function VehicleCard({ vehicle, owner, onEdit, onDelete, onClick 
               e.stopPropagation();
               onDelete();
             }}
-            className="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white py-2.5 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 text-sm font-semibold shadow-md hover:shadow-lg"
+            className="flex-1 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white py-2.5 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 text-sm font-semibold shadow-md hover:shadow-lg"
+            title="Remover da lista (pode ser restaurado depois)"
           >
             <Trash2 size={16} />
-            Excluir
+            Remover
           </button>
         </div>
 
