@@ -27,7 +27,7 @@ export default function VehicleList({
   const [filterLocation, setFilterLocation] = useState('');
   const [filterCompany, setFilterCompany] = useState('');
   const [filterSector, setFilterSector] = useState('');
-  const [showResults, setShowResults] = useState(false); // 🔒 PRIVACIDADE
+  const [showResults, setShowResults] = useState(false);
 
   // Filtrar veículos
   const filteredVehicles = vehicles.filter(v => {
@@ -74,21 +74,29 @@ export default function VehicleList({
       variant: 'warning',
       confirmText: 'Sim, Remover',
       cancelText: 'Cancelar',
-      onConfirm: () => {
-        onDelete(vehicle.id);
-        success('Veículo removido com sucesso!');
+      onConfirm: async () => {
+        try {
+          await onDelete(vehicle.id);
+          success('Veículo removido com sucesso!');
+        } catch (error) {
+          console.error('Erro ao deletar:', error);
+        }
       }
     });
   };
 
-  const handleFormSubmit = (vehicleData) => {
-    if (editingVehicle) {
-      onEdit(editingVehicle.id, vehicleData);
-    } else {
-      onAdd(vehicleData);
+  const handleFormSubmit = async (vehicleData) => {
+    try {
+      if (editingVehicle) {
+        await onEdit(editingVehicle.id, vehicleData);
+      } else {
+        await onAdd(vehicleData);
+      }
+      setShowForm(false);
+      setEditingVehicle(null);
+    } catch (error) {
+      console.error('Erro ao salvar:', error);
     }
-    setShowForm(false);
-    setEditingVehicle(null);
   };
 
   const handleFormCancel = () => {
@@ -148,7 +156,6 @@ export default function VehicleList({
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-6">
       <div className="max-w-7xl mx-auto">
         
-        {/* 🆕 HEADER SEM LOGO */}
         <Header 
           companyName="ARENA BRB / ARENA 360"
           subtitle="Sistema de Controle de Veículos - Segurança"
@@ -270,7 +277,7 @@ export default function VehicleList({
                       </select>
                     </div>
 
-                    {/* 🆕 Empresa */}
+                    {/* Empresa */}
                     <div>
                       <label className="block text-sm font-medium mb-1 text-gray-700">
                         <Building2 size={16} className="inline mr-1 text-purple-600" />
@@ -288,7 +295,7 @@ export default function VehicleList({
                       </select>
                     </div>
 
-                    {/* 🆕 Setor */}
+                    {/* Setor */}
                     <div>
                       <label className="block text-sm font-medium mb-1 text-gray-700">
                         <Briefcase size={16} className="inline mr-1 text-orange-600" />
@@ -339,19 +346,32 @@ export default function VehicleList({
                 </div>
               </div>
 
-              {/* 🔒 RESULTADOS (só aparecem após buscar) */}
+              {/* ✅ CORRIGIDO: TELA INICIAL LIMPA (sem mensagens) */}
               {!showResults ? (
-                <div className="text-center py-16 bg-gradient-to-br from-gray-50 to-blue-50 rounded-xl border-2 border-dashed border-gray-300">
-                  <Search size={64} className="mx-auto mb-4 text-gray-400" />
-                  <h3 className="text-xl font-semibold text-gray-700 mb-2">
-                    🔒 Dados protegidos
+                <div className="text-center py-24 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl">
+                  <Car size={80} className="mx-auto mb-6 text-blue-400 opacity-50" />
+                  <h3 className="text-2xl font-bold text-gray-700 mb-3">
+                    Sistema de Controle de Veículos
                   </h3>
-                  <p className="text-gray-600 mb-4">
-                    Use os filtros acima para buscar veículos
+                  <p className="text-gray-500 text-lg mb-8">
+                    Use a busca avançada para consultar veículos cadastrados
                   </p>
-                  <p className="text-sm text-gray-500">
-                    Total cadastrado: <strong>{vehicles.length}</strong> veículos | <strong>{owners.length}</strong> proprietários
-                  </p>
+                  <div className="flex gap-4 justify-center">
+                    <button
+                      onClick={handleAddClick}
+                      className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-medium transition-colors flex items-center gap-2"
+                    >
+                      <Plus size={20} />
+                      Cadastrar Novo Veículo
+                    </button>
+                    <button
+                      onClick={onNavigateToOwners}
+                      className="bg-purple-600 hover:bg-purple-700 text-white px-8 py-3 rounded-lg font-medium transition-colors flex items-center gap-2"
+                    >
+                      <User size={20} />
+                      Ver Proprietários
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <>

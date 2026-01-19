@@ -14,19 +14,25 @@ export default function VehicleRegistry() {
   const [currentView, setCurrentView] = useState('vehicles');
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [selectedOwner, setSelectedOwner] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  // ✅ CARREGAR DADOS AO INICIAR (ASYNC/AWAIT!)
+  // ✅ FUNÇÃO PARA RECARREGAR DADOS
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const vehiclesData = await storage.loadVehicles();
+      const ownersData = await storage.loadOwners();
+      setVehicles(vehiclesData);
+      setOwners(ownersData);
+    } catch (error) {
+      console.error('Erro ao carregar dados:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ✅ CARREGAR DADOS AO INICIAR
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        const vehiclesData = await storage.loadVehicles();
-        const ownersData = await storage.loadOwners();
-        setVehicles(vehiclesData);
-        setOwners(ownersData);
-      } catch (error) {
-        console.error('Erro ao carregar dados:', error);
-      }
-    };
     loadData();
   }, []);
 
@@ -59,59 +65,59 @@ export default function VehicleRegistry() {
     setCurrentView('vehicles');
   };
 
-  // ✅ HANDLERS DE CRUD PARA VEÍCULOS (ASYNC!)
+  // ✅ HANDLERS DE CRUD PARA VEÍCULOS (COM RELOAD!)
   const handleAddVehicle = async (vehicleData) => {
     try {
-      const newVehicle = await storage.addVehicle(vehicleData);
-      setVehicles([...vehicles, newVehicle]);
+      await storage.addVehicle(vehicleData);
+      await loadData(); // ✅ RECARREGA TUDO
     } catch (error) {
       console.error('Erro ao adicionar veículo:', error);
-      alert('Erro ao cadastrar veículo. Verifique sua conexão.');
+      throw error;
     }
   };
 
   const handleUpdateVehicle = async (vehicleId, vehicleData) => {
     try {
-      const updatedVehicle = await storage.updateVehicle(vehicleId, vehicleData);
-      setVehicles(vehicles.map(v => v.id === vehicleId ? updatedVehicle : v));
+      await storage.updateVehicle(vehicleId, vehicleData);
+      await loadData(); // ✅ RECARREGA TUDO
     } catch (error) {
       console.error('Erro ao atualizar veículo:', error);
-      alert('Erro ao atualizar veículo. Verifique sua conexão.');
+      throw error;
     }
   };
 
   const handleDeleteVehicle = async (vehicleId) => {
     try {
       await storage.deleteVehicle(vehicleId);
-      setVehicles(vehicles.filter(v => v.id !== vehicleId));
+      await loadData(); // ✅ RECARREGA TUDO (agora não traz mais o deletado!)
       if (selectedVehicle?.id === vehicleId) {
         handleBackToVehicles();
       }
     } catch (error) {
       console.error('Erro ao deletar veículo:', error);
-      alert('Erro ao deletar veículo. Verifique sua conexão.');
+      throw error;
     }
   };
 
-  // ✅ HANDLERS DE CRUD PARA PROPRIETÁRIOS (ASYNC!)
+  // ✅ HANDLERS DE CRUD PARA PROPRIETÁRIOS (COM RELOAD!)
   const handleAddOwner = async (ownerData) => {
     try {
       const newOwner = await storage.addOwner(ownerData);
-      setOwners([...owners, newOwner]);
+      await loadData(); // ✅ RECARREGA TUDO
       return newOwner.id;
     } catch (error) {
       console.error('Erro ao adicionar proprietário:', error);
-      alert('Erro ao cadastrar proprietário. Verifique sua conexão.');
+      throw error;
     }
   };
 
   const handleUpdateOwner = async (ownerId, ownerData) => {
     try {
-      const updatedOwner = await storage.updateOwner(ownerId, ownerData);
-      setOwners(owners.map(o => o.id === ownerId ? updatedOwner : o));
+      await storage.updateOwner(ownerId, ownerData);
+      await loadData(); // ✅ RECARREGA TUDO
     } catch (error) {
       console.error('Erro ao atualizar proprietário:', error);
-      alert('Erro ao atualizar proprietário. Verifique sua conexão.');
+      throw error;
     }
   };
 
@@ -122,7 +128,7 @@ export default function VehicleRegistry() {
     }
     try {
       await storage.deleteOwner(ownerId);
-      setOwners(owners.filter(o => o.id !== ownerId));
+      await loadData(); // ✅ RECARREGA TUDO
       if (selectedOwner?.id === ownerId) {
         handleBackToOwners();
       }
@@ -191,7 +197,16 @@ export default function VehicleRegistry() {
 
   return (
     <ToastProvider>
-      {renderView()}
+      {loading ? (
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600 text-lg">Carregando dados...</p>
+          </div>
+        </div>
+      ) : (
+        renderView()
+      )}
     </ToastProvider>
   );
 }
