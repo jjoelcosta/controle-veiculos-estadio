@@ -1,9 +1,8 @@
 import React from 'react';
-import { Car, Building2, LogOut, User as UserIcon } from 'lucide-react';
+import { Car, LogOut } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
 export default function Header({ 
-  logoUrl, 
   companyName = "ARENA 360 / ARENA BRB", 
   subtitle = "Sistema de Controle de Veículos",
   vehicleCount,
@@ -21,31 +20,15 @@ export default function Header({
     <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white rounded-2xl shadow-2xl p-8 mb-6">
       <div className="flex items-center justify-between flex-wrap gap-6">
         
-        {/* Logo e Título */}
-        <div className="flex items-center gap-6">
-          {logoUrl ? (
-            <div className="bg-white rounded-xl p-4 shadow-lg">
-              <img 
-                src={logoUrl} 
-                alt={companyName}
-                className="h-20 w-20 object-contain"
-              />
-            </div>
-          ) : (
-            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 shadow-lg border-2 border-white/20">
-              <Building2 size={64} className="text-white" />
-            </div>
-          )}
-          
-          <div>
-            <h1 className="text-4xl font-bold mb-2 flex items-center gap-3">
-              <Car size={40} />
-              {companyName}
-            </h1>
-            <p className="text-blue-100 text-lg font-medium">
-              {subtitle}
-            </p>
-          </div>
+        {/* ✅ CORRIGIDO: Título SEM LOGO */}
+        <div>
+          <h1 className="text-4xl font-bold mb-2 flex items-center gap-3">
+            <Car size={40} />
+            {companyName}
+          </h1>
+          <p className="text-blue-100 text-lg font-medium">
+            {subtitle}
+          </p>
         </div>
 
         {/* Estatísticas e Usuário */}
