@@ -109,19 +109,22 @@ export const storage = {
   },
 
   deleteVehicle: async (id) => {
-    try {
-      const { error } = await supabase
-        .from('vehicles')
-        .delete()
-        .eq('id', id);
-      
-      if (error) throw error;
-      return true;
-    } catch (error) {
-      console.error('Erro ao deletar veículo:', error);
-      throw error;
-    }
-  },
+  try {
+    // Soft delete: marca como deletado
+    const { error } = await supabase
+      .from('vehicles')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', id)
+      .is('deleted_at', null); // Só deleta se ainda não foi deletado
+    
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error('Erro ao deletar veículo:', error);
+    throw error;
+  }
+},
+
 
   // =====================================================
   // PROPRIETÁRIOS
@@ -218,17 +221,67 @@ export const storage = {
   },
 
   deleteOwner: async (id) => {
-    try {
-      const { error } = await supabase
-        .from('owners')
-        .delete()
-        .eq('id', id);
-      
-      if (error) throw error;
-      return true;
-    } catch (error) {
-      console.error('Erro ao deletar proprietário:', error);
-      throw error;
-    }
+  try {
+    // Soft delete: marca como deletado
+    const { error } = await supabase
+      .from('owners')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', id)
+      .is('deleted_at', null);
+    
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error('Erro ao deletar proprietário:', error);
+    throw error;
   }
-};
+},
+
+// =====================================================
+// FUNÇÕES ADMIN (para futuro)
+// =====================================================
+
+// Restaurar veículo deletado
+restoreVehicle: async (id) => {
+  try {
+    const { error } = await supabase
+      .from('vehicles')
+      .update({ deleted_at: null })
+      .eq('id', id);
+    
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error('Erro ao restaurar veículo:', error);
+    throw error;
+  }
+},
+
+// Listar veículos deletados (para admin)
+loadDeletedVehicles: async () => {
+  try {
+    const { data, error } = await supabase
+      .from('vehicles')
+      .select('*')
+      .not('deleted_at', 'is', null)
+      .order('deleted_at', { ascending: false });
+    
+    if (error) throw error;
+    
+    return (data || []).map(v => ({
+      id: v.id,
+      plate: v.plate,
+      brand: v.brand,
+      model: v.model,
+      type: v.type,
+      parkingLocation: v.parking_location,
+      ownerId: v.owner_id,
+      createdAt: new Date(v.created_at).toLocaleString('pt-BR'),
+      deletedAt: new Date(v.deleted_at).toLocaleString('pt-BR')
+    }));
+  } catch (error) {
+    console.error('Erro ao carregar veículos deletados:', error);
+    return [];
+  }
+}
+}

@@ -149,8 +149,8 @@ export default function VehicleList({
         {/* 🆕 HEADER COM LOGO */}
         <Header 
           logoUrl={null} // ← COLOQUE URL DO LOGO AQUI
-          companyName="Estádio Nacional"
-          subtitle="Sistema de Controle de Veículos"
+          companyName="Estádio Nacional de Brasília"
+          subtitle="Sistema de Controle de Veículos - Segurança"
           vehicleCount={vehicles.length}
           ownerCount={owners.length}
         />
