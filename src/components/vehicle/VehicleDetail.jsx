@@ -22,6 +22,14 @@ export default function VehicleDetail({ vehicle, owner, onBack, onEdit, onDelete
     });
   };
 
+    const handleEdit = () => {
+    // Navega de volta e abre o formulário de edição
+    onBack(); // Volta para a lista
+    setTimeout(() => {
+      onEdit(vehicle.id, vehicle); // Abre formulário de edição
+    }, 100);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
       <div className="max-w-4xl mx-auto">
@@ -116,7 +124,7 @@ export default function VehicleDetail({ vehicle, owner, onBack, onEdit, onDelete
 
             <div className="flex gap-3 pt-4">
               <button
-                onClick={() => onEdit(vehicle.id, vehicle)}
+                onClick={handleEdit}
                 className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
               >
                 <Edit2 size={18} />
