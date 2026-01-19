@@ -24,8 +24,7 @@ export default function VehicleDetail({ vehicle, owner, onBack, onEdit, onDelete
 
     const handleEdit = () => {
     // Navega de volta e abre o formulário de edição
-    onBack(); // Volta para a lista
-    setTimeout(() => {
+        setTimeout(() => {
       onEdit(vehicle.id, vehicle); // Abre formulário de edição
     }, 100);
   };
