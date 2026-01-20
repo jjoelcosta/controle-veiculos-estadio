@@ -71,7 +71,7 @@ export default function VehicleCard({ vehicle, owner, onEdit, onDelete, onClick 
           <button
             onClick={(e) => {
               e.stopPropagation();
-              onEdit();
+              onEdit(vehicle);  // ✅ CORRIGIDO: passa o vehicle
             }}
             className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white py-2.5 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 text-sm font-semibold shadow-md hover:shadow-lg"
           >
@@ -81,7 +81,7 @@ export default function VehicleCard({ vehicle, owner, onEdit, onDelete, onClick 
           <button
             onClick={(e) => {
               e.stopPropagation();
-              onDelete();
+              onDelete(vehicle);  // ✅ CORRIGIDO: passa o vehicle
             }}
             className="flex-1 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white py-2.5 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 text-sm font-semibold shadow-md hover:shadow-lg"
             title="Remover da lista (pode ser restaurado depois)"
