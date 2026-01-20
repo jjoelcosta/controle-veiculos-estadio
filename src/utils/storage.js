@@ -15,7 +15,6 @@ const loadOwners = async () => {
   const { data, error } = await supabase
     .from('owners')
     .select('*')
-    .is('deleted_at', null)
     .order('name', { ascending: true });
 
   if (error) throw error;
@@ -48,7 +47,6 @@ const addOwner = async (ownerData) => {
       .select('id')
       .ilike('name', payload.name)
       .ilike('company', payload.company)
-      .is('deleted_at', null)
       .limit(1);
 
     if (existing?.length) {
@@ -73,7 +71,7 @@ const addOwner = async (ownerData) => {
       createdAt: new Date(data.created_at).toLocaleString('pt-BR')
     };
   } catch (err) {
-    throw err; // ✅ CORRIGIDO: Propaga o erro
+    throw err;
   }
 };
 
@@ -95,24 +93,20 @@ const updateOwner = async (id, ownerData) => {
 
     if (error) handleDbError(error);
     
-    return true; // ✅ CORRIGIDO: Retorna sucesso
+    return true;
   } catch (err) {
     throw err;
   }
 };
 
 const deleteOwner = async (id) => {
-  try {
-    const { error } = await supabase
-      .from('owners')
-      .update({ deleted_at: new Date().toISOString() })
-      .eq('id', id);
+  const { error } = await supabase
+    .from('owners')
+    .delete()
+    .eq('id', id);
 
-    if (error) throw error;
-    return true; // ✅ CORRIGIDO: Retorna sucesso
-  } catch (error) {
-    throw error;
-  }
+  if (error) throw error;
+  return true;
 };
 
 /* VEÍCULOS */
@@ -120,7 +114,6 @@ const loadVehicles = async () => {
   const { data, error } = await supabase
     .from('vehicles')
     .select('*')
-    .is('deleted_at', null)
     .order('plate', { ascending: true });
 
   if (error) throw error;
@@ -191,24 +184,20 @@ const updateVehicle = async (id, vehicleData) => {
 
     if (error) handleDbError(error);
     
-    return true; // ✅ CORRIGIDO: Retorna sucesso
+    return true;
   } catch (err) {
     throw err;
   }
 };
 
 const deleteVehicle = async (id) => {
-  try {
-    const { error } = await supabase
-      .from('vehicles')
-      .update({ deleted_at: new Date().toISOString() })
-      .eq('id', id);
+  const { error } = await supabase
+    .from('vehicles')
+    .delete()
+    .eq('id', id);
 
-    if (error) throw error;
-    return true; // ✅ CORRIGIDO: Retorna sucesso
-  } catch (error) {
-    throw error;
-  }
+  if (error) throw error;
+  return true;
 };
 
 export const storage = {
