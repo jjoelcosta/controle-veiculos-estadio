@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { Car, User } from 'lucide-react';
 import { ToastProvider } from './ui/Toast';
 import { storage } from '../utils/storage';
 import VehicleList from './vehicle/VehicleList';
@@ -16,14 +15,16 @@ export default function VehicleRegistry() {
   const [selectedOwner, setSelectedOwner] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // ✅ FUNÇÃO PARA RECARREGAR DADOS
+  // 🔄 Carregar dados (fonte única da verdade)
   const loadData = async () => {
     try {
       setLoading(true);
-      const vehiclesData = await storage.loadVehicles();
-      const ownersData = await storage.loadOwners();
-      setVehicles(vehiclesData);
-      setOwners(ownersData);
+      const [vehiclesData, ownersData] = await Promise.all([
+        storage.loadVehicles(),
+        storage.loadOwners()
+      ]);
+      setVehicles(vehiclesData || []);
+      setOwners(ownersData || []);
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
     } finally {
@@ -31,107 +32,72 @@ export default function VehicleRegistry() {
     }
   };
 
-  // ✅ CARREGAR DADOS AO INICIAR
   useEffect(() => {
     loadData();
   }, []);
 
-  // Handlers de navegação
-  const handleViewVehicleDetail = (vehicle) => {
-    setSelectedVehicle(vehicle);
-    setCurrentView('vehicleDetail');
-  };
-
-  const handleViewOwnerDetail = (owner) => {
-    setSelectedOwner(owner);
-    setCurrentView('ownerDetail');
-  };
-
-  const handleBackToVehicles = () => {
+  // 🔁 Navegação
+  const backToVehicles = () => {
     setCurrentView('vehicles');
     setSelectedVehicle(null);
+    setSelectedOwner(null);
   };
 
-  const handleBackToOwners = () => {
+  const backToOwners = () => {
     setCurrentView('owners');
     setSelectedOwner(null);
   };
 
-  const handleNavigateToOwners = () => {
-    setCurrentView('owners');
-  };
-
-  const handleNavigateToVehicles = () => {
-    setCurrentView('vehicles');
-  };
-
-  // ✅ HANDLERS DE CRUD PARA VEÍCULOS (COM RELOAD!)
+  // 🚗 VEÍCULOS
   const handleAddVehicle = async (vehicleData) => {
-    try {
-      await storage.addVehicle(vehicleData);
-      await loadData(); // ✅ RECARREGA TUDO
-    } catch (error) {
-      console.error('Erro ao adicionar veículo:', error);
-      throw error;
-    }
+    await storage.addVehicle(vehicleData);
+    await loadData();
   };
 
   const handleUpdateVehicle = async (vehicleId, vehicleData) => {
-    try {
-      await storage.updateVehicle(vehicleId, vehicleData);
-      await loadData(); // ✅ RECARREGA TUDO
-    } catch (error) {
-      console.error('Erro ao atualizar veículo:', error);
-      throw error;
-    }
+    await storage.updateVehicle(vehicleId, vehicleData);
+    await loadData();
   };
 
   const handleDeleteVehicle = async (vehicleId) => {
-    try {
-      await storage.deleteVehicle(vehicleId);
-      await loadData(); // ✅ RECARREGA TUDO (agora não traz mais o deletado!)
-      if (selectedVehicle?.id === vehicleId) {
-        handleBackToVehicles();
-      }
-    } catch (error) {
-      console.error('Erro ao deletar veículo:', error);
-      throw error;
+    await storage.deleteVehicle(vehicleId);
+    await loadData();
+    if (selectedVehicle?.id === vehicleId) {
+      backToVehicles();
     }
   };
 
-  // ✅ HANDLERS DE CRUD PARA PROPRIETÁRIOS (COM RELOAD!)
+  // 👤 PROPRIETÁRIOS
   const handleAddOwner = async (ownerData) => {
-    try {
-      const newOwner = await storage.addOwner(ownerData);
-      await loadData(); // ✅ RECARREGA TUDO
-      return newOwner.id;
-    } catch (error) {
-      console.error('Erro ao adicionar proprietário:', error);
-      throw error;
-    }
+    await storage.addOwner(ownerData);
+    await loadData();
   };
 
   const handleUpdateOwner = async (ownerId, ownerData) => {
-    try {
-      await storage.updateOwner(ownerId, ownerData);
-      await loadData(); // ✅ RECARREGA TUDO
-    } catch (error) {
-      console.error('Erro ao atualizar proprietário:', error);
-      throw error;
-    }
+    await storage.updateOwner(ownerId, ownerData);
+    await loadData();
   };
 
+  // ❗ CORREÇÃO CRÍTICA: validação sempre pelo storage
   const handleDeleteOwner = async (ownerId) => {
-    const ownerVehicles = vehicles.filter(v => v.ownerId === ownerId);
-    if (ownerVehicles.length > 0) {
-      return { success: false, message: `Este proprietário tem ${ownerVehicles.length} veículo(s) cadastrado(s)` };
-    }
     try {
-      await storage.deleteOwner(ownerId);
-      await loadData(); // ✅ RECARREGA TUDO
-      if (selectedOwner?.id === ownerId) {
-        handleBackToOwners();
+      const allVehicles = await storage.loadVehicles();
+      const ownerVehicles = allVehicles.filter(v => v.ownerId === ownerId);
+
+      if (ownerVehicles.length > 0) {
+        return {
+          success: false,
+          message: `Este proprietário tem ${ownerVehicles.length} veículo(s) cadastrado(s)`
+        };
       }
+
+      await storage.deleteOwner(ownerId);
+      await loadData();
+
+      if (selectedOwner?.id === ownerId) {
+        backToOwners();
+      }
+
       return { success: true };
     } catch (error) {
       console.error('Erro ao deletar proprietário:', error);
@@ -139,7 +105,7 @@ export default function VehicleRegistry() {
     }
   };
 
-  // Renderização condicional baseada na view atual
+  // 🧠 Renderização por estado
   const renderView = () => {
     switch (currentView) {
       case 'vehicleDetail':
@@ -147,7 +113,7 @@ export default function VehicleRegistry() {
           <VehicleDetail
             vehicle={selectedVehicle}
             owner={owners.find(o => o.id === selectedVehicle?.ownerId)}
-            onBack={handleBackToVehicles}
+            onBack={backToVehicles}
             onEdit={handleUpdateVehicle}
             onDelete={handleDeleteVehicle}
           />
@@ -158,11 +124,14 @@ export default function VehicleRegistry() {
           <OwnerList
             owners={owners}
             vehicles={vehicles}
-            onViewDetail={handleViewOwnerDetail}
+            onViewDetail={(owner) => {
+              setSelectedOwner(owner);
+              setCurrentView('ownerDetail');
+            }}
             onAdd={handleAddOwner}
             onEdit={handleUpdateOwner}
             onDelete={handleDeleteOwner}
-            onBackToVehicles={handleNavigateToVehicles}
+            onBackToVehicles={backToVehicles}
           />
         );
 
@@ -171,7 +140,7 @@ export default function VehicleRegistry() {
           <OwnerDetail
             owner={selectedOwner}
             vehicles={vehicles.filter(v => v.ownerId === selectedOwner?.id)}
-            onBack={handleBackToOwners}
+            onBack={backToOwners}
             onEdit={handleUpdateOwner}
             onDelete={handleDeleteOwner}
             onEditVehicle={handleUpdateVehicle}
@@ -185,11 +154,14 @@ export default function VehicleRegistry() {
           <VehicleList
             vehicles={vehicles}
             owners={owners}
-            onViewDetail={handleViewVehicleDetail}
+            onViewDetail={(vehicle) => {
+              setSelectedVehicle(vehicle);
+              setCurrentView('vehicleDetail');
+            }}
             onAdd={handleAddVehicle}
             onEdit={handleUpdateVehicle}
             onDelete={handleDeleteVehicle}
-            onNavigateToOwners={handleNavigateToOwners}
+            onNavigateToOwners={() => setCurrentView('owners')}
           />
         );
     }
@@ -198,10 +170,10 @@ export default function VehicleRegistry() {
   return (
     <ToastProvider>
       {loading ? (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center">
+        <div className="min-h-screen flex items-center justify-center bg-slate-50">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600 text-lg">Carregando dados...</p>
+            <div className="animate-spin rounded-full h-14 w-14 border-b-4 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Carregando dados...</p>
           </div>
         </div>
       ) : (
