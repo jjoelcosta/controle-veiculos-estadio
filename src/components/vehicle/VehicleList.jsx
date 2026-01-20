@@ -1,31 +1,471 @@
-import React from 'react';
-import { ArrowLeft, Plus } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Plus, Search, Filter, Download, User, MapPin, Building2, Briefcase, X, Car } from 'lucide-react';
+import VehicleCard from './VehicleCard';
+import VehicleForm from './VehicleForm';
+import Header from '../ui/Header';
+import { useModal } from '../ui/Modal';
+import { useToast } from '../ui/Toast';
 
-export default function VehicleList({
-  vehicles = [],
-  onAdd,
-  onBack
+export default function VehicleList({ 
+  vehicles, 
+  owners, 
+  onViewDetail, 
+  onAdd, 
+  onEdit, 
+  onDelete,
+  onNavigateToOwners 
 }) {
+  const { openModal, ModalComponent } = useModal();
+  const { success, error } = useToast();
+  
+  // Estados de UI
+  const [showForm, setShowForm] = useState(false);
+  const [editingVehicle, setEditingVehicle] = useState(null);
+  const [showResults, setShowResults] = useState(false);
+  
+  // Estados de filtros
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterBrand, setFilterBrand] = useState('');
+  const [filterType, setFilterType] = useState('');
+  const [filterLocation, setFilterLocation] = useState('');
+  const [filterCompany, setFilterCompany] = useState('');
+  const [filterSector, setFilterSector] = useState('');
+
+  /* ================================
+     LÓGICA DE FILTROS
+  ================================ */
+
+  // Veículos filtrados
+  const filteredVehicles = useMemo(() => {
+    return vehicles.filter(v => {
+      const owner = owners.find(o => o.id === v.ownerId);
+      
+      const matchesSearch = !searchTerm || 
+        v.plate.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        v.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        v.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        owner?.name.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const matchesBrand = !filterBrand || v.brand === filterBrand;
+      const matchesType = !filterType || v.type === filterType;
+      const matchesLocation = !filterLocation || v.parkingLocation === filterLocation;
+      const matchesCompany = !filterCompany || owner?.company === filterCompany;
+      const matchesSector = !filterSector || owner?.sector === filterSector;
+      
+      return matchesSearch && matchesBrand && matchesType && matchesLocation && matchesCompany && matchesSector;
+    });
+  }, [vehicles, owners, searchTerm, filterBrand, filterType, filterLocation, filterCompany, filterSector]);
+
+  // Listas únicas para filtros
+  const uniqueBrands = useMemo(() => 
+    [...new Set(vehicles.map(v => v.brand))].filter(Boolean).sort(),
+    [vehicles]
+  );
+  
+  const uniqueTypes = useMemo(() => 
+    [...new Set(vehicles.map(v => v.type))].filter(Boolean).sort(),
+    [vehicles]
+  );
+  
+  const uniqueLocations = useMemo(() => 
+    [...new Set(vehicles.map(v => v.parkingLocation))].filter(Boolean).sort(),
+    [vehicles]
+  );
+  
+  const uniqueCompanies = useMemo(() => 
+    [...new Set(owners.map(o => o.company))].filter(Boolean).sort(),
+    [owners]
+  );
+  
+  const uniqueSectors = useMemo(() => 
+    [...new Set(owners.map(o => o.sector))].filter(Boolean).sort(),
+    [owners]
+  );
+
+  // Verificar se tem filtros ativos
+  const hasActiveFilters = searchTerm || filterBrand || filterType || filterLocation || filterCompany || filterSector;
+
+  /* ================================
+     HANDLERS - FORMULÁRIO
+  ================================ */
+
+  const handleAddClick = () => {
+    setEditingVehicle(null);
+    setShowForm(true);
+  };
+
+  const handleEditClick = (vehicle) => {
+    setEditingVehicle(vehicle);
+    setShowForm(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleFormSubmit = async (vehicleData) => {
+    try {
+      if (editingVehicle) {
+        await onEdit(editingVehicle.id, vehicleData);
+        success('✅ Veículo atualizado com sucesso!');
+      } else {
+        await onAdd(vehicleData);
+        success('✅ Veículo cadastrado com sucesso!');
+      }
+      setShowForm(false);
+      setEditingVehicle(null);
+    } catch (err) {
+      error(err.message || '❌ Erro ao salvar veículo');
+    }
+  };
+
+  const handleFormCancel = () => {
+    if (owners.length === 0) {
+      onNavigateToOwners();
+    } else {
+      setShowForm(false);
+      setEditingVehicle(null);
+    }
+  };
+
+  /* ================================
+     HANDLERS - AÇÕES
+  ================================ */
+
+  const handleDeleteClick = (vehicle) => {
+    openModal({
+      title: 'Remover Veículo',
+      message: `Deseja remover o veículo ${vehicle.plate} da lista?\n\nEle poderá ser restaurado posteriormente.`,
+      variant: 'warning',
+      confirmText: 'Sim, Remover',
+      cancelText: 'Cancelar',
+      onConfirm: async () => {
+        try {
+          await onDelete(vehicle.id);
+          success('✅ Veículo removido com sucesso!');
+        } catch (err) {
+          error('❌ Erro ao remover veículo');
+        }
+      }
+    });
+  };
+
+  const handleSearch = () => {
+    setShowResults(true);
+  };
+
+  const clearAllFilters = () => {
+    setSearchTerm('');
+    setFilterBrand('');
+    setFilterType('');
+    setFilterLocation('');
+    setFilterCompany('');
+    setFilterSector('');
+    setShowResults(false);
+  };
+
+  const exportToCSV = () => {
+    const headers = ['Placa', 'Tipo', 'Marca', 'Modelo', 'Local', 'Proprietário', 'Telefone', 'Empresa', 'Setor'];
+    const rows = filteredVehicles.map(v => {
+      const owner = owners.find(o => o.id === v.ownerId);
+      return [
+        v.plate,
+        v.type,
+        v.brand,
+        v.model,
+        v.parkingLocation || '',
+        owner?.name || '',
+        owner?.phone || '',
+        owner?.company || '',
+        owner?.sector || ''
+      ];
+    });
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `veiculos_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    
+    success('✅ Arquivo CSV exportado com sucesso!');
+  };
+
+  /* ================================
+     RENDERIZAÇÃO
+  ================================ */
+
   return (
-    <div className="p-6">
-      <button onClick={onBack} className="flex items-center gap-2 mb-6">
-        <ArrowLeft size={20} />
-        Voltar
-      </button>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-6">
+      <div className="max-w-7xl mx-auto">
+        
+        <Header 
+          companyName="ARENA BRB / ARENA 360"
+          subtitle="Sistema de Controle de Veículos - Segurança"
+          vehicleCount={vehicles.length}
+          ownerCount={owners.length}
+        />
 
-      <button
-        onClick={onAdd}
-        className="bg-purple-600 text-white px-4 py-2 rounded mb-4 flex items-center gap-2"
-      >
-        <Plus size={18} />
-        Novo Veículo
-      </button>
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl p-8 border border-gray-200">
+          
+          {/* Botões de Ação */}
+          <div className="flex justify-end gap-3 mb-6">
+            <button
+              onClick={onNavigateToOwners}
+              className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white px-6 py-3 rounded-xl flex items-center gap-2 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+            >
+              <User size={20} />
+              Proprietários ({owners.length})
+            </button>
+            <button
+              onClick={handleAddClick}
+              className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-6 py-3 rounded-xl flex items-center gap-2 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+            >
+              <Plus size={20} />
+              Novo Veículo
+            </button>
+          </div>
 
-      {vehicles.map(v => (
-        <div key={v.id} className="border p-4 rounded mb-2">
-          {v.plate}
+          {/* Formulário */}
+          {showForm && (
+            <div className="mb-6">
+              <VehicleForm
+                initialData={editingVehicle}
+                owners={owners}
+                onSubmit={handleFormSubmit}
+                onCancel={handleFormCancel}
+              />
+            </div>
+          )}
+
+          {/* Busca e Lista */}
+          {!showForm && (
+            <>
+              {/* 🔍 BUSCA AVANÇADA */}
+              <div className="mb-6">
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-xl border-2 border-blue-200">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                    <Search size={20} className="text-blue-600" />
+                    Busca Avançada
+                  </h3>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+                    {/* Busca Geral */}
+                    <div>
+                      <label className="block text-sm font-medium mb-1 text-gray-700">
+                        <Search size={16} className="inline mr-1" />
+                        Busca Geral
+                      </label>
+                      <input
+                        type="text"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                        placeholder="Placa, marca, modelo, proprietário..."
+                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
+                      />
+                    </div>
+
+                    {/* Tipo */}
+                    <div>
+                      <label className="block text-sm font-medium mb-1 text-gray-700">
+                        <Filter size={16} className="inline mr-1" />
+                        Tipo de Veículo
+                      </label>
+                      <select
+                        value={filterType}
+                        onChange={(e) => setFilterType(e.target.value)}
+                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
+                      >
+                        <option value="">Todos os tipos</option>
+                        {uniqueTypes.map(type => (
+                          <option key={type} value={type}>{type}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Marca */}
+                    <div>
+                      <label className="block text-sm font-medium mb-1 text-gray-700">
+                        <Filter size={16} className="inline mr-1" />
+                        Marca
+                      </label>
+                      <select
+                        value={filterBrand}
+                        onChange={(e) => setFilterBrand(e.target.value)}
+                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
+                      >
+                        <option value="">Todas as marcas</option>
+                        {uniqueBrands.map(brand => (
+                          <option key={brand} value={brand}>{brand}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Local */}
+                    <div>
+                      <label className="block text-sm font-medium mb-1 text-gray-700">
+                        <MapPin size={16} className="inline mr-1 text-green-600" />
+                        Local de Estacionamento
+                      </label>
+                      <select
+                        value={filterLocation}
+                        onChange={(e) => setFilterLocation(e.target.value)}
+                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
+                      >
+                        <option value="">Todos os locais</option>
+                        {uniqueLocations.map(location => (
+                          <option key={location} value={location}>{location}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Empresa */}
+                    <div>
+                      <label className="block text-sm font-medium mb-1 text-gray-700">
+                        <Building2 size={16} className="inline mr-1 text-purple-600" />
+                        Empresa
+                      </label>
+                      <select
+                        value={filterCompany}
+                        onChange={(e) => setFilterCompany(e.target.value)}
+                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
+                      >
+                        <option value="">Todas as empresas</option>
+                        {uniqueCompanies.map(company => (
+                          <option key={company} value={company}>{company}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Setor */}
+                    <div>
+                      <label className="block text-sm font-medium mb-1 text-gray-700">
+                        <Briefcase size={16} className="inline mr-1 text-orange-600" />
+                        Setor
+                      </label>
+                      <select
+                        value={filterSector}
+                        onChange={(e) => setFilterSector(e.target.value)}
+                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
+                      >
+                        <option value="">Todos os setores</option>
+                        {uniqueSectors.map(sector => (
+                          <option key={sector} value={sector}>{sector}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Botões de ação */}
+                  <div className="flex gap-3 flex-wrap">
+                    <button
+                      onClick={handleSearch}
+                      className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+                    >
+                      <Search size={18} />
+                      Buscar
+                    </button>
+                    
+                    {hasActiveFilters && (
+                      <button
+                        onClick={clearAllFilters}
+                        className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+                      >
+                        <X size={18} />
+                        Limpar Filtros
+                      </button>
+                    )}
+
+                    <button
+                      onClick={exportToCSV}
+                      disabled={!showResults || filteredVehicles.length === 0}
+                      className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white px-6 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+                    >
+                      <Download size={18} />
+                      Exportar CSV
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* TELA INICIAL OU RESULTADOS */}
+              {!showResults ? (
+                <div className="text-center py-24 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl">
+                  <Car size={80} className="mx-auto mb-6 text-blue-400 opacity-50" />
+                  <h3 className="text-2xl font-bold text-gray-700 mb-3">
+                    Sistema de Controle de Veículos
+                  </h3>
+                  <p className="text-gray-500 text-lg mb-8">
+                    Use a busca avançada para consultar veículos cadastrados
+                  </p>
+                  <div className="flex gap-4 justify-center flex-wrap">
+                    <button
+                      onClick={handleAddClick}
+                      className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-medium transition-colors flex items-center gap-2"
+                    >
+                      <Plus size={20} />
+                      Cadastrar Novo Veículo
+                    </button>
+                    <button
+                      onClick={onNavigateToOwners}
+                      className="bg-purple-600 hover:bg-purple-700 text-white px-8 py-3 rounded-lg font-medium transition-colors flex items-center gap-2"
+                    >
+                      <User size={20} />
+                      Ver Proprietários
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {/* Contador de resultados */}
+                  <div className="mb-4 flex items-center justify-between flex-wrap gap-4">
+                    <div className="text-lg">
+                      📊 Mostrando <strong className="text-blue-600">{filteredVehicles.length}</strong> de {vehicles.length} veículos
+                    </div>
+                    {hasActiveFilters && (
+                      <div className="text-sm text-gray-600">
+                        Filtros ativos: {[
+                          searchTerm && 'Busca', 
+                          filterType && 'Tipo', 
+                          filterBrand && 'Marca', 
+                          filterLocation && 'Local', 
+                          filterCompany && 'Empresa', 
+                          filterSector && 'Setor'
+                        ].filter(Boolean).join(', ')}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Lista de Veículos */}
+                  {filteredVehicles.length === 0 ? (
+                    <div className="text-center py-12 text-gray-400 bg-gray-50 rounded-xl">
+                      <Car size={64} className="mx-auto mb-4 opacity-30" />
+                      <p className="text-lg">Nenhum veículo encontrado</p>
+                      <p className="text-sm">Tente ajustar os filtros</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {filteredVehicles.map(vehicle => (
+                        <VehicleCard
+                          key={vehicle.id}
+                          vehicle={vehicle}
+                          owner={owners.find(o => o.id === vehicle.ownerId)}
+                          onEdit={() => handleEditClick(vehicle)}
+                          onDelete={() => handleDeleteClick(vehicle)}
+                          onClick={() => onViewDetail(vehicle)}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </>
+          )}
         </div>
-      ))}
+      </div>
+      <ModalComponent />
     </div>
   );
 }
