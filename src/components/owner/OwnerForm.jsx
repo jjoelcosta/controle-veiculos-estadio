@@ -27,31 +27,34 @@ export default function OwnerForm({ initialData, owners = [], onSubmit, onCancel
     }
   }, [initialData]);
 
-  const validateForm = () => {
-    const newErrors = {};
+      const validateForm = () => {
+  const newErrors = {};
 
-    if (!formData.name.trim()) {
-      newErrors.name = 'Nome é obrigatório';
+  if (!formData.name.trim()) {
+    newErrors.name = 'Nome é obrigatório';
+  }
+
+  if (!formData.company.trim()) {
+    newErrors.company = 'Empresa é obrigatória';
+  }
+
+  // ✅ CORRIGIDO: Validar duplicidade por NOME + EMPRESA
+  if (!initialData) {
+    const duplicateExists = owners.some(
+      o => 
+        o.name?.toLowerCase().trim() === formData.name.trim().toLowerCase() &&
+        o.company?.toLowerCase().trim() === formData.company.trim().toLowerCase()
+    );
+    
+    if (duplicateExists) {
+      newErrors.name = 'Já existe este colaborador nesta empresa';
+      showError('Já existe este colaborador nesta empresa');
     }
+  }
 
-    if (!formData.company.trim()) {
-      newErrors.company = 'Empresa é obrigatória';
-    }
-
-    // Validar duplicidade de empresa (apenas ao criar novo)
-    if (!initialData) {
-      const companyExists = owners.some(
-        o => o.company?.toLowerCase() === formData.company.trim().toLowerCase()
-      );
-      if (companyExists) {
-        newErrors.company = 'Já existe um proprietário desta empresa';
-        showError('Já existe um proprietário desta empresa');
-      }
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
+  setErrors(newErrors);
+  return Object.keys(newErrors).length === 0;
+};
 
   const handleSubmit = (e) => {
     e.preventDefault();

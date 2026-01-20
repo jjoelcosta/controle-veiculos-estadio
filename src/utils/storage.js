@@ -42,15 +42,17 @@ const addOwner = async (ownerData) => {
       position: normalizeText(ownerData.position),
     };
 
+    // ✅ CORRIGIDO: Validar duplicidade por NOME + EMPRESA
     const { data: existing } = await supabase
       .from('owners')
       .select('id')
+      .ilike('name', payload.name)
       .ilike('company', payload.company)
       .is('deleted_at', null)
       .limit(1);
 
     if (existing?.length) {
-      throw new Error('❌ Já existe um proprietário com esta empresa');
+      throw new Error('❌ Já existe um proprietário com este nome nesta empresa');
     }
 
     const { data, error } = await supabase
