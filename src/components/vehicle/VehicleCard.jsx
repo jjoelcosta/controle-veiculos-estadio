@@ -6,6 +6,7 @@ export default function VehicleCard({ vehicle, owner, onEdit, onDelete, onClick 
   const vehicleType = getVehicleType(vehicle.type);
   const VehicleIcon = vehicleType.icon;
 
+
   return (
     <div 
       className="group bg-white rounded-2xl border-2 border-gray-200 hover:border-blue-400 hover:shadow-2xl transition-all duration-300 cursor-pointer overflow-hidden transform hover:-translate-y-1"

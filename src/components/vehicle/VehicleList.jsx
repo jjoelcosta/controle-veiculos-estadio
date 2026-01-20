@@ -452,8 +452,8 @@ export default function VehicleList({
                           key={vehicle.id}
                           vehicle={vehicle}
                           owner={owners.find(o => o.id === vehicle.ownerId)}
-                          onEdit={() => handleEditClick(vehicle)}
-                          onDelete={() => handleDeleteClick(vehicle)}
+                          onEdit={handleEditClick}
+                          onDelete={handleDeleteClick}
                           onClick={() => onViewDetail(vehicle)}
                         />
                       ))}
