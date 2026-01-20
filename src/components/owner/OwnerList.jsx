@@ -47,33 +47,31 @@ export default function OwnerList({
   };
 
   const handleDeleteClick = (owner) => {
-    const vehicleCount = getOwnerVehicleCount(owner.id);
-    
-    if (vehicleCount > 0) {
-      error(`❌ Não é possível excluir! Este proprietário tem ${vehicleCount} veículo(s) cadastrado(s).`);
-      return;
-    }
+  const vehicleCount = getOwnerVehicleCount(owner.id);
+  
+  if (vehicleCount > 0) {
+    error(`❌ Não é possível excluir! Este proprietário tem ${vehicleCount} veículo(s) cadastrado(s).`);
+    return;
+  }
 
-    openModal({
-      title: 'Confirmar Exclusão',
-      message: `Tem certeza que deseja excluir o proprietário ${owner.name}?`,
-      variant: 'danger',
-      confirmText: 'Sim, Excluir',
-      cancelText: 'Cancelar',
-      onConfirm: async () => {
-        try {
-          const result = await onDelete(owner.id);
-          if (result.success) {
-            success('✅ Proprietário excluído com sucesso!');
-          } else {
-            error(result.message);
-          }
-        } catch (err) {
-          error('❌ Erro ao excluir proprietário');
+  openModal({
+    title: 'Confirmar Exclusão',
+    message: `Tem certeza que deseja excluir o proprietário ${owner.name}?`,
+    variant: 'danger',
+    confirmText: 'Sim, Excluir',
+    cancelText: 'Cancelar',
+    onConfirm: async () => {  // ✅ CORRIGIDO: async
+      try {
+        const result = await onDelete(owner.id);  // ✅ await
+        if (result || result === true) {  // ✅ Verifica retorno
+          success('✅ Proprietário excluído com sucesso!');
         }
+      } catch (err) {
+        error('❌ Erro ao excluir proprietário');
       }
-    });
-  };
+    }
+  });
+};
 
   const handleFormSubmit = async (ownerData) => {
     try {

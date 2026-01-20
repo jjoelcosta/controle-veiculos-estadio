@@ -42,7 +42,7 @@ const addOwner = async (ownerData) => {
       position: normalizeText(ownerData.position),
     };
 
-    // ✅ CORRIGIDO: Validar duplicidade por NOME + EMPRESA
+    // Validar duplicidade por NOME + EMPRESA
     const { data: existing } = await supabase
       .from('owners')
       .select('id')
@@ -73,7 +73,7 @@ const addOwner = async (ownerData) => {
       createdAt: new Date(data.created_at).toLocaleString('pt-BR')
     };
   } catch (err) {
-    handleDbError(err);
+    throw err; // ✅ CORRIGIDO: Propaga o erro
   }
 };
 
@@ -85,6 +85,7 @@ const updateOwner = async (id, ownerData) => {
       company: normalizeText(ownerData.company),
       sector: normalizeText(ownerData.sector),
       position: normalizeText(ownerData.position),
+      updated_at: new Date().toISOString()
     };
 
     const { error } = await supabase
@@ -93,18 +94,25 @@ const updateOwner = async (id, ownerData) => {
       .eq('id', id);
 
     if (error) handleDbError(error);
+    
+    return true; // ✅ CORRIGIDO: Retorna sucesso
   } catch (err) {
-    handleDbError(err);
+    throw err;
   }
 };
 
 const deleteOwner = async (id) => {
-  const { error } = await supabase
-    .from('owners')
-    .update({ deleted_at: new Date().toISOString() })
-    .eq('id', id);
+  try {
+    const { error } = await supabase
+      .from('owners')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', id);
 
-  if (error) throw error;
+    if (error) throw error;
+    return true; // ✅ CORRIGIDO: Retorna sucesso
+  } catch (error) {
+    throw error;
+  }
 };
 
 /* VEÍCULOS */
@@ -160,7 +168,7 @@ const addVehicle = async (vehicleData) => {
       createdAt: new Date(data.created_at).toLocaleString('pt-BR')
     };
   } catch (err) {
-    handleDbError(err);
+    throw err;
   }
 };
 
@@ -173,6 +181,7 @@ const updateVehicle = async (id, vehicleData) => {
       model: normalizeText(vehicleData.model),
       parking_location: normalizeText(vehicleData.parkingLocation),
       owner_id: vehicleData.ownerId,
+      updated_at: new Date().toISOString()
     };
 
     const { error } = await supabase
@@ -181,18 +190,25 @@ const updateVehicle = async (id, vehicleData) => {
       .eq('id', id);
 
     if (error) handleDbError(error);
+    
+    return true; // ✅ CORRIGIDO: Retorna sucesso
   } catch (err) {
-    handleDbError(err);
+    throw err;
   }
 };
 
 const deleteVehicle = async (id) => {
-  const { error } = await supabase
-    .from('vehicles')
-    .update({ deleted_at: new Date().toISOString() })
-    .eq('id', id);
+  try {
+    const { error } = await supabase
+      .from('vehicles')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', id);
 
-  if (error) throw error;
+    if (error) throw error;
+    return true; // ✅ CORRIGIDO: Retorna sucesso
+  } catch (error) {
+    throw error;
+  }
 };
 
 export const storage = {
