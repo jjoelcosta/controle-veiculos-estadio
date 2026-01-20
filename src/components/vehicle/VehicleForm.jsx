@@ -21,27 +21,17 @@ export default function VehicleForm({
     parkingLocation: ''
   });
 
-  // ✅ CORRIGIDO: Preencher formulário corretamente ao editar
+  // Preencher formulário se estiver editando
   useEffect(() => {
     if (initialData) {
       setFormData({
-        plate: initialData.plate || '',
-        brand: initialData.brand || '',
-        model: initialData.model || '',
-        type: initialData.type || 'Carro',
-        ownerId: initialData.ownerId || '',
-        parkingLocation: initialData.parkingLocation || ''
-      });
-    } else {
-      // Resetar formulário ao adicionar novo
-      setFormData({
-        plate: '',
-        brand: '',
-        model: '',
-        type: 'Carro',
-        ownerId: '',
-        parkingLocation: ''
-      });
+      plate: initialData.plate || '',
+      brand: initialData.brand || '',
+      model: initialData.model || '',
+      type: initialData.type || 'Carro',
+      ownerId: initialData.ownerId || '',
+      parkingLocation: initialData.parkingLocation || ''
+    });
     }
   }, [initialData]);
 
@@ -67,7 +57,7 @@ export default function VehicleForm({
     setSaving(true);
     try {
       await onSubmit(formData);
-      // ❌ REMOVIDO: success() aqui (já é chamado no VehicleList)
+      success(initialData ? 'Veículo atualizado com sucesso!' : 'Veículo cadastrado com sucesso!');
     } catch (err) {
       error('Erro ao salvar veículo. Tente novamente.');
     } finally {
