@@ -6,11 +6,25 @@ export default function VehicleCard({ vehicle, owner, onEdit, onDelete, onClick 
   const vehicleType = getVehicleType(vehicle.type);
   const VehicleIcon = vehicleType.icon;
 
+  const handleEditClick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (onEdit) {
+      onEdit(vehicle);
+    }
+  };
+
+  const handleDeleteClick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (onDelete) {
+      onDelete(vehicle);
+    }
+  };
 
   return (
     <div 
-      className="group bg-white rounded-2xl border-2 border-gray-200 hover:border-blue-400 hover:shadow-2xl transition-all duration-300 cursor-pointer overflow-hidden transform hover:-translate-y-1"
-      onClick={onClick}
+      className="group bg-white rounded-2xl border-2 border-gray-200 hover:border-blue-400 hover:shadow-2xl transition-all duration-300 overflow-hidden"
     >
       {/* Header com Gradiente */}
       <div className={`bg-gradient-to-r ${getGradientByType(vehicle.type)} p-4`}>
@@ -43,8 +57,11 @@ export default function VehicleCard({ vehicle, owner, onEdit, onDelete, onClick 
           )}
         </div>
 
-        {/* Marca e Modelo */}
-        <div className="text-xl font-bold text-gray-800 mb-3">
+        {/* Marca e Modelo - CLICÁVEL */}
+        <div 
+          onClick={onClick}
+          className="text-xl font-bold text-gray-800 mb-3 cursor-pointer hover:text-blue-600 transition-colors"
+        >
           {vehicle.brand} {vehicle.model}
         </div>
 
@@ -67,24 +84,20 @@ export default function VehicleCard({ vehicle, owner, onEdit, onDelete, onClick 
           )}
         </div>
 
-        {/* Botões */}
+        {/* Botões - SEM onClick no card pai */}
         <div className="flex gap-2">
           <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onEdit(vehicle);  // ✅ CORRIGIDO: passa o vehicle
-            }}
-            className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white py-2.5 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 text-sm font-semibold shadow-md hover:shadow-lg"
+            type="button"
+            onMouseDown={handleEditClick}
+            className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white py-2.5 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 text-sm font-semibold shadow-md hover:shadow-lg relative z-10"
           >
             <Edit2 size={16} />
             Editar
           </button>
           <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete(vehicle);  // ✅ CORRIGIDO: passa o vehicle
-            }}
-            className="flex-1 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white py-2.5 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 text-sm font-semibold shadow-md hover:shadow-lg"
+            type="button"
+            onMouseDown={handleDeleteClick}
+            className="flex-1 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white py-2.5 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 text-sm font-semibold shadow-md hover:shadow-lg relative z-10"
             title="Remover da lista (pode ser restaurado depois)"
           >
             <Trash2 size={16} />

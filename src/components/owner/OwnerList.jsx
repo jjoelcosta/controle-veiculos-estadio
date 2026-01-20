@@ -107,7 +107,10 @@ export default function OwnerList({
         className={`px-6 py-4 grid grid-cols-12 gap-4 items-center hover:bg-purple-50 transition-colors cursor-pointer ${
           isEven ? 'bg-white' : 'bg-gray-50'
         }`}
-        onClick={() => onViewDetail(owner)}
+        onClick={() => {
+          console.log('🔵 CLICOU NA ROW:', owner);
+          onViewDetail(owner);
+        }}
       >
         {/* Nome */}
         <div className="col-span-3">
@@ -204,7 +207,10 @@ export default function OwnerList({
     return (
       <div 
         className="bg-white rounded-xl border-2 border-purple-200 p-4 hover:shadow-lg transition-all cursor-pointer"
-        onClick={() => onViewDetail(owner)}
+        onClick={() => {
+      console.log('🔵 CLICOU NO CARD:', owner);
+      onViewDetail(owner);
+    }}
       >
         {/* Header do Card */}
         <div className="flex items-center justify-between mb-3">

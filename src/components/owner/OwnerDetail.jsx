@@ -16,6 +16,25 @@ export default function OwnerDetail({
   const { openModal, ModalComponent } = useModal();
   const { success, error } = useToast();
 
+  // ✅ ADICIONA ISSO AQUI
+  if (!owner) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100 p-6 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-xl text-gray-600">Proprietário não encontrado</p>
+          <button
+            onClick={onBack}
+            className="mt-4 bg-purple-600 text-white px-6 py-3 rounded-lg"
+          >
+            Voltar
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Resto do código continua...
+
   const handleDelete = () => {
     if (vehicles.length > 0) {
       error(`Não é possível excluir! Este proprietário tem ${vehicles.length} veículo(s) cadastrado(s).`);
@@ -158,7 +177,7 @@ export default function OwnerDetail({
 
                         <div className="flex gap-2 mt-4 pt-3 border-t border-gray-300">
                           <button
-                            onClick={() => onEditVehicle(v.id, v)}
+                            onClick={() => onEditVehicle(v)}
                             className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded transition-colors flex items-center justify-center gap-1 text-sm"
                           >
                             <Edit2 size={14} />

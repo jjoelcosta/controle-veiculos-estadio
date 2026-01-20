@@ -5,6 +5,7 @@ import VehicleList from './vehicle/VehicleList';
 import VehicleDetail from './vehicle/VehicleDetail';
 import OwnerList from './owner/OwnerList';
 import OwnerDetail from './owner/OwnerDetail';
+import VehicleEditModal from './vehicle/VehicleEditModal';
 
 export default function VehicleRegistry() {
   // Estados principais
@@ -15,6 +16,9 @@ export default function VehicleRegistry() {
   const [selectedOwner, setSelectedOwner] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [editingVehicleId, setEditingVehicleId] = useState(null);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editingVehicle, setEditingVehicle] = useState(null);
 
   // ✅ CARREGAR DADOS DO SUPABASE
   const loadData = async () => {
@@ -52,9 +56,12 @@ export default function VehicleRegistry() {
   };
 
   const handleViewOwnerDetail = (owner) => {
-    setSelectedOwner(owner);
-    setCurrentView('ownerDetail');
-  };
+  console.log('🟢 RECEBEU NO REGISTRY:', owner);
+  console.log('🟢 selectedOwner ANTES:', selectedOwner);
+  setSelectedOwner(owner);
+  setCurrentView('ownerDetail');
+  console.log('🟢 Mudou view pra ownerDetail');
+};
 
   const handleBackToVehicles = () => {
     setCurrentView('vehicles');
@@ -67,8 +74,9 @@ export default function VehicleRegistry() {
   };
 
   const handleNavigateToOwners = () => {
-    setCurrentView('owners');
-  };
+  setCurrentView('owners');  // ✅ Vai pra LISTA, não pra detail
+  setSelectedOwner(null);    // ✅ Limpa o owner selecionado
+};
 
   const handleNavigateToVehicles = () => {
     setCurrentView('vehicles');
@@ -88,6 +96,21 @@ export default function VehicleRegistry() {
     }
   };
 
+      const handleOpenEditModal = (vehicle) => {
+      setEditingVehicle(vehicle);
+      setEditModalOpen(true);
+    };
+
+    const handleCloseEditModal = () => {
+      setEditModalOpen(false);
+      setEditingVehicle(null);
+    };
+
+    const handleSaveFromModal = async (vehicleId, vehicleData) => {
+      await handleUpdateVehicle(vehicleId, vehicleData);
+      handleCloseEditModal();
+    };
+
   const handleUpdateVehicle = async (vehicleId, vehicleData) => {
     try {
       await storage.updateVehicle(vehicleId, vehicleData);
@@ -97,6 +120,11 @@ export default function VehicleRegistry() {
       throw err;
     }
   };
+
+    const handleEditVehicle = (vehicle) => {
+      setEditingVehicleId(vehicle.id);
+      setCurrentView('vehicles'); // Volta pra lista
+    };
 
   const handleDeleteVehicle = async (vehicleId) => {
     try {
@@ -207,12 +235,12 @@ export default function VehicleRegistry() {
             vehicle={selectedVehicle}
             owner={owners.find(o => o.id === selectedVehicle?.ownerId)}
             onBack={handleBackToVehicles}
-            onEdit={handleUpdateVehicle}
+            onEdit={handleOpenEditModal}  // ✅ Abre o modal
             onDelete={handleDeleteVehicle}
           />
         );
 
-      case 'owners':
+            case 'owners':
         return (
           <OwnerList
             owners={owners}
@@ -225,18 +253,18 @@ export default function VehicleRegistry() {
           />
         );
 
-      case 'ownerDetail':
-        return (
-          <OwnerDetail
-            owner={selectedOwner}
-            vehicles={vehicles.filter(v => v.ownerId === selectedOwner?.id)}
-            onBack={handleBackToOwners}
-            onEdit={handleUpdateOwner}
-            onDelete={handleDeleteOwner}
-            onEditVehicle={handleUpdateVehicle}
-            onDeleteVehicle={handleDeleteVehicle}
-          />
-        );
+          case 'ownerDetail':
+      return (
+        <OwnerDetail
+          owner={selectedOwner}
+          vehicles={vehicles.filter(v => v.ownerId === selectedOwner?.id)}
+          onBack={handleBackToOwners}
+          onEdit={handleUpdateOwner}
+          onDelete={handleDeleteOwner}
+          onEditVehicle={handleOpenEditModal}  // ✅ CORRIGIDO
+          onDeleteVehicle={handleDeleteVehicle}
+        />
+      );
 
       case 'vehicles':
       default:
@@ -244,19 +272,28 @@ export default function VehicleRegistry() {
           <VehicleList
             vehicles={vehicles}
             owners={owners}
+            editingVehicleId={editingVehicleId}  // ✅ NOVO
             onViewDetail={handleViewVehicleDetail}
             onAdd={handleAddVehicle}
             onEdit={handleUpdateVehicle}
             onDelete={handleDeleteVehicle}
             onNavigateToOwners={handleNavigateToOwners}
+            onCancelEdit={() => setEditingVehicleId(null)}  // ✅ NOVO
           />
         );
     }
   };
 
   return (
-    <ToastProvider>
-      {renderView()}
-    </ToastProvider>
-  );
+  <ToastProvider>
+    {renderView()}
+    <VehicleEditModal
+      isOpen={editModalOpen}
+      vehicle={editingVehicle}
+      owners={owners}
+      onSave={handleSaveFromModal}
+      onClose={handleCloseEditModal}
+    />
+  </ToastProvider>
+);
 }
