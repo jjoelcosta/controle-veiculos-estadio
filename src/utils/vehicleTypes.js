@@ -49,7 +49,9 @@ export const parkingLocations = [
   'Estacionamento - Esfera',
   'Estacionamento Brita - Portão M',
   'Estacionamento Externo - Portão L',
-  'Estacionamento Subsolo - R43 ao R37'
+  'Estacionamento Subsolo - R43 ao R37',
+  'Estacionamento Subsolo - R66 ao R72',
+  'Estacionamento Modesto - Playbar'
 ];
 
 export const getVehicleType = (typeValue) => {
