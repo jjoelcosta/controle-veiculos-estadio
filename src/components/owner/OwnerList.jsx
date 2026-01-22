@@ -17,6 +17,7 @@ export default function OwnerList({
   const { success, error } = useToast();
   const [showForm, setShowForm] = useState(false);
   const [editingOwner, setEditingOwner] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
   /* ================================
      FUNÇÕES AUXILIARES
@@ -30,6 +31,20 @@ export default function OwnerList({
   const sortedOwners = [...owners].sort((a, b) => 
     a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' })
   );
+
+  // ✅ Filtrar por busca
+  const filteredOwners = sortedOwners.filter(owner => {
+    if (!searchTerm) return true;
+    
+    const search = searchTerm.toLowerCase();
+    return (
+      owner.name?.toLowerCase().includes(search) ||
+      owner.company?.toLowerCase().includes(search) ||
+      owner.phone?.toLowerCase().includes(search) ||
+      owner.position?.toLowerCase().includes(search) ||
+      owner.sector?.toLowerCase().includes(search)
+    );
+  });
 
   /* ================================
      HANDLERS
@@ -47,31 +62,31 @@ export default function OwnerList({
   };
 
   const handleDeleteClick = (owner) => {
-  const vehicleCount = getOwnerVehicleCount(owner.id);
-  
-  if (vehicleCount > 0) {
-    error(`❌ Não é possível excluir! Este proprietário tem ${vehicleCount} veículo(s) cadastrado(s).`);
-    return;
-  }
-
-  openModal({
-    title: 'Confirmar Exclusão',
-    message: `Tem certeza que deseja excluir o proprietário ${owner.name}?`,
-    variant: 'danger',
-    confirmText: 'Sim, Excluir',
-    cancelText: 'Cancelar',
-    onConfirm: async () => {  // ✅ CORRIGIDO: async
-      try {
-        const result = await onDelete(owner.id);  // ✅ await
-        if (result || result === true) {  // ✅ Verifica retorno
-          success('✅ Proprietário excluído com sucesso!');
-        }
-      } catch (err) {
-        error('❌ Erro ao excluir proprietário');
-      }
+    const vehicleCount = getOwnerVehicleCount(owner.id);
+    
+    if (vehicleCount > 0) {
+      error(`❌ Não é possível excluir! Este proprietário tem ${vehicleCount} veículo(s) cadastrado(s).`);
+      return;
     }
-  });
-};
+
+    openModal({
+      title: 'Confirmar Exclusão',
+      message: `Tem certeza que deseja excluir o proprietário ${owner.name}?`,
+      variant: 'danger',
+      confirmText: 'Sim, Excluir',
+      cancelText: 'Cancelar',
+      onConfirm: async () => {
+        try {
+          const result = await onDelete(owner.id);
+          if (result || result === true) {
+            success('✅ Proprietário excluído com sucesso!');
+          }
+        } catch (err) {
+          error('❌ Erro ao excluir proprietário');
+        }
+      }
+    });
+  };
 
   const handleFormSubmit = async (ownerData) => {
     try {
@@ -107,10 +122,7 @@ export default function OwnerList({
         className={`px-6 py-4 grid grid-cols-12 gap-4 items-center hover:bg-purple-50 transition-colors cursor-pointer ${
           isEven ? 'bg-white' : 'bg-gray-50'
         }`}
-        onClick={() => {
-          console.log('🔵 CLICOU NA ROW:', owner);
-          onViewDetail(owner);
-        }}
+        onClick={() => onViewDetail(owner)}
       >
         {/* Nome */}
         <div className="col-span-3">
@@ -207,10 +219,7 @@ export default function OwnerList({
     return (
       <div 
         className="bg-white rounded-xl border-2 border-purple-200 p-4 hover:shadow-lg transition-all cursor-pointer"
-        onClick={() => {
-      console.log('🔵 CLICOU NO CARD:', owner);
-      onViewDetail(owner);
-    }}
+        onClick={() => onViewDetail(owner)}
       >
         {/* Header do Card */}
         <div className="flex items-center justify-between mb-3">
@@ -340,6 +349,44 @@ export default function OwnerList({
           {/* Lista */}
           {!showForm && (
             <>
+              {/* ✅ Campo de busca */}
+              {owners.length > 0 && (
+                <div className="mb-6">
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      placeholder="🔍 Buscar por nome, empresa, telefone, cargo ou setor..."
+                      className="w-full px-4 py-3 pl-12 border-2 border-purple-300 rounded-xl focus:border-purple-500 focus:outline-none text-lg"
+                    />
+                    <svg 
+                      className="absolute left-4 top-1/2 transform -translate-y-1/2 text-purple-400" 
+                      width="20" 
+                      height="20" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    {searchTerm && (
+                      <button
+                        onClick={() => setSearchTerm('')}
+                        className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                  {searchTerm && (
+                    <p className="text-sm text-gray-600 mt-2">
+                      📊 Mostrando <strong className="text-purple-600">{filteredOwners.length}</strong> de {owners.length} proprietários
+                    </p>
+                  )}
+                </div>
+              )}
+
               {owners.length === 0 ? (
                 <div className="text-center py-12 text-gray-400">
                   <User size={64} className="mx-auto mb-4 opacity-30" />
@@ -360,7 +407,7 @@ export default function OwnerList({
                     </div>
 
                     <div className="divide-y divide-gray-200">
-                      {sortedOwners.map((owner, index) => (
+                      {filteredOwners.map((owner, index) => (
                         <OwnerRow key={owner.id} owner={owner} index={index} />
                       ))}
                     </div>
@@ -368,7 +415,7 @@ export default function OwnerList({
 
                   {/* 📱 VERSÃO MOBILE (Cards) */}
                   <div className="lg:hidden space-y-3">
-                    {sortedOwners.map((owner) => (
+                    {filteredOwners.map((owner) => (
                       <OwnerCard key={owner.id} owner={owner} />
                     ))}
                   </div>
