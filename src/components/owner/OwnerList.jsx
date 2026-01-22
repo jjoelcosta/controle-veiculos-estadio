@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { User, Plus, ArrowLeft, Phone, Building2, Briefcase, Edit2, Trash2 } from 'lucide-react';
 import OwnerForm from './OwnerForm';
 import { useModal } from '../ui/Modal';
@@ -23,9 +23,13 @@ export default function OwnerList({
      FUNÇÕES AUXILIARES
   ================================ */
 
-  const getOwnerVehicleCount = (ownerId) => {
-    return vehicles.filter(v => v.ownerId === ownerId).length;
-  };
+  // ✅ Performance: Pré-calcula contagem de veículos (O(n) em vez de O(n²))
+const vehicleCountMap = useMemo(() => {
+  return vehicles.reduce((acc, v) => {
+    acc[v.ownerId] = (acc[v.ownerId] || 0) + 1;
+    return acc;
+  }, {});
+}, [vehicles]);
 
   // ✅ Ordenar alfabeticamente
   const sortedOwners = [...owners].sort((a, b) => 
@@ -62,7 +66,7 @@ export default function OwnerList({
   };
 
   const handleDeleteClick = (owner) => {
-    const vehicleCount = getOwnerVehicleCount(owner.id);
+    const vehicleCount = vehicleCountMap[owner.id] || 0;
     
     if (vehicleCount > 0) {
       error(`❌ Não é possível excluir! Este proprietário tem ${vehicleCount} veículo(s) cadastrado(s).`);
@@ -114,7 +118,7 @@ export default function OwnerList({
   ================================ */
 
   const OwnerRow = ({ owner, index }) => {
-    const vehicleCount = getOwnerVehicleCount(owner.id);
+    const vehicleCount = vehicleCountMap[owner.id] || 0;
     const isEven = index % 2 === 0;
 
     return (
@@ -214,7 +218,7 @@ export default function OwnerList({
   };
 
   const OwnerCard = ({ owner }) => {
-    const vehicleCount = getOwnerVehicleCount(owner.id);
+    const vehicleCount = vehicleCountMap[owner.id] || 0;
 
     return (
       <div 
