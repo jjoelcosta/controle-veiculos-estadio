@@ -204,6 +204,7 @@ export default function OwnerDetail({
 
             {/* Ações do Proprietário */}
             <div className="flex gap-3 pt-4 border-t">
+              {/* Temporariamente desabilitado - editar pela lista
               <button
                 onClick={() => onEdit(owner.id, owner)}
                 className="flex-1 bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
@@ -211,6 +212,7 @@ export default function OwnerDetail({
                 <Edit2 size={18} />
                 Editar Proprietário
               </button>
+              */}
               <button
                 onClick={handleDelete}
                 className="flex-1 bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
