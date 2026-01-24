@@ -219,11 +219,10 @@ export default function VehicleList({
           <div className="flex flex-wrap justify-end gap-2 sm:gap-3 mb-6">
               <button
                 onClick={onNavigateToOwners}
-                className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-green-600 hover:to-purple-700 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-xl flex items-center gap-1 sm:gap-2 text-sm sm:text-base transition-all duration-200 shadow-lg hover:shadow-xl"
+                className="bg-gradient-to-r from-blue-500 to-green-600 hover:from-blue-600 hover:to-green-700 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-xl flex items-center gap-2 text-sm sm:text-base transition-all duration-200 shadow-lg hover:shadow-xl whitespace-nowrap"
               >
-                <User size={18} className="sm:block" />
-                <span className="hidden sm:inline">Proprietários ARENA</span>
-                <span className="sm:hidden">Proprietários</span>
+                <User size={18} />
+                <span>Proprietários ARENA</span>
                 <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs font-bold">{owners.length}</span>
               </button>
 
@@ -238,11 +237,10 @@ export default function VehicleList({
 
               <button
                 onClick={handleAddClick}
-                className="bg-gradient-to-r from-blue-500 to-green-600 hover:from-green-700 hover:to-blue-700 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-xl flex items-center gap-1 sm:gap-2 text-sm sm:text-base transition-all shadow-lg"
+                className="bg-gradient-to-r from-blue-400 to-green-600 hover:from-blue-500 hover:to-blue-700 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-xl flex items-center gap-2 text-sm sm:text-base transition-all shadow-lg hover:shadow-xl whitespace-nowrap"
               >
-                <Plus size={18} className="sm:w-5 sm:h-5" />
-                <span className="hidden sm:inline">Novo Veículo</span>
-                <span className="sm:hidden">Novo</span>
+                <Plus size={18} />
+                <span>Novo Veículo</span>
               </button>
             </div>
 
