@@ -123,7 +123,7 @@ const vehicleCountMap = useMemo(() => {
 
     return (
       <div 
-        className={`px-6 py-4 grid grid-cols-12 gap-4 items-center hover:bg-purple-50 transition-colors cursor-pointer ${
+        className={`px-6 py-4 grid grid-cols-12 gap-4 items-center hover:bg-blue-50 transition-colors cursor-pointer ${
           isEven ? 'bg-white' : 'bg-gray-50'
         }`}
         onClick={() => onViewDetail(owner)}
@@ -131,7 +131,7 @@ const vehicleCountMap = useMemo(() => {
         {/* Nome */}
         <div className="col-span-3">
           <div className="flex items-center gap-3">
-            <div className="bg-gradient-to-br from-purple-500 to-pink-500 text-white w-10 h-10 rounded-full flex items-center justify-center font-bold">
+            <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white w-10 h-10 rounded-full flex items-center justify-center font-bold">
               {owner.name.charAt(0).toUpperCase()}
             </div>
             <div>
@@ -159,7 +159,7 @@ const vehicleCountMap = useMemo(() => {
         <div className="col-span-2 text-sm text-gray-600">
           {owner.company ? (
             <div className="flex items-center gap-1">
-              <Building2 size={14} className="text-purple-500" />
+              <Building2 size={14} className="text-slate-500" />
               {owner.company}
             </div>
           ) : (
@@ -183,7 +183,7 @@ const vehicleCountMap = useMemo(() => {
         <div className="col-span-1 text-center">
           <span className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-bold ${
             vehicleCount > 0 
-              ? 'bg-purple-100 text-purple-700' 
+              ? 'bg-slate-100 text-slate-700' 
               : 'bg-gray-100 text-gray-500'
           }`}>
             {vehicleCount} 🚗
@@ -197,7 +197,7 @@ const vehicleCountMap = useMemo(() => {
               e.stopPropagation();
               handleEditClick(owner);
             }}
-            className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 text-sm"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 text-sm"
           >
             <Edit2 size={14} />
             Editar
@@ -222,13 +222,13 @@ const vehicleCountMap = useMemo(() => {
 
     return (
       <div 
-        className="bg-white rounded-xl border-2 border-purple-200 p-4 hover:shadow-lg transition-all cursor-pointer"
+        className="bg-white rounded-xl border-2 border-slate-200 p-4 hover:shadow-lg transition-all cursor-pointer"
         onClick={() => onViewDetail(owner)}
       >
         {/* Header do Card */}
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-3">
-            <div className="bg-gradient-to-br from-purple-500 to-pink-500 text-white w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg">
+            <div className="bg-gradient-to-br from-slate-500 to-slate-600 text-white w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg">
               {owner.name.charAt(0).toUpperCase()}
             </div>
             <div>
@@ -238,7 +238,7 @@ const vehicleCountMap = useMemo(() => {
           </div>
           <span className={`px-3 py-1 rounded-full text-xs font-bold ${
             vehicleCount > 0 
-              ? 'bg-purple-100 text-purple-700' 
+              ? 'bg-slate-100 text-slate-700' 
               : 'bg-gray-100 text-gray-500'
           }`}>
             {vehicleCount} 🚗
@@ -255,7 +255,7 @@ const vehicleCountMap = useMemo(() => {
           )}
           {owner.company && (
             <div className="flex items-center gap-2 text-gray-600">
-              <Building2 size={14} className="text-purple-500" />
+              <Building2 size={14} className="text-slate-500" />
               {owner.company}
             </div>
           )}
@@ -279,7 +279,7 @@ const vehicleCountMap = useMemo(() => {
               e.stopPropagation();
               handleEditClick(owner);
             }}
-            className="flex-1 bg-purple-600 hover:bg-purple-700 text-white py-2 rounded-lg transition-colors flex items-center justify-center gap-1 text-sm"
+            className="flex-1 bg-slate-600 hover:bg-slate-700 text-white py-2 rounded-lg transition-colors flex items-center justify-center gap-1 text-sm"
           >
             <Edit2 size={14} />
             Editar
@@ -304,7 +304,7 @@ const vehicleCountMap = useMemo(() => {
   ================================ */
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-pink-100 p-6">
       <div className="max-w-7xl mx-auto">
         <div className="bg-white rounded-2xl shadow-xl p-8">
           
@@ -313,7 +313,7 @@ const vehicleCountMap = useMemo(() => {
             <div>
               <button
                 onClick={onBackToVehicles}
-                className="mb-4 flex items-center gap-2 text-purple-600 hover:text-purple-800 font-medium transition-colors"
+                className="mb-4 flex items-center gap-2 text-green-600 hover:text-green-800 font-medium transition-colors"
               >
                 <ArrowLeft size={20} />
                 Voltar para veículos
@@ -323,7 +323,7 @@ const vehicleCountMap = useMemo(() => {
                 Gerenciar Proprietários
               </h1>
               {!showForm && (
-                <p className="text-gray-600 mt-2">
+                <p className="text-purple-600 mt-2">
                   👥 {owners.length} proprietário(s) cadastrado(s)
                 </p>
               )}
@@ -331,7 +331,7 @@ const vehicleCountMap = useMemo(() => {
             
             <button
               onClick={handleAddClick}
-              className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg flex items-center gap-2 transition-colors shadow-md"
+              className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg flex items-center gap-2 transition-colors shadow-md"
             >
               <Plus size={20} />
               Novo Proprietário
@@ -362,10 +362,10 @@ const vehicleCountMap = useMemo(() => {
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       placeholder="🔍 Buscar por nome, empresa, telefone, cargo ou setor..."
-                      className="w-full px-4 py-3 pl-12 border-2 border-purple-300 rounded-xl focus:border-purple-500 focus:outline-none text-lg"
+                      className="w-full px-4 py-3 pl-12 border-2 border-slate-300 rounded-xl focus:border-purple-500 focus:outline-none text-lg"
                     />
                     <svg 
-                      className="absolute left-4 top-1/2 transform -translate-y-1/2 text-purple-400" 
+                      className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400" 
                       width="20" 
                       height="20" 
                       fill="none" 
@@ -385,7 +385,7 @@ const vehicleCountMap = useMemo(() => {
                   </div>
                   {searchTerm && (
                     <p className="text-sm text-gray-600 mt-2">
-                      📊 Mostrando <strong className="text-purple-600">{filteredOwners.length}</strong> de {owners.length} proprietários
+                      📊 Mostrando <strong className="text-slate-600">{filteredOwners.length}</strong> de {owners.length} proprietários
                     </p>
                   )}
                 </div>
@@ -401,7 +401,7 @@ const vehicleCountMap = useMemo(() => {
                 <>
                   {/* 🖥️ VERSÃO DESKTOP (Tabela) */}
                   <div className="hidden lg:block bg-white rounded-xl border-2 border-gray-200 overflow-hidden">
-                    <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-6 py-3 grid grid-cols-12 gap-4 font-semibold text-sm">
+                    <div className="bg-gradient-to-r from-slate-600 to-slate-700 text-white px-6 py-3 grid grid-cols-12 gap-4 font-semibold text-sm">
                       <div className="col-span-3">Nome</div>
                       <div className="col-span-2">Telefone</div>
                       <div className="col-span-2">Empresa</div>

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Plus, Search, Filter, Download, User, MapPin, Building2, Briefcase, X, Car } from 'lucide-react';
+import { Plus, Search, Filter, Download, User, MapPin, Building2, Briefcase, X, Car, Truck } from 'lucide-react';
 import VehicleCard from './VehicleCard';
 import VehicleForm from './VehicleForm';
 import Header from '../ui/Header';
@@ -8,12 +8,16 @@ import { useToast } from '../ui/Toast';
 
 export default function VehicleList({ 
   vehicles, 
-  owners, 
+  owners,
+  thirdPartyVehicles, // ✅ ADICIONA
+  editingVehicleId,
   onViewDetail, 
   onAdd, 
   onEdit, 
   onDelete,
-  onNavigateToOwners 
+  onNavigateToOwners,
+  onNavigateToThirdParty, // ✅ ADICIONA
+  onCancelEdit 
 }) {
   const { openModal, ModalComponent } = useModal();
   const { success, error } = useToast();
@@ -34,6 +38,8 @@ export default function VehicleList({
   /* ================================
      LÓGICA DE FILTROS
   ================================ */
+
+  const thirdPartyCount = thirdPartyVehicles?.length || 0;
 
   // Veículos filtrados
   const filteredVehicles = useMemo(() => {
@@ -213,14 +219,21 @@ export default function VehicleList({
           <div className="flex justify-end gap-3 mb-6">
             <button
               onClick={onNavigateToOwners}
-              className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white px-6 py-3 rounded-xl flex items-center gap-2 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+              className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-purple-600 hover:to-purple-700 text-white px-6 py-3 rounded-xl flex items-center gap-2 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
             >
               <User size={20} />
-              Proprietários ({owners.length})
+              Proprietários ARENA ({owners.length})
             </button>
             <button
+              onClick={onNavigateToThirdParty}
+              className="bg-orange-600 hover:bg-orange-700 text-white px-5 py-2.5 rounded-lg flex items-center gap-2 transition-all duration-200 shadow-md hover:shadow-lg"
+            >
+              <Truck size={18} />
+              Terceiros ({thirdPartyCount})
+            </button>            
+            <button
               onClick={handleAddClick}
-              className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-6 py-3 rounded-xl flex items-center gap-2 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+              className="bg-gradient-to-r from-blue-500 to-green-600 hover:from-green-700 hover:to-blue-700 text-white px-6 py-3 rounded-xl flex items-center gap-2 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
             >
               <Plus size={20} />
               Novo Veículo
@@ -244,151 +257,165 @@ export default function VehicleList({
             <>
               {/* 🔍 BUSCA AVANÇADA */}
               <div className="mb-6">
-                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-xl border-2 border-blue-200">
-                  <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                    <Search size={20} className="text-blue-600" />
-                    Busca Avançada
-                  </h3>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
-                    {/* Busca Geral */}
-                    <div>
-                      <label className="block text-sm font-medium mb-1 text-gray-700">
-                        <Search size={16} className="inline mr-1" />
-                        Busca Geral
-                      </label>
-                      <input
-                        type="text"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                        placeholder="Placa, marca, modelo, proprietário..."
-                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
-                      />
-                    </div>
+                    <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-200">
+                      
+                      {/* Busca Principal */}
+                      <div className="relative mb-4">
+                        <input
+                          type="text"
+                          value={searchTerm}
+                          onChange={(e) => {
+                              setSearchTerm(e.target.value);
+                              if (e.target.value === '') {
+                                setShowResults(false);
+                              }
+                            }}
+                          onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                          placeholder="Digite a placa, marca, modelo ou nome do proprietário..."
+                          className="w-full px-6 py-4 pl-14 text-lg border-2 border-blue-300 rounded-xl focus:border-blue-500 focus:outline-none transition-all shadow-sm"
+                        />
+                        <Search className="absolute left-5 top-1/2 transform -translate-y-1/2 text-blue-400" size={24} />
+                        {searchTerm && (
+                          <button
+                            onClick={() => setSearchTerm('')}
+                            className="absolute right-5 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                          >
+                            <X size={20} />
+                          </button>
+                        )}
+                      </div>
 
-                    {/* Tipo */}
-                    <div>
-                      <label className="block text-sm font-medium mb-1 text-gray-700">
-                        <Filter size={16} className="inline mr-1" />
-                        Tipo de Veículo
-                      </label>
-                      <select
-                        value={filterType}
-                        onChange={(e) => setFilterType(e.target.value)}
-                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
-                      >
-                        <option value="">Todos os tipos</option>
-                        {uniqueTypes.map(type => (
-                          <option key={type} value={type}>{type}</option>
-                        ))}
-                      </select>
-                    </div>
+                      {/* Filtros Rápidos (Opcionais) */}
+                      <details className="mb-4">
+                        <summary className="cursor-pointer text-sm font-medium text-gray-600 hover:text-blue-600 transition-colors flex items-center gap-2">
+                          <Filter size={16} />
+                          Filtros Avançados (opcional)
+                        </summary>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-3 mt-4 p-4 bg-gray-50 rounded-lg">
+                          {/* Tipo */}
+                          <div>
+                            <label className="block text-sm font-medium mb-1 text-gray-700">
+                              <Car size={16} className="inline mr-1 text-blue-600" />
+                              Tipo
+                            </label>
+                            <select
+                              value={filterType}
+                              onChange={(e) => setFilterType(e.target.value)}
+                              className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none bg-white"
+                            >
+                              <option value="">Todos os tipos</option>
+                              {uniqueTypes.map(type => (
+                                <option key={type} value={type}>{type}</option>
+                              ))}
+                            </select>
+                          </div>
 
-                    {/* Marca */}
-                    <div>
-                      <label className="block text-sm font-medium mb-1 text-gray-700">
-                        <Filter size={16} className="inline mr-1" />
-                        Marca
-                      </label>
-                      <select
-                        value={filterBrand}
-                        onChange={(e) => setFilterBrand(e.target.value)}
-                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
-                      >
-                        <option value="">Todas as marcas</option>
-                        {uniqueBrands.map(brand => (
-                          <option key={brand} value={brand}>{brand}</option>
-                        ))}
-                      </select>
-                    </div>
+                          {/* Marca */}
+                          <div>
+                            <label className="block text-sm font-medium mb-1 text-gray-700">
+                              <Filter size={16} className="inline mr-1 text-blue-600" />
+                              Marca
+                            </label>
+                            <select
+                              value={filterBrand}
+                              onChange={(e) => setFilterBrand(e.target.value)}
+                              className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none bg-white"
+                            >
+                              <option value="">Todas as marcas</option>
+                              {uniqueBrands.map(brand => (
+                                <option key={brand} value={brand}>{brand}</option>
+                              ))}
+                            </select>
+                          </div>
 
-                    {/* Local */}
-                    <div>
-                      <label className="block text-sm font-medium mb-1 text-gray-700">
-                        <MapPin size={16} className="inline mr-1 text-green-600" />
-                        Local de Estacionamento
-                      </label>
-                      <select
-                        value={filterLocation}
-                        onChange={(e) => setFilterLocation(e.target.value)}
-                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
-                      >
-                        <option value="">Todos os locais</option>
-                        {uniqueLocations.map(location => (
-                          <option key={location} value={location}>{location}</option>
-                        ))}
-                      </select>
-                    </div>
+                          {/* Local */}
+                          <div>
+                            <label className="block text-sm font-medium mb-1 text-gray-700">
+                              <MapPin size={16} className="inline mr-1 text-green-600" />
+                              Local
+                            </label>
+                            <select
+                              value={filterLocation}
+                              onChange={(e) => setFilterLocation(e.target.value)}
+                              className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none bg-white"
+                            >
+                              <option value="">Todos os locais</option>
+                              {uniqueLocations.map(location => (
+                                <option key={location} value={location}>{location}</option>
+                              ))}
+                            </select>
+                          </div>
 
-                    {/* Empresa */}
-                    <div>
-                      <label className="block text-sm font-medium mb-1 text-gray-700">
-                        <Building2 size={16} className="inline mr-1 text-purple-600" />
-                        Empresa
-                      </label>
-                      <select
-                        value={filterCompany}
-                        onChange={(e) => setFilterCompany(e.target.value)}
-                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
-                      >
-                        <option value="">Todas as empresas</option>
-                        {uniqueCompanies.map(company => (
-                          <option key={company} value={company}>{company}</option>
-                        ))}
-                      </select>
-                    </div>
+                          {/* Empresa */}
+                          <div>
+                            <label className="block text-sm font-medium mb-1 text-gray-700">
+                              <Building2 size={16} className="inline mr-1 text-purple-600" />
+                              Empresa
+                            </label>
+                            <select
+                              value={filterCompany}
+                              onChange={(e) => setFilterCompany(e.target.value)}
+                              className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none bg-white"
+                            >
+                              <option value="">Todas as empresas</option>
+                              {uniqueCompanies.map(company => (
+                                <option key={company} value={company}>{company}</option>
+                              ))}
+                            </select>
+                          </div>
 
-                    {/* Setor */}
-                    <div>
-                      <label className="block text-sm font-medium mb-1 text-gray-700">
-                        <Briefcase size={16} className="inline mr-1 text-orange-600" />
-                        Setor
-                      </label>
-                      <select
-                        value={filterSector}
-                        onChange={(e) => setFilterSector(e.target.value)}
-                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
-                      >
-                        <option value="">Todos os setores</option>
-                        {uniqueSectors.map(sector => (
-                          <option key={sector} value={sector}>{sector}</option>
-                        ))}
-                      </select>
+                          {/* Setor */}
+                          <div>
+                            <label className="block text-sm font-medium mb-1 text-gray-700">
+                              <Briefcase size={16} className="inline mr-1 text-orange-600" />
+                              Setor
+                            </label>
+                            <select
+                              value={filterSector}
+                              onChange={(e) => setFilterSector(e.target.value)}
+                              className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none bg-white"
+                            >
+                              <option value="">Todos os setores</option>
+                              {uniqueSectors.map(sector => (
+                                <option key={sector} value={sector}>{sector}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                        </details>
+
+                      {/* Botões de Ação */}
+                      <div className="flex gap-3 flex-wrap">
+                        <button
+                          onClick={handleSearch}
+                          className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-semibold transition-all shadow-md hover:shadow-lg flex items-center gap-2"
+                        >
+                          <Search size={20} />
+                          Buscar
+                        </button>
+                        
+                        {hasActiveFilters && (
+                          <button
+                            onClick={clearAllFilters}
+                            className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-xl font-medium transition-all flex items-center gap-2"
+                          >
+                            <X size={18} />
+                            Limpar
+                          </button>
+                        )}
+
+                        <button
+                          onClick={exportToCSV}
+                          disabled={!showResults || filteredVehicles.length === 0}
+                          className="bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-6 py-3 rounded-xl font-medium transition-all shadow-md hover:shadow-lg flex items-center gap-2"
+                        >
+                          <Download size={18} />
+                          Exportar CSV
+                        </button>
+                      </div>
                     </div>
                   </div>
-
-                  {/* Botões de ação */}
-                  <div className="flex gap-3 flex-wrap">
-                    <button
-                      onClick={handleSearch}
-                      className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
-                    >
-                      <Search size={18} />
-                      Buscar
-                    </button>
-                    
-                    {hasActiveFilters && (
-                      <button
-                        onClick={clearAllFilters}
-                        className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
-                      >
-                        <X size={18} />
-                        Limpar Filtros
-                      </button>
-                    )}
-
-                    <button
-                      onClick={exportToCSV}
-                      disabled={!showResults || filteredVehicles.length === 0}
-                      className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white px-6 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
-                    >
-                      <Download size={18} />
-                      Exportar CSV
-                    </button>
-                  </div>
-                </div>
-              </div>
 
               {/* TELA INICIAL OU RESULTADOS */}
               {!showResults ? (
@@ -397,25 +424,9 @@ export default function VehicleList({
                   <h3 className="text-2xl font-bold text-gray-700 mb-3">
                     Sistema de Controle de Veículos
                   </h3>
-                  <p className="text-gray-500 text-lg mb-8">
-                    Use a busca avançada para consultar veículos cadastrados
+                  <p className="text-gray-500 text-lg">
+                    Use a busca acima para consultar veículos cadastrados
                   </p>
-                  <div className="flex gap-4 justify-center flex-wrap">
-                    <button
-                      onClick={handleAddClick}
-                      className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-medium transition-colors flex items-center gap-2"
-                    >
-                      <Plus size={20} />
-                      Cadastrar Novo Veículo
-                    </button>
-                    <button
-                      onClick={onNavigateToOwners}
-                      className="bg-purple-600 hover:bg-purple-700 text-white px-8 py-3 rounded-lg font-medium transition-colors flex items-center gap-2"
-                    >
-                      <User size={20} />
-                      Ver Proprietários
-                    </button>
-                  </div>
                 </div>
               ) : (
                 <>

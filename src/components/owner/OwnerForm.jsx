@@ -73,7 +73,7 @@ export default function OwnerForm({ initialData, owners = [], onSubmit, onCancel
   };
 
   return (
-    <div className="bg-gradient-to-br from-purple-50 to-pink-50 p-6 rounded-xl border-2 border-purple-200 mb-6">
+    <div className="bg-gradient-to-br from-blue-50 to-blue-50 p-6 rounded-xl border-2 border-green-200 mb-6">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold text-gray-800">
           {initialData ? '✏️ Editar Proprietário' : '➕ Novo Proprietário'}
@@ -101,7 +101,7 @@ export default function OwnerForm({ initialData, owners = [], onSubmit, onCancel
             className={`w-full px-4 py-3 border-2 rounded-lg focus:outline-none transition-colors ${
               errors.name 
                 ? 'border-red-500 focus:border-red-600' 
-                : 'border-gray-300 focus:border-purple-500'
+                : 'border-gray-300 focus:border-blue-500'
             }`}
             placeholder="Digite o nome completo"
           />
@@ -123,7 +123,7 @@ export default function OwnerForm({ initialData, owners = [], onSubmit, onCancel
             className={`w-full px-4 py-3 border-2 rounded-lg focus:outline-none transition-colors ${
               errors.company 
                 ? 'border-red-500 focus:border-red-600' 
-                : 'border-gray-300 focus:border-purple-500'
+                : 'border-gray-300 focus:border-blue-500'
             }`}
             placeholder="Nome da empresa"
           />
@@ -183,7 +183,7 @@ export default function OwnerForm({ initialData, owners = [], onSubmit, onCancel
         <div className="flex gap-3 pt-4">
           <button
             type="submit"
-            className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white py-3 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 shadow-lg"
+            className="flex-1 bg-gradient-to-r from-green-400 to-blue-500 hover:from-green-600 hover:to-blue-600 text-white py-3 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 shadow-lg"
           >
             <Save size={20} />
             {initialData ? 'Salvar Alterações' : 'Cadastrar Proprietário'}

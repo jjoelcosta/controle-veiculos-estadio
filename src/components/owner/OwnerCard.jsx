@@ -10,10 +10,10 @@ export default function OwnerCard({ owner, vehicleCount, onEdit, onDelete, onCli
       {/* Cabeçalho: Nome e Contador */}
       <div className="flex justify-between items-start mb-3">
         <div className="flex items-center gap-2">
-          <User className="text-purple-600" size={24} />
+          <User className="text-blue-600" size={24} />
           <h3 className="font-bold text-lg text-gray-800">{owner.name}</h3>
         </div>
-        <span className="bg-purple-600 text-white px-3 py-1 rounded-full text-xs font-bold">
+        <span className="bg-blue-600 text-white px-3 py-1 rounded-full text-xs font-bold">
           {vehicleCount} 🚗
         </span>
       </div>

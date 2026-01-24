@@ -6,6 +6,7 @@ import VehicleDetail from './vehicle/VehicleDetail';
 import OwnerList from './owner/OwnerList';
 import OwnerDetail from './owner/OwnerDetail';
 import VehicleEditModal from './vehicle/VehicleEditModal';
+import ThirdPartyVehicleList from './thirdparty/ThirdPartyVehicleList';
 
 export default function VehicleRegistry() {
   // Estados principais
@@ -19,6 +20,7 @@ export default function VehicleRegistry() {
   const [editingVehicleId, setEditingVehicleId] = useState(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editingVehicle, setEditingVehicle] = useState(null);
+  const [thirdPartyVehicles, setThirdPartyVehicles] = useState([]);
 
   // ✅ CARREGAR DADOS DO SUPABASE
   const loadData = async () => {
@@ -26,20 +28,22 @@ export default function VehicleRegistry() {
       setLoading(true);
       setError(null);
       
-      const [vehiclesData, ownersData] = await Promise.all([
+      const [vehiclesData, ownersData, thirdPartyData] = await Promise.all([
         storage.loadVehicles(),
-        storage.loadOwners()
+        storage.loadOwners(),
+        storage.loadThirdPartyVehicles()
       ]);
       
       setVehicles(vehiclesData);
       setOwners(ownersData);
+      setThirdPartyVehicles(thirdPartyData);
     } catch (err) {
       console.error('❌ Erro ao carregar dados:', err);
       setError(err.message || 'Erro ao conectar com o banco de dados');
     } finally {
       setLoading(false);
     }
-  };
+};
 
   // ✅ CARREGAR DADOS AO INICIAR
   useEffect(() => {
@@ -192,6 +196,40 @@ export default function VehicleRegistry() {
   };
 
   /* ================================
+   CRUD - VEÍCULOS TERCEIROS
+================================ */
+
+const handleAddThirdPartyVehicle = async (vehicleData) => {
+  try {
+    await storage.addThirdPartyVehicle(vehicleData);
+    await loadData();
+  } catch (err) {
+    console.error('❌ Erro ao adicionar veículo terceiro:', err);
+    throw err;
+  }
+};
+
+const handleUpdateThirdPartyVehicle = async (vehicleId, vehicleData) => {
+  try {
+    await storage.updateThirdPartyVehicle(vehicleId, vehicleData);
+    await loadData();
+  } catch (err) {
+    console.error('❌ Erro ao atualizar veículo terceiro:', err);
+    throw err;
+  }
+};
+
+const handleDeleteThirdPartyVehicle = async (vehicleId) => {
+  try {
+    await storage.deleteThirdPartyVehicle(vehicleId);
+    await loadData();
+  } catch (err) {
+    console.error('❌ Erro ao deletar veículo terceiro:', err);
+    throw err;
+  }
+};
+
+  /* ================================
      RENDERIZAÇÃO
   ================================ */
 
@@ -266,21 +304,34 @@ export default function VehicleRegistry() {
         />
       );
 
+      case 'thirdParty':
+    return (
+      <ThirdPartyVehicleList
+        vehicles={thirdPartyVehicles}
+        onAdd={handleAddThirdPartyVehicle}
+        onEdit={handleUpdateThirdPartyVehicle}
+        onDelete={handleDeleteThirdPartyVehicle}
+        onBackToVehicles={() => setCurrentView('vehicles')}
+      />
+    );
+
       case 'vehicles':
-      default:
-        return (
-          <VehicleList
-            vehicles={vehicles}
-            owners={owners}
-            editingVehicleId={editingVehicleId}  // ✅ NOVO
-            onViewDetail={handleViewVehicleDetail}
-            onAdd={handleAddVehicle}
-            onEdit={handleUpdateVehicle}
-            onDelete={handleDeleteVehicle}
-            onNavigateToOwners={handleNavigateToOwners}
-            onCancelEdit={() => setEditingVehicleId(null)}  // ✅ NOVO
-          />
-        );
+    default:
+      return (
+        <VehicleList
+          vehicles={vehicles}
+          owners={owners}
+          thirdPartyVehicles={thirdPartyVehicles}
+          editingVehicleId={editingVehicleId}
+          onViewDetail={handleViewVehicleDetail}
+          onAdd={handleAddVehicle}
+          onEdit={handleUpdateVehicle}
+          onDelete={handleDeleteVehicle}
+          onNavigateToOwners={handleNavigateToOwners}
+          onNavigateToThirdParty={() => setCurrentView('thirdParty')}
+          onCancelEdit={() => setEditingVehicleId(null)}
+        />
+      );
     }
   };
 
