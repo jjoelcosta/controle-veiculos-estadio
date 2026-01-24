@@ -219,7 +219,7 @@ export default function VehicleList({
           <div className="flex flex-wrap justify-end gap-2 sm:gap-3 mb-6">
               <button
                 onClick={onNavigateToOwners}
-                className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-orange-600 hover:to-purple-700 text-white px-5 sm:px-7 py-2.5 sm:py-3.5 rounded-xl flex items-center gap-2 text-base sm:text-lg transition-all duration-200 shadow-lg hover:shadow-xl whitespace-nowrap font-medium"
+                className="bg-gradient-to-r from-blue-500 to-green-600 hover:from-orange-600 hover:to-blue-700 text-white px-5 sm:px-7 py-2.5 sm:py-3.5 rounded-xl flex items-center gap-2 text-base sm:text-lg transition-all duration-200 shadow-lg hover:shadow-xl whitespace-nowrap font-medium"
               >
                 <User size={20} />
                 <span>Proprietários ARENA</span>
@@ -228,7 +228,7 @@ export default function VehicleList({
 
               <button
                 onClick={onNavigateToThirdParty}
-                className="bg-orange-600 hover:bg-orange-700 text-white px-5 sm:px-7 py-2.5 sm:py-3.5 rounded-xl flex items-center gap-2 text-base sm:text-lg transition-all shadow-lg hover:shadow-xl whitespace-nowrap font-medium"
+                className="bg-orange-600 hover:bg-orange-500 text-white px-5 sm:px-7 py-2.5 sm:py-3.5 rounded-xl flex items-center gap-2 text-base sm:text-lg transition-all shadow-lg hover:shadow-xl whitespace-nowrap font-medium"
               >
                 <Truck size={20} />
                 <span>Terceiros</span>
@@ -237,7 +237,7 @@ export default function VehicleList({
 
               <button
                 onClick={handleAddClick}
-                className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-5 sm:px-7 py-2.5 sm:py-3.5 rounded-xl flex items-center gap-2 text-base sm:text-lg transition-all shadow-lg hover:shadow-xl whitespace-nowrap font-medium"
+                className="bg-gradient-to-r from-green-700 to-green-600 hover:from-blue-400 hover:to-green-500 text-white px-5 sm:px-7 py-2.5 sm:py-3.5 rounded-xl flex items-center gap-2 text-base sm:text-lg transition-all shadow-lg hover:shadow-xl whitespace-nowrap font-medium"
               >
                 <Plus size={20} />
                 <span>Novo Veículo</span>
