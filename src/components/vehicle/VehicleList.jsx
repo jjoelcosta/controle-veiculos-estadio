@@ -203,7 +203,7 @@ export default function VehicleList({
   ================================ */
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-3 sm:p-6">
       <div className="max-w-7xl mx-auto">
         
         <Header 
@@ -216,29 +216,36 @@ export default function VehicleList({
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl p-8 border border-gray-200">
           
           {/* Botões de Ação */}
-          <div className="flex justify-end gap-3 mb-6">
-            <button
-              onClick={onNavigateToOwners}
-              className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-purple-600 hover:to-purple-700 text-white px-6 py-3 rounded-xl flex items-center gap-2 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
-            >
-              <User size={20} />
-              Proprietários ARENA ({owners.length})
-            </button>
-            <button
-              onClick={onNavigateToThirdParty}
-              className="bg-orange-600 hover:bg-orange-700 text-white px-5 py-2.5 rounded-lg flex items-center gap-2 transition-all duration-200 shadow-md hover:shadow-lg"
-            >
-              <Truck size={18} />
-              Terceiros ({thirdPartyCount})
-            </button>            
-            <button
-              onClick={handleAddClick}
-              className="bg-gradient-to-r from-blue-500 to-green-600 hover:from-green-700 hover:to-blue-700 text-white px-6 py-3 rounded-xl flex items-center gap-2 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
-            >
-              <Plus size={20} />
-              Novo Veículo
-            </button>
-          </div>
+          <div className="flex flex-wrap justify-end gap-2 sm:gap-3 mb-6">
+              <button
+                onClick={onNavigateToOwners}
+                className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-green-600 hover:to-purple-700 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-xl flex items-center gap-1 sm:gap-2 text-sm sm:text-base transition-all duration-200 shadow-lg hover:shadow-xl"
+              >
+                <User size={18} className="sm:block" />
+                <span className="hidden sm:inline">Proprietários ARENA</span>
+                <span className="sm:hidden">Proprietários</span>
+                <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs font-bold">{owners.length}</span>
+              </button>
+
+              <button
+                onClick={onNavigateToThirdParty}
+                className="bg-orange-600 hover:bg-orange-700 text-white px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg flex items-center gap-1 sm:gap-2 text-sm sm:text-base transition-all"
+              >
+                <Truck size={16} className="sm:w-5 sm:h-5" />
+                <span className="hidden sm:inline">Terceiros</span>
+                <span className="sm:hidden">3º</span>
+                <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs font-bold">{thirdPartyCount}</span>
+              </button>
+
+              <button
+                onClick={handleAddClick}
+                className="bg-gradient-to-r from-blue-500 to-green-600 hover:from-green-700 hover:to-blue-700 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-xl flex items-center gap-1 sm:gap-2 text-sm sm:text-base transition-all shadow-lg"
+              >
+                <Plus size={18} className="sm:w-5 sm:h-5" />
+                <span className="hidden sm:inline">Novo Veículo</span>
+                <span className="sm:hidden">Novo</span>
+              </button>
+            </div>
 
           {/* Formulário */}
           {showForm && (
@@ -272,9 +279,9 @@ export default function VehicleList({
                             }}
                           onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
                           placeholder="Digite a placa, marca, modelo ou nome do proprietário..."
-                          className="w-full px-6 py-4 pl-14 text-lg border-2 border-blue-300 rounded-xl focus:border-blue-500 focus:outline-none transition-all shadow-sm"
+                          className="w-full px-4 sm:px-6 py-3 sm:py-4 pl-10 sm:pl-14 text-base sm:text-lg border-2 border-blue-300 rounded-xl focus:border-blue-500 focus:outline-none transition-all shadow-sm"
                         />
-                        <Search className="absolute left-5 top-1/2 transform -translate-y-1/2 text-blue-400" size={24} />
+                        <Search className="absolute left-3 sm:left-5 top-1/2 transform -translate-y-1/2 text-blue-400" size={20} />
                         {searchTerm && (
                           <button
                             onClick={() => setSearchTerm('')}
@@ -292,7 +299,7 @@ export default function VehicleList({
                           Filtros Avançados (opcional)
                         </summary>
                         
-                        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-3 mt-4 p-4 bg-gray-50 rounded-lg">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3 mt-4 p-3 sm:p-4 bg-gray-50 rounded-lg">
                           {/* Tipo */}
                           <div>
                             <label className="block text-sm font-medium mb-1 text-gray-700">
@@ -386,34 +393,35 @@ export default function VehicleList({
                         </details>
 
                       {/* Botões de Ação */}
-                      <div className="flex gap-3 flex-wrap">
+                      <div className="flex gap-2 sm:gap-3 flex-wrap">
+                      <button
+                        onClick={handleSearch}
+                        className="flex-1 sm:flex-initial bg-blue-600 hover:bg-blue-700 text-white px-4 sm:px-8 py-2.5 sm:py-3 rounded-xl font-semibold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 text-sm sm:text-base"
+                      >
+                        <Search size={18} />
+                        Buscar
+                      </button>
+                      
+                      {hasActiveFilters && (
                         <button
-                          onClick={handleSearch}
-                          className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-semibold transition-all shadow-md hover:shadow-lg flex items-center gap-2"
+                          onClick={clearAllFilters}
+                          className="bg-gray-500 hover:bg-gray-600 text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl font-medium transition-all flex items-center justify-center gap-2 text-sm sm:text-base"
                         >
-                          <Search size={20} />
-                          Buscar
+                          <X size={16} />
+                          <span className="hidden sm:inline">Limpar</span>
                         </button>
-                        
-                        {hasActiveFilters && (
-                          <button
-                            onClick={clearAllFilters}
-                            className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-xl font-medium transition-all flex items-center gap-2"
-                          >
-                            <X size={18} />
-                            Limpar
-                          </button>
-                        )}
+                      )}
 
-                        <button
-                          onClick={exportToCSV}
-                          disabled={!showResults || filteredVehicles.length === 0}
-                          className="bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-6 py-3 rounded-xl font-medium transition-all shadow-md hover:shadow-lg flex items-center gap-2"
-                        >
-                          <Download size={18} />
-                          Exportar CSV
-                        </button>
-                      </div>
+                      <button
+                        onClick={exportToCSV}
+                        disabled={!showResults || filteredVehicles.length === 0}
+                        className="bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl font-medium transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 text-sm sm:text-base"
+                      >
+                        <Download size={16} />
+                        <span className="hidden sm:inline">CSV</span>
+                        <span className="sm:hidden">↓</span>
+                      </button>
+                    </div>
                     </div>
                   </div>
 
@@ -457,7 +465,7 @@ export default function VehicleList({
                       <p className="text-sm">Tente ajustar os filtros</p>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                       {filteredVehicles.map(vehicle => (
                         <VehicleCard
                           key={vehicle.id}
