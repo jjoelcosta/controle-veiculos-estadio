@@ -229,11 +229,10 @@ export default function VehicleList({
 
               <button
                 onClick={onNavigateToThirdParty}
-                className="bg-orange-600 hover:bg-orange-700 text-white px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg flex items-center gap-1 sm:gap-2 text-sm sm:text-base transition-all"
+                className="bg-orange-600 hover:bg-orange-700 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-xl flex items-center gap-1 sm:gap-2 text-sm sm:text-base transition-all shadow-lg"
               >
-                <Truck size={16} className="sm:w-5 sm:h-5" />
-                <span className="hidden sm:inline">Terceiros</span>
-                <span className="sm:hidden">3º</span>
+                <Truck size={18} className="sm:block" />
+                <span>Terceiros</span>
                 <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs font-bold">{thirdPartyCount}</span>
               </button>
 
