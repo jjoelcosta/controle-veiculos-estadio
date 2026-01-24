@@ -219,27 +219,27 @@ export default function VehicleList({
           <div className="flex flex-wrap justify-end gap-2 sm:gap-3 mb-6">
               <button
                 onClick={onNavigateToOwners}
-                className="bg-gradient-to-r from-blue-500 to-green-600 hover:from-blue-600 hover:to-green-700 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-xl flex items-center gap-2 text-sm sm:text-base transition-all duration-200 shadow-lg hover:shadow-xl whitespace-nowrap"
+                className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-orange-600 hover:to-purple-700 text-white px-5 sm:px-7 py-2.5 sm:py-3.5 rounded-xl flex items-center gap-2 text-base sm:text-lg transition-all duration-200 shadow-lg hover:shadow-xl whitespace-nowrap font-medium"
               >
-                <User size={18} />
+                <User size={20} />
                 <span>Proprietários ARENA</span>
-                <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs font-bold">{owners.length}</span>
+                <span className="bg-white/20 px-2.5 py-1 rounded-full text-sm font-bold">{owners.length}</span>
               </button>
 
               <button
                 onClick={onNavigateToThirdParty}
-                className="bg-orange-600 hover:bg-orange-700 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-xl flex items-center gap-1 sm:gap-2 text-sm sm:text-base transition-all shadow-lg"
+                className="bg-orange-600 hover:bg-orange-700 text-white px-5 sm:px-7 py-2.5 sm:py-3.5 rounded-xl flex items-center gap-2 text-base sm:text-lg transition-all shadow-lg hover:shadow-xl whitespace-nowrap font-medium"
               >
-                <Truck size={18} className="sm:block" />
+                <Truck size={20} />
                 <span>Terceiros</span>
-                <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs font-bold">{thirdPartyCount}</span>
+                <span className="bg-white/20 px-2.5 py-1 rounded-full text-sm font-bold">{thirdPartyCount}</span>
               </button>
 
               <button
                 onClick={handleAddClick}
-                className="bg-gradient-to-r from-blue-400 to-green-600 hover:from-blue-500 hover:to-blue-700 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-xl flex items-center gap-2 text-sm sm:text-base transition-all shadow-lg hover:shadow-xl whitespace-nowrap"
+                className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-5 sm:px-7 py-2.5 sm:py-3.5 rounded-xl flex items-center gap-2 text-base sm:text-lg transition-all shadow-lg hover:shadow-xl whitespace-nowrap font-medium"
               >
-                <Plus size={18} />
+                <Plus size={20} />
                 <span>Novo Veículo</span>
               </button>
             </div>
