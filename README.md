@@ -31,6 +31,7 @@ Sistema web responsivo para controle de veículos autorizados em estacionamentos
 - **Lucide React** - Ícones
 - **Azure Static Web Apps** - Hospedagem
 - **GitHub Actions** - Deploy automático
+- **Supabase** - Backend
 
 ---
 
