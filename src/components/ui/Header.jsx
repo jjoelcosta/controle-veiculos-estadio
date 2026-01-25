@@ -17,7 +17,7 @@ export default function Header({
   };
 
   return (
-    <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white rounded-2xl shadow-2xl p-8 mb-6">
+    <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-600 text-white rounded-2xl shadow-2xl p-8 mb-6">
       <div className="flex items-center justify-between flex-wrap gap-6">
         
         {/* ✅ CORRIGIDO: Título SEM LOGO */}
