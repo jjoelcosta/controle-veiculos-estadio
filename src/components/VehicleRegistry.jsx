@@ -7,6 +7,9 @@ import OwnerList from './owner/OwnerList';
 import OwnerDetail from './owner/OwnerDetail';
 import VehicleEditModal from './vehicle/VehicleEditModal';
 import ThirdPartyVehicleList from './thirdparty/ThirdPartyVehicleList';
+import LoanList from './loan/LoanList';
+import LoanForm from './loan/LoanForm';
+import LoanInventory from './loan/LoanInventory';
 
 export default function VehicleRegistry() {
   // Estados principais
@@ -21,30 +24,37 @@ export default function VehicleRegistry() {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editingVehicle, setEditingVehicle] = useState(null);
   const [thirdPartyVehicles, setThirdPartyVehicles] = useState([]);
+  const [loanItems, setLoanItems] = useState([]);
+  const [loans, setLoans] = useState([]);
+  const [showLoanForm, setShowLoanForm] = useState(false);
+  const [showLoanInventory, setShowLoanInventory] = useState(false);
 
   // ✅ CARREGAR DADOS DO SUPABASE
   const loadData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const [vehiclesData, ownersData, thirdPartyData] = await Promise.all([
-        storage.loadVehicles(),
-        storage.loadOwners(),
-        storage.loadThirdPartyVehicles()
-      ]);
-      
-      setVehicles(vehiclesData);
-      setOwners(ownersData);
-      setThirdPartyVehicles(thirdPartyData);
-    } catch (err) {
-      console.error('❌ Erro ao carregar dados:', err);
-      setError(err.message || 'Erro ao conectar com o banco de dados');
-    } finally {
-      setLoading(false);
-    }
+  try {
+    setLoading(true);
+    setError(null);
+    
+    const [vehiclesData, ownersData, thirdPartyData, loanItemsData, loansData] = await Promise.all([
+      storage.loadVehicles(),
+      storage.loadOwners(),
+      storage.loadThirdPartyVehicles(),
+      storage.loadLoanItems(),
+      storage.loadLoans()
+    ]);
+    
+    setVehicles(vehiclesData);
+    setOwners(ownersData);
+    setThirdPartyVehicles(thirdPartyData);
+    setLoanItems(loanItemsData);
+    setLoans(loansData);
+  } catch (err) {
+    console.error('❌ Erro ao carregar dados:', err);
+    setError(err.message || 'Erro ao conectar com o banco de dados');
+  } finally {
+    setLoading(false);
+  }
 };
-
   // ✅ CARREGAR DADOS AO INICIAR
   useEffect(() => {
     loadData();
@@ -315,13 +325,49 @@ const handleDeleteThirdPartyVehicle = async (vehicleId) => {
       />
     );
 
-      case 'vehicles':
+   case 'loans':
+  if (showLoanInventory) {
+    return (
+      <LoanInventory
+        loanItems={loanItems}
+        onUpdateQuantity={async (itemId, total, available) => {
+          await storage.updateLoanItemQuantity(itemId, total, available);
+          await loadData();
+        }}
+        onBack={() => setShowLoanInventory(false)}
+      />
+    );
+  }
+
+  if (showLoanForm) {
+    return (
+      <LoanForm
+        loanItems={loanItems}
+        onSubmit={handleAddLoan}
+        onCancel={() => setShowLoanForm(false)}
+      />
+    );
+  }
+  
+  return (
+    <LoanList
+      loans={loans}
+      onAdd={() => setShowLoanForm(true)}
+      onViewDetail={handleViewLoanDetail}
+      onDelete={handleDeleteLoan}
+      onManageInventory={() => setShowLoanInventory(true)}
+      onBackToVehicles={() => setCurrentView('vehicles')}
+    />
+  );
+
+    case 'vehicles':
     default:
       return (
         <VehicleList
           vehicles={vehicles}
           owners={owners}
           thirdPartyVehicles={thirdPartyVehicles}
+          loans={loans}
           editingVehicleId={editingVehicleId}
           onViewDetail={handleViewVehicleDetail}
           onAdd={handleAddVehicle}
@@ -329,11 +375,42 @@ const handleDeleteThirdPartyVehicle = async (vehicleId) => {
           onDelete={handleDeleteVehicle}
           onNavigateToOwners={handleNavigateToOwners}
           onNavigateToThirdParty={() => setCurrentView('thirdParty')}
+          onNavigateToLoans={() => setCurrentView('loans')}
           onCancelEdit={() => setEditingVehicleId(null)}
         />
       );
     }
   };
+
+/* ================================
+   CRUD - EMPRÉSTIMOS
+================================ */
+
+const handleAddLoan = async (loanData) => {
+  try {
+    await storage.addLoan(loanData);
+    await loadData();
+    setShowLoanForm(false);
+  } catch (err) {
+    console.error('❌ Erro ao adicionar empréstimo:', err);
+    throw err;
+  }
+};
+
+const handleDeleteLoan = async (loanId) => {
+  try {
+    await storage.deleteLoan(loanId);
+    await loadData();
+  } catch (err) {
+    console.error('❌ Erro ao deletar empréstimo:', err);
+    throw err;
+  }
+};
+
+const handleViewLoanDetail = (loan) => {
+  // TODO: Implementar detalhes/devolução (próximo passo)
+  console.log('Ver detalhes do empréstimo:', loan);
+};
 
   return (
   <ToastProvider>

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Plus, Search, Filter, Download, User, MapPin, Building2, Briefcase, X, Car, Truck } from 'lucide-react';
+import { Plus, Search, Filter, Download, User, MapPin, Building2, Briefcase, X, Car, Truck, Package } from 'lucide-react';
 import VehicleCard from './VehicleCard';
 import VehicleForm from './VehicleForm';
 import Header from '../ui/Header';
@@ -9,14 +9,16 @@ import { useToast } from '../ui/Toast';
 export default function VehicleList({ 
   vehicles, 
   owners,
-  thirdPartyVehicles, // ✅ ADICIONA
+  thirdPartyVehicles,
+  loans,
   editingVehicleId,
   onViewDetail, 
   onAdd, 
   onEdit, 
   onDelete,
   onNavigateToOwners,
-  onNavigateToThirdParty, // ✅ ADICIONA
+  onNavigateToThirdParty,
+  onNavigateToLoans,
   onCancelEdit 
 }) {
   const { openModal, ModalComponent } = useModal();
@@ -40,6 +42,7 @@ export default function VehicleList({
   ================================ */
 
   const thirdPartyCount = thirdPartyVehicles?.length || 0;
+  const loansCount = loans?.length || 0;
 
   // Veículos filtrados
   const filteredVehicles = useMemo(() => {
@@ -233,6 +236,15 @@ export default function VehicleList({
                 <Truck size={20} />
                 <span>Terceiros</span>
                 <span className="bg-white/20 px-2.5 py-1 rounded-full text-sm font-bold">{thirdPartyCount}</span>
+              </button>
+
+              <button
+                onClick={onNavigateToLoans}
+                className="bg-yellow-500 hover:bg-yellow-600 text-white px-5 sm:px-7 py-2.5 sm:py-3.5 rounded-xl flex items-center gap-2 text-base sm:text-lg transition-all shadow-lg hover:shadow-xl whitespace-nowrap font-medium"
+              >
+                <Package size={20} />
+                <span>Empréstimos</span>
+                <span className="bg-white/20 px-2.5 py-1 rounded-full text-sm font-bold">{loansCount}</span>
               </button>
 
               <button
