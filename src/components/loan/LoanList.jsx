@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { Download } from 'lucide-react';
 import { Package, Plus, Search, ArrowLeft, Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 import { useModal } from '../ui/Modal';
 import { useToast } from '../ui/Toast';
@@ -76,6 +77,7 @@ export default function LoanList({
       <div 
         onClick={() => onViewDetail(loan)}
         className="bg-white rounded-xl border-2 border-yellow-200 p-5 hover:shadow-lg transition-all cursor-pointer"
+        
       >
         {/* Header */}
         <div className="flex items-center justify-between mb-3">
@@ -92,6 +94,25 @@ export default function LoanList({
             <StatusIcon size={14} />
             {statusBadge.label}
           </span>
+        </div>
+
+        {/* Botão PDF rápido */}
+        <div className="mt-3 pt-3 border-t border-yellow-200">
+          <button
+            onClick={(e) => {
+              e.stopPropagation(); // Não abre detalhes
+              try {
+                const { generateLoanPDF } = require('../../utils/loanPDF');
+                generateLoanPDF(loan);
+              } catch (err) {
+                console.error('Erro ao gerar PDF:', err);
+              }
+            }}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
+          >
+            <Download size={16} />
+            Gerar PDF
+          </button>
         </div>
 
         {/* Info */}

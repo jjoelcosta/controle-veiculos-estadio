@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ToastProvider } from './ui/Toast';
 import { storage } from '../utils/storage';
+import { generateLoanPDF, generateReturnPDF } from '../utils/loanPDF';
 import VehicleList from './vehicle/VehicleList';
 import VehicleDetail from './vehicle/VehicleDetail';
 import OwnerList from './owner/OwnerList';
@@ -10,6 +11,8 @@ import ThirdPartyVehicleList from './thirdparty/ThirdPartyVehicleList';
 import LoanList from './loan/LoanList';
 import LoanForm from './loan/LoanForm';
 import LoanInventory from './loan/LoanInventory';
+import LoanDetail from './loan/LoanDetail';
+import LoanReturnForm from './loan/LoanReturnForm';
 
 export default function VehicleRegistry() {
   // Estados principais
@@ -28,6 +31,8 @@ export default function VehicleRegistry() {
   const [loans, setLoans] = useState([]);
   const [showLoanForm, setShowLoanForm] = useState(false);
   const [showLoanInventory, setShowLoanInventory] = useState(false);
+  const [selectedLoan, setSelectedLoan] = useState(null);
+  const [showLoanReturn, setShowLoanReturn] = useState(false);
 
   // ✅ CARREGAR DADOS DO SUPABASE
   const loadData = async () => {
@@ -326,6 +331,7 @@ const handleDeleteThirdPartyVehicle = async (vehicleId) => {
     );
 
    case 'loans':
+  // Gestão de Estoque
   if (showLoanInventory) {
     return (
       <LoanInventory
@@ -339,6 +345,37 @@ const handleDeleteThirdPartyVehicle = async (vehicleId) => {
     );
   }
 
+  // Formulário de Devolução
+  if (showLoanReturn && selectedLoan) {
+    return (
+      <LoanReturnForm
+        loan={selectedLoan}
+        onSubmit={handleReturnSubmit}
+        onCancel={() => {
+          setShowLoanReturn(false);
+          // Recarregar empréstimo atualizado
+          loadData().then(() => {
+            const updatedLoan = loans.find(l => l.id === selectedLoan.id);
+            if (updatedLoan) setSelectedLoan(updatedLoan);
+          });
+        }}
+      />
+    );
+  }
+
+  // Detalhes do Empréstimo
+  if (selectedLoan) {
+    return (
+      <LoanDetail
+        loan={selectedLoan}
+        onBack={() => setSelectedLoan(null)}
+        onStartReturn={handleStartReturn}
+        onGeneratePDF={handleGeneratePDF}
+      />
+    );
+  }
+
+  // Formulário de Cadastro
   if (showLoanForm) {
     return (
       <LoanForm
@@ -349,6 +386,7 @@ const handleDeleteThirdPartyVehicle = async (vehicleId) => {
     );
   }
   
+  // Lista Principal
   return (
     <LoanList
       loans={loans}
@@ -408,8 +446,74 @@ const handleDeleteLoan = async (loanId) => {
 };
 
 const handleViewLoanDetail = (loan) => {
-  // TODO: Implementar detalhes/devolução (próximo passo)
-  console.log('Ver detalhes do empréstimo:', loan);
+  setSelectedLoan(loan);
+};
+
+const handleStartReturn = () => {
+  setShowLoanReturn(true);
+};
+
+const handleReturnSubmit = async (returnData) => {
+  try {
+    // 1. Atualizar cada item devolvido
+    for (const item of returnData.items) {
+      await storage.updateLoanItemReturn(item.id, {
+        quantityReturned: item.quantityReturned,
+        condition: item.condition,
+        damageFee: item.damageFee,
+        paymentMethod: item.paymentMethod,
+        paymentDate: item.paymentDate,
+        notes: item.notes
+      });
+    }
+
+    // 2. Determinar status final
+    const allReturned = returnData.items.every(
+      item => item.quantityReturned === item.quantityBorrowed
+    );
+    const hasDamage = returnData.items.some(
+      item => item.condition === 'Danificado' || item.condition === 'Perdido'
+    );
+
+    let finalStatus = 'devolvido';
+    if (hasDamage) {
+      finalStatus = 'perdido_danificado';
+    } else if (!allReturned) {
+      finalStatus = 'emprestado'; // Devolução parcial mantém emprestado
+    }
+
+    // 3. Atualizar status do empréstimo
+    await storage.updateLoanStatus(selectedLoan.id, finalStatus, {
+      actualReturnDate: returnData.actualReturnDate,
+      returnedBy: returnData.returnedBy
+    });
+
+    // 4. Recarregar dados
+    await loadData();
+    
+    // 5. Voltar para detalhes
+    setShowLoanReturn(false);
+    
+  } catch (err) {
+    console.error('❌ Erro ao registrar devolução:', err);
+    throw err;
+  }
+};
+
+const handleGeneratePDF = () => {
+  try {
+    // Gerar PDF de empréstimo ou devolução
+    if (selectedLoan.status === 'devolvido' || selectedLoan.status === 'perdido_danificado') {
+      const fileName = generateReturnPDF(selectedLoan);
+      console.log('✅ PDF de devolução gerado:', fileName);
+    } else {
+      const fileName = generateLoanPDF(selectedLoan);
+      console.log('✅ PDF de empréstimo gerado:', fileName);
+    }
+  } catch (err) {
+    console.error('❌ Erro ao gerar PDF:', err);
+    alert('Erro ao gerar PDF. Verifique o console.');
+  }
 };
 
   return (
