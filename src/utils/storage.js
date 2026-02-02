@@ -365,9 +365,9 @@ const loadLoanItems = async () => {
       name: item.name,
       category: item.category,
       description: item.description,
-      quantityTotal: item.quantity_total,
-      quantityAvailable: item.quantity_available,
-      unitValue: item.unit_value,
+      quantityTotal: item.quantity_total ?? 0,
+      quantityAvailable: item.quantity_available ?? 0,
+      unitValue: item.unit_value ?? 0,
       active: item.active
     }));
   } catch (err) {
