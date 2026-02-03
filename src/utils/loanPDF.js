@@ -1,7 +1,14 @@
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
+import { storage } from './storage';
 
-export const generateLoanPDF = (loan) => {
+export const generateLoanPDF = async (loan, documentNumber) => {
+  // Se não passou número, gera um novo
+  if (!documentNumber) {
+    documentNumber = await storage.getNextDocumentNumber('loan');
+    await storage.registerDocumentNumber('loan', documentNumber, loan.id);
+  }
+  
   const doc = new jsPDF();
   
   // Configurações
@@ -22,7 +29,7 @@ export const generateLoanPDF = (loan) => {
   yPos += 8;
   doc.setFontSize(12);
   doc.setTextColor(100, 100, 100);
-  doc.text('Estádio Nacional Mané Garrincha', pageWidth / 2, yPos, { align: 'center' });
+  doc.text('ARENA 360', pageWidth / 2, yPos, { align: 'center' });
   
   yPos += 15;
   doc.setFontSize(16);
@@ -46,18 +53,17 @@ export const generateLoanPDF = (loan) => {
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(0, 0, 0);
   
-  // Número do Empréstimo e Data
-  const loanNumber = loan.id.substring(0, 8).toUpperCase();
-  const loanDate = new Date(loan.loanDate).toLocaleDateString('pt-BR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
-  
-  doc.text(`Nº: ${loanNumber}`, margin, yPos);
-  doc.text(`Data: ${loanDate}`, pageWidth - margin - 50, yPos);
+  // Número do Documento e Data
+const loanDate = new Date(loan.loanDate).toLocaleDateString('pt-BR', {
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit'
+});
+
+doc.text(`Documento Nº: ${String(documentNumber).padStart(6, '0')}`, margin, yPos);
+doc.text(`Data: ${loanDate}`, pageWidth - margin - 50, yPos);
   
   yPos += 15;
 
@@ -113,7 +119,7 @@ export const generateLoanPDF = (loan) => {
     `R$ ${item.unitValue?.toFixed(2) || '0.00'}`
   ]);
 
-  doc.autoTable({
+  autoTable(doc, {
     startY: yPos,
     head: [['Item', 'Categoria', 'Quantidade', 'Valor Unit.']],
     body: tableData,
@@ -250,15 +256,21 @@ export const generateLoanPDF = (loan) => {
   // GERAR PDF
   // ============================================
   
-  const fileName = `Emprestimo_${loanNumber}_${loan.company.replace(/\s+/g, '_')}.pdf`;
+  const fileName = `Emprestimo_${String(documentNumber).padStart(6, '0')}_${loan.company.replace(/\s+/g, '_')}.pdf`;
   doc.save(fileName);
   
   return fileName;
 };
 
 // Função auxiliar para gerar PDF de devolução (com taxas)
-export const generateReturnPDF = (loan) => {
-  const doc = new jsPDF();
+  export const generateReturnPDF = async (loan, documentNumber) => {
+    // Se não passou número, gera um novo
+    if (!documentNumber) {
+      documentNumber = await storage.getNextDocumentNumber('return');
+      await storage.registerDocumentNumber('return', documentNumber, loan.id);
+    }
+    
+    const doc = new jsPDF();
   
   const pageWidth = doc.internal.pageSize.width;
   const margin = 20;
@@ -268,7 +280,7 @@ export const generateReturnPDF = (loan) => {
   doc.setFontSize(20);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(0, 153, 0); // Verde
-  doc.text('ARENA BRB', pageWidth / 2, yPos, { align: 'center' });
+  doc.text('ARENA BRB - ARENA 360', pageWidth / 2, yPos, { align: 'center' });
   
   yPos += 8;
   doc.setFontSize(12);
@@ -291,8 +303,8 @@ export const generateReturnPDF = (loan) => {
   const loanNumber = loan.id.substring(0, 8).toUpperCase();
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
-  
-  doc.text(`Empréstimo Nº: ${loanNumber}`, margin, yPos);
+
+  doc.text(`Documento Nº: ${String(documentNumber).padStart(6, '0')}`, margin, yPos);
   doc.text(`Empresa: ${loan.company}`, margin, yPos + 6);
   doc.text(`Solicitante: ${loan.requesterName}`, margin, yPos + 12);
   
@@ -320,7 +332,7 @@ export const generateReturnPDF = (loan) => {
     ];
   });
 
-  doc.autoTable({
+  autoTable(doc, {
     startY: yPos,
     head: [['Item', 'Emprest.', 'Devol.', 'Condição', 'Taxa']],
     body: tableData,
@@ -366,7 +378,7 @@ export const generateReturnPDF = (loan) => {
     { align: 'center' }
   );
 
-  const fileName = `Devolucao_${loanNumber}_${loan.company.replace(/\s+/g, '_')}.pdf`;
+  const fileName = `Devolucao_${String(documentNumber).padStart(6, '0')}_${loan.company.replace(/\s+/g, '_')}.pdf`;
   doc.save(fileName);
   
   return fileName;

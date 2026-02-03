@@ -641,6 +641,49 @@ const deleteLoan = async (loanId) => {
 };
 
 /* ================================
+   CONTROLE DE DOCUMENTOS
+================================ */
+
+const getNextDocumentNumber = async (documentType) => {
+  try {
+    // Busca o maior número
+    const { data, error } = await supabase
+      .from('document_control')
+      .select('document_number')
+      .eq('document_type', documentType)
+      .order('document_number', { ascending: false })
+      .limit(1);
+
+    if (error) throw error;
+
+    const nextNumber = data && data.length > 0 ? data[0].document_number + 1 : 1;
+    
+    return nextNumber;
+  } catch (err) {
+    console.error('Erro ao gerar número:', err);
+    return 1; // Fallback
+  }
+};
+
+const registerDocumentNumber = async (documentType, documentNumber, loanId) => {
+  try {
+    const { error } = await supabase
+      .from('document_control')
+      .insert({
+        document_type: documentType,
+        document_number: documentNumber,
+        loan_id: loanId
+      });
+
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.error('Erro ao registrar número:', err);
+    throw err;
+  }
+};
+
+/* ================================
    EXPORT
 ================================ */
 
@@ -663,5 +706,7 @@ export const storage = {
   addLoan,
   updateLoanStatus,
   updateLoanItemReturn,
-  deleteLoan
+  deleteLoan,
+  getNextDocumentNumber,
+  registerDocumentNumber
 };

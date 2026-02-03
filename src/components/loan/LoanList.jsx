@@ -96,25 +96,6 @@ export default function LoanList({
           </span>
         </div>
 
-        {/* Botão PDF rápido */}
-        <div className="mt-3 pt-3 border-t border-yellow-200">
-          <button
-            onClick={(e) => {
-              e.stopPropagation(); // Não abre detalhes
-              try {
-                const { generateLoanPDF } = require('../../utils/loanPDF');
-                generateLoanPDF(loan);
-              } catch (err) {
-                console.error('Erro ao gerar PDF:', err);
-              }
-            }}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
-          >
-            <Download size={16} />
-            Gerar PDF
-          </button>
-        </div>
-
         {/* Info */}
         <div className="space-y-2 mb-3 text-sm">
           <div className="flex items-center gap-2 text-gray-600">

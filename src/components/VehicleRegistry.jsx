@@ -500,21 +500,20 @@ const handleReturnSubmit = async (returnData) => {
   }
 };
 
-const handleGeneratePDF = () => {
-  try {
-    // Gerar PDF de empréstimo ou devolução
-    if (selectedLoan.status === 'devolvido' || selectedLoan.status === 'perdido_danificado') {
-      const fileName = generateReturnPDF(selectedLoan);
-      console.log('✅ PDF de devolução gerado:', fileName);
-    } else {
-      const fileName = generateLoanPDF(selectedLoan);
-      console.log('✅ PDF de empréstimo gerado:', fileName);
+  const handleGeneratePDF = async () => {
+    try {
+      if (selectedLoan.status === 'devolvido' || selectedLoan.status === 'perdido_danificado') {
+        const fileName = await generateReturnPDF(selectedLoan);
+        console.log('✅ PDF de devolução gerado:', fileName);
+      } else {
+        const fileName = await generateLoanPDF(selectedLoan);
+        console.log('✅ PDF de empréstimo gerado:', fileName);
+      }
+    } catch (err) {
+      console.error('❌ Erro ao gerar PDF:', err);
+      alert('Erro ao gerar PDF. Verifique o console.');
     }
-  } catch (err) {
-    console.error('❌ Erro ao gerar PDF:', err);
-    alert('Erro ao gerar PDF. Verifique o console.');
-  }
-};
+  };
 
   return (
   <ToastProvider>
