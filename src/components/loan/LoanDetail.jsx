@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Package, User, MapPin, Calendar, CheckCircle, Clock, AlertCircle, FileText, Download } from 'lucide-react';
+import { ArrowLeft, Package, User, MapPin, Calendar, CheckCircle, Clock, AlertCircle, FileText, Download, Edit } from 'lucide-react';
 import { useToast } from '../ui/Toast';
 import { useModal } from '../ui/Modal';
 
 export default function LoanDetail({ 
   loan, 
   onBack,
+  onEdit,
   onStartReturn,
   onGeneratePDF
 }) {
@@ -70,10 +71,20 @@ export default function LoanDetail({
                 </span>
               </div>
 
-              <div className="flex gap-3">
+              <div className="flex gap-3 flex-wrap">
+                {canReturn && (
+                  <button
+                    onClick={onEdit}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg flex items-center gap-2 transition-colors shadow-md font-medium"
+                  >
+                    <Edit size={18} />
+                    Editar
+                  </button>
+                )}
+
                 <button
                   onClick={onGeneratePDF}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg flex items-center gap-2 transition-colors shadow-md font-medium"
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-lg flex items-center gap-2 transition-colors shadow-md font-medium"
                 >
                   <Download size={18} />
                   Gerar PDF

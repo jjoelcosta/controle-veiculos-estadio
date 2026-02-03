@@ -13,6 +13,7 @@ import LoanForm from './loan/LoanForm';
 import LoanInventory from './loan/LoanInventory';
 import LoanDetail from './loan/LoanDetail';
 import LoanReturnForm from './loan/LoanReturnForm';
+import LoanEditForm from './loan/LoanEditForm';
 
 export default function VehicleRegistry() {
   // Estados principais
@@ -33,6 +34,7 @@ export default function VehicleRegistry() {
   const [showLoanInventory, setShowLoanInventory] = useState(false);
   const [selectedLoan, setSelectedLoan] = useState(null);
   const [showLoanReturn, setShowLoanReturn] = useState(false);
+  const [showLoanEdit, setShowLoanEdit] = useState(false);
 
   // ✅ CARREGAR DADOS DO SUPABASE
   const loadData = async () => {
@@ -363,17 +365,36 @@ const handleDeleteThirdPartyVehicle = async (vehicleId) => {
     );
   }
 
-  // Detalhes do Empréstimo
-  if (selectedLoan) {
-    return (
-      <LoanDetail
-        loan={selectedLoan}
-        onBack={() => setSelectedLoan(null)}
-        onStartReturn={handleStartReturn}
-        onGeneratePDF={handleGeneratePDF}
-      />
-    );
-  }
+  // Formulário de Edição
+if (showLoanEdit && selectedLoan) {
+  return (
+    <LoanEditForm
+      loan={selectedLoan}
+      onSubmit={handleUpdateLoan}
+      onCancel={() => {
+        setShowLoanEdit(false);
+        // Recarregar empréstimo atualizado
+        loadData().then(() => {
+          const updatedLoan = loans.find(l => l.id === selectedLoan.id);
+          if (updatedLoan) setSelectedLoan(updatedLoan);
+        });
+      }}
+    />
+  );
+}
+
+// Detalhes do Empréstimo
+if (selectedLoan) {
+  return (
+    <LoanDetail
+      loan={selectedLoan}
+      onBack={() => setSelectedLoan(null)}
+      onEdit={handleEditLoan}
+      onStartReturn={handleStartReturn}
+      onGeneratePDF={handleGeneratePDF}
+    />
+  );
+}
 
   // Formulário de Cadastro
   if (showLoanForm) {
@@ -499,6 +520,25 @@ const handleReturnSubmit = async (returnData) => {
     throw err;
   }
 };
+
+  const handleEditLoan = () => {
+    setShowLoanEdit(true);
+  };
+
+  const handleUpdateLoan = async (loanId, loanData) => {
+    try {
+      await storage.updateLoan(loanId, loanData);
+      await loadData();
+      setShowLoanEdit(false);
+      
+      // Atualizar o loan selecionado
+      const updatedLoan = loans.find(l => l.id === loanId);
+      if (updatedLoan) setSelectedLoan(updatedLoan);
+    } catch (err) {
+      console.error('❌ Erro ao atualizar empréstimo:', err);
+      throw err;
+    }
+  };
 
   const handleGeneratePDF = async () => {
     try {

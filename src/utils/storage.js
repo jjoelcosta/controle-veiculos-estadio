@@ -522,6 +522,31 @@ const addLoan = async (loanData) => {
   }
 };
 
+const updateLoan = async (loanId, loanData) => {
+  try {
+    const { error } = await supabase
+      .from('loans')
+      .update({
+        company: normalizeText(loanData.company),
+        requester_name: normalizeText(loanData.requesterName),
+        requester_cpf: normalizeText(loanData.requesterCpf),
+        requester_phone: normalizeText(loanData.requesterPhone),
+        location: normalizeText(loanData.location),
+        delivered_by: normalizeText(loanData.deliveredBy),
+        expected_return_date: loanData.expectedReturnDate,
+        notes: normalizeText(loanData.notes),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', loanId);
+
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.error('Erro ao atualizar empréstimo:', err);
+    throw err;
+  }
+};
+
 const updateLoanStatus = async (loanId, status, returnData = null) => {
   try {
     const updateData = {
@@ -704,6 +729,7 @@ export const storage = {
   updateLoanItemQuantity,
   loadLoans,
   addLoan,
+  updateLoan,
   updateLoanStatus,
   updateLoanItemReturn,
   deleteLoan,
