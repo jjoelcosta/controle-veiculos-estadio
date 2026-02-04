@@ -40,10 +40,10 @@ export default function LoginPage() {
               <Car className="text-white" size={40} />
             </div>
             <h1 className="text-3xl font-bold text-gray-800 mb-2">
-              Sistema de Veículos
+              Sistema de Veículos e Acervo
             </h1>
             <p className="text-gray-600">
-              Estacionamento do Estádio
+              ARENA BRB
             </p>
           </div>
 

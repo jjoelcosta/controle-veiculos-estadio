@@ -14,6 +14,7 @@ import LoanInventory from './loan/LoanInventory';
 import LoanDetail from './loan/LoanDetail';
 import LoanReturnForm from './loan/LoanReturnForm';
 import LoanEditForm from './loan/LoanEditForm';
+import Reports from './reports/Reports';
 
 export default function VehicleRegistry() {
   // Estados principais
@@ -419,7 +420,18 @@ if (selectedLoan) {
     />
   );
 
-    case 'vehicles':
+  case 'reports':
+  return (
+    <Reports
+      vehicles={vehicles}
+      owners={owners}
+      thirdPartyVehicles={thirdPartyVehicles}
+      loans={loans}
+      onBack={() => setCurrentView('vehicles')}
+    />
+  );
+
+  case 'vehicles':
     default:
       return (
         <VehicleList
@@ -435,6 +447,7 @@ if (selectedLoan) {
           onNavigateToOwners={handleNavigateToOwners}
           onNavigateToThirdParty={() => setCurrentView('thirdParty')}
           onNavigateToLoans={() => setCurrentView('loans')}
+          onNavigateToReports={() => setCurrentView('reports')}
           onCancelEdit={() => setEditingVehicleId(null)}
         />
       );

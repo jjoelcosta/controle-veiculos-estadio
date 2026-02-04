@@ -4,7 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 
 export default function Header({ 
   companyName = "ARENA 360 / ARENA BRB", 
-  subtitle = "Sistema de Controle de Veículos",
+  subtitle = "Sistema de Controle de Veículos e Acervos",
   vehicleCount,
   ownerCount 
 }) {

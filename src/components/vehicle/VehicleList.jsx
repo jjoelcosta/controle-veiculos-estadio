@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Plus, Search, Filter, Download, User, MapPin, Building2, Briefcase, X, Car, Truck, Package } from 'lucide-react';
+import { Plus, Search, Filter, Download, User, MapPin, Building2, Briefcase, X, Car, Truck, Package, FileText } from 'lucide-react';
 import VehicleCard from './VehicleCard';
 import VehicleForm from './VehicleForm';
 import Header from '../ui/Header';
@@ -19,6 +19,7 @@ export default function VehicleList({
   onNavigateToOwners,
   onNavigateToThirdParty,
   onNavigateToLoans,
+  onNavigateToReports,
   onCancelEdit 
 }) {
   const { openModal, ModalComponent } = useModal();
@@ -211,7 +212,7 @@ export default function VehicleList({
         
         <Header 
           companyName="ARENA BRB / ARENA 360"
-          subtitle="Sistema de Controle de Veículos - Segurança"
+          subtitle="Sistema de Controle de Veículos e Acervo - SEGURANÇA"
           vehicleCount={vehicles.length}
           ownerCount={owners.length}
         />
@@ -245,6 +246,14 @@ export default function VehicleList({
                 <Package size={20} />
                 <span>Empréstimos</span>
                 <span className="bg-white/20 px-2.5 py-1 rounded-full text-sm font-bold">{loansCount}</span>
+              </button>
+
+              <button
+                onClick={onNavigateToReports}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 sm:px-7 py-2.5 sm:py-3.5 rounded-xl flex items-center gap-2 text-base sm:text-lg transition-all shadow-lg hover:shadow-xl whitespace-nowrap font-medium"
+              >
+                <FileText size={20} />
+                <span>Relatórios</span>
               </button>
 
               <button
@@ -439,10 +448,10 @@ export default function VehicleList({
                 <div className="text-center py-24 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl">
                   <Car size={80} className="mx-auto mb-6 text-blue-400 opacity-50" />
                   <h3 className="text-2xl font-bold text-gray-700 mb-3">
-                    Sistema de Controle de Veículos
+                    Sistema de Controle de Veículos e Acervo
                   </h3>
                   <p className="text-gray-500 text-lg">
-                    Use a busca acima para consultar veículos cadastrados
+                    Use a busca acima para consultar
                   </p>
                 </div>
               ) : (
