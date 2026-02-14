@@ -357,8 +357,7 @@ const handleDeleteThirdPartyVehicle = async (vehicleId) => {
       />
     );
 
-   case 'loans':
-  // Gestão de Estoque
+   case 'loans': {
   if (showLoanInventory) {
     return (
       <LoanInventory
@@ -372,7 +371,6 @@ const handleDeleteThirdPartyVehicle = async (vehicleId) => {
     );
   }
 
-  // Formulário de Devolução
   if (showLoanReturn && selectedLoan) {
     return (
       <LoanReturnForm
@@ -380,7 +378,6 @@ const handleDeleteThirdPartyVehicle = async (vehicleId) => {
         onSubmit={handleReturnSubmit}
         onCancel={() => {
           setShowLoanReturn(false);
-          // Recarregar empréstimo atualizado
           loadData().then(() => {
             const updatedLoan = loans.find(l => l.id === selectedLoan.id);
             if (updatedLoan) setSelectedLoan(updatedLoan);
@@ -390,38 +387,34 @@ const handleDeleteThirdPartyVehicle = async (vehicleId) => {
     );
   }
 
-  // Formulário de Edição
-if (showLoanEdit && selectedLoan) {
-  return (
-    <LoanEditForm
-      loan={selectedLoan}
-      onSubmit={handleUpdateLoan}
-      onCancel={() => {
-        setShowLoanEdit(false);
-        // Recarregar empréstimo atualizado
-        loadData().then(() => {
-          const updatedLoan = loans.find(l => l.id === selectedLoan.id);
-          if (updatedLoan) setSelectedLoan(updatedLoan);
-        });
-      }}
-    />
-  );
-}
+  if (showLoanEdit && selectedLoan) {
+    return (
+      <LoanEditForm
+        loan={selectedLoan}
+        onSubmit={handleUpdateLoan}
+        onCancel={() => {
+          setShowLoanEdit(false);
+          loadData().then(() => {
+            const updatedLoan = loans.find(l => l.id === selectedLoan.id);
+            if (updatedLoan) setSelectedLoan(updatedLoan);
+          });
+        }}
+      />
+    );
+  }
 
-// Detalhes do Empréstimo
-if (selectedLoan) {
-  return (
-    <LoanDetail
-      loan={selectedLoan}
-      onBack={() => setSelectedLoan(null)}
-      onEdit={handleEditLoan}
-      onStartReturn={handleStartReturn}
-      onGeneratePDF={handleGeneratePDF}
-    />
-  );
-}
+  if (selectedLoan) {
+    return (
+      <LoanDetail
+        loan={selectedLoan}
+        onBack={() => setSelectedLoan(null)}
+        onEdit={handleEditLoan}
+        onStartReturn={handleStartReturn}
+        onGeneratePDF={handleGeneratePDF}
+      />
+    );
+  }
 
-  // Formulário de Cadastro
   if (showLoanForm) {
     return (
       <LoanForm
@@ -431,8 +424,7 @@ if (selectedLoan) {
       />
     );
   }
-  
-  // Lista Principal
+
   return (
     <LoanList
       loans={loans}
@@ -443,9 +435,9 @@ if (selectedLoan) {
       onBackToVehicles={() => setCurrentView('vehicles')}
     />
   );
+}
 
-  case 'events':
-  // Relatórios de Eventos
+case 'events': {
   if (showEventReports) {
     return (
       <EventReports
@@ -457,7 +449,6 @@ if (selectedLoan) {
     );
   }
 
-  // Banco de Horas
   if (showHourBank) {
     return (
       <HourBank
@@ -472,7 +463,6 @@ if (selectedLoan) {
     );
   }
 
-  // Gerenciar Equipe
   if (showTeamManager) {
     return (
       <TeamManager
@@ -485,7 +475,6 @@ if (selectedLoan) {
     );
   }
 
-  // Formulário de Evento (novo ou editar)
   if (showEventForm) {
     return (
       <EventForm
@@ -499,7 +488,6 @@ if (selectedLoan) {
     );
   }
 
-  // Detalhes do Evento
   if (selectedEvent) {
     return (
       <EventDetail
@@ -516,24 +504,23 @@ if (selectedLoan) {
     );
   }
 
-  // Lista de Eventos
   return (
-  <EventList
-    events={events}
-    onAdd={() => setShowEventForm(true)}
-    onViewDetail={(event) => setSelectedEvent(event)}
-    onEdit={(event) => {
-      setEditingEvent(event);
-      setShowEventForm(true);
-    }}
-    onDelete={handleDeleteEvent}
-    onBack={() => setCurrentView('vehicles')}
-    onManageTeam={() => setShowTeamManager(true)}
-    onHourBank={() => setShowHourBank(true)}
-    onReports={() => setShowEventReports(true)}
-  />
-);
-
+    <EventList
+      events={events}
+      onAdd={() => setShowEventForm(true)}
+      onViewDetail={(event) => setSelectedEvent(event)}
+      onEdit={(event) => {
+        setEditingEvent(event);
+        setShowEventForm(true);
+      }}
+      onDelete={handleDeleteEvent}
+      onBack={() => setCurrentView('vehicles')}
+      onManageTeam={() => setShowTeamManager(true)}
+      onHourBank={() => setShowHourBank(true)}
+      onReports={() => setShowEventReports(true)}
+    />
+  );
+}
   case 'reports':
   return (
     <Reports

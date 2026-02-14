@@ -7,7 +7,8 @@ const emptyForm = {
   employeeId: '',
   eventId: '',
   eventDate: new Date().toISOString().split('T')[0],
-  hoursWorked: 12,
+  hours: 12,
+  minutes: 0,
   notes: ''
 };
 
@@ -35,6 +36,25 @@ export default function HourBank({
     hourBank.map(h => h.eventDate?.substring(0, 7))
   )].filter(Boolean).sort().reverse();
 
+    // Converte horas + minutos para decimal (ex: 12h30 = 12.50)
+  const toDecimal = (hours, minutes) => {
+    return parseFloat(hours || 0) + parseFloat((minutes || 0) / 60);
+  };
+
+  // Converte decimal para horas e minutos (ex: 12.50 = 12h30)
+  const fromDecimal = (decimal) => {
+    const hours = Math.floor(decimal);
+    const minutes = Math.round((decimal - hours) * 60);
+    return { hours, minutes };
+  };
+
+  // Formata para exibição (ex: 12.50 → "12h30")
+  const formatHours = (decimal) => {
+    const { hours, minutes } = fromDecimal(decimal);
+    if (minutes === 0) return `${hours}h`;
+    return `${hours}h${String(minutes).padStart(2, '0')}`;
+  };
+
   // Filtrar registros
   const filtered = hourBank.filter(h => {
     const matchEmployee = filterEmployee === 'todos' || h.employeeId === filterEmployee;
@@ -53,23 +73,30 @@ export default function HourBank({
   const totalHoursAll = filtered.reduce((sum, h) => sum + (parseFloat(h.hoursWorked) || 0), 0);
 
   const validate = () => {
-    const newErrors = {};
-    if (!formData.employeeId) newErrors.employeeId = 'Selecione o funcionário';
-    if (!formData.eventDate) newErrors.eventDate = 'Data é obrigatória';
-    if (!formData.hoursWorked || formData.hoursWorked <= 0) newErrors.hoursWorked = 'Informe as horas';
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
+  const newErrors = {};
+  if (!formData.employeeId) newErrors.employeeId = 'Selecione o funcionário';
+  if (!formData.eventDate) newErrors.eventDate = 'Data é obrigatória';
+  if (!formData.hours && formData.hours !== 0) newErrors.hours = 'Informe as horas';
+  if (toDecimal(formData.hours, formData.minutes) <= 0) {
+    newErrors.hours = 'Total deve ser maior que zero';
+  }
+  setErrors(newErrors);
+  return Object.keys(newErrors).length === 0;
+};
 
-  const handleSubmit = async () => {
-    if (!validate()) { showError('Preencha os campos obrigatórios'); return; }
-    setSaving(true);
-    try {
-      if (editingId) {
-        await onUpdate(editingId, formData);
-      } else {
-        await onAdd(formData);
-      }
+const handleSubmit = async () => {
+  if (!validate()) { showError('Preencha os campos obrigatórios'); return; }
+  setSaving(true);
+  try {
+    const dataToSave = {
+      ...formData,
+      hoursWorked: toDecimal(formData.hours, formData.minutes)
+    };
+    if (editingId) {
+      await onUpdate(editingId, dataToSave);
+    } else {
+      await onAdd(dataToSave);
+    }
       setShowForm(false);
       setFormData(emptyForm);
       setEditingId(null);
@@ -81,13 +108,16 @@ export default function HourBank({
   };
 
   const handleEdit = (record) => {
-    setFormData({
-      employeeId: record.employeeId,
-      eventId: record.eventId || '',
-      eventDate: record.eventDate,
-      hoursWorked: record.hoursWorked,
-      notes: record.notes || ''
-    });
+  const { hours, minutes } = fromDecimal(record.hoursWorked);
+  setFormData({
+    employeeId: record.employeeId,
+    eventId: record.eventId || '',
+    eventDate: record.eventDate,
+    hours,
+    minutes,
+    notes: record.notes || ''
+  });
+
     setEditingId(record.id);
     setShowForm(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -266,25 +296,52 @@ export default function HourBank({
                   {errors.eventDate && <p className="text-red-600 text-sm mt-1">❌ {errors.eventDate}</p>}
                 </div>
 
-                {/* Horas */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Horas Trabalhadas *
-                  </label>
-                  <input
-                    type="number"
-                    min="0.5"
-                    max="24"
-                    step="0.5"
-                    value={formData.hoursWorked}
-                    onChange={(e) => setFormData(prev => ({ ...prev, hoursWorked: parseFloat(e.target.value) || 0 }))}
-                    disabled={saving}
-                    className={`w-full px-4 py-3 border-2 rounded-lg focus:outline-none disabled:opacity-50 ${
-                      errors.hoursWorked ? 'border-red-500' : 'border-gray-300 focus:border-blue-500'
-                    }`}
-                  />
-                  {errors.hoursWorked && <p className="text-red-600 text-sm mt-1">❌ {errors.hoursWorked}</p>}
+               {/* Horas e Minutos */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Horas Trabalhadas *
+                </label>
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <input
+                      type="number"
+                      min="0"
+                      max="24"
+                      value={formData.hours}
+                      onChange={(e) => setFormData(prev => ({ ...prev, hours: parseInt(e.target.value) || 0 }))}
+                      disabled={saving}
+                      className={`w-full px-4 py-3 border-2 rounded-lg focus:outline-none disabled:opacity-50 text-center ${
+                        errors.hours ? 'border-red-500' : 'border-gray-300 focus:border-blue-500'
+                      }`}
+                      placeholder="0"
+                    />
+                    <span className="text-xs text-gray-500 text-center block mt-1">horas</span>
+                  </div>
+                  <div className="flex items-start pt-3 text-gray-400 font-bold text-xl">:</div>
+                  <div className="flex-1">
+                    <select
+                      value={formData.minutes}
+                      onChange={(e) => setFormData(prev => ({ ...prev, minutes: parseInt(e.target.value) }))}
+                      disabled={saving}
+                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none disabled:opacity-50 text-center"
+                    >
+                      {Array.from({ length: 60 }, (_, i) => (
+                        <option key={i} value={i}>
+                          {String(i).padStart(2, '0')}
+                        </option>
+                      ))}
+                    </select>
+                    <span className="text-xs text-gray-500 text-center block mt-1">minutos</span>
+                  </div>
                 </div>
+                {/* Preview */}
+                <div className="mt-2 text-center">
+                  <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-bold">
+                    Total: {formatHours(toDecimal(formData.hours, formData.minutes))}
+                  </span>
+                </div>
+                {errors.hours && <p className="text-red-600 text-sm mt-1 text-center">❌ {errors.hours}</p>}
+              </div>
               </div>
 
               {/* Observações */}
@@ -355,7 +412,7 @@ export default function HourBank({
                     </div>
                     <div className="flex items-center gap-3">
                       <div className="text-right">
-                        <div className="text-2xl font-bold text-blue-700">{totalHours}h</div>
+                        <div className="text-2xl font-bold text-blue-700">{formatHours(totalHours)}</div>
                         <div className="text-xs text-gray-500">total acumulado</div>
                       </div>
                       {isExpanded ? <ChevronUp size={20} className="text-gray-400" /> : <ChevronDown size={20} className="text-gray-400" />}
@@ -382,7 +439,7 @@ export default function HourBank({
                               <td className="px-4 py-3 text-sm text-gray-700">{record.eventName || '-'}</td>
                               <td className="px-4 py-3 text-center">
                                 <span className="bg-blue-100 text-blue-800 font-bold px-2 py-1 rounded-full text-sm">
-                                  {record.hoursWorked}h
+                                  {formatHours(record.hoursWorked)}
                                 </span>
                               </td>
                               <td className="px-4 py-3 text-xs text-gray-500">{record.notes || '-'}</td>
@@ -412,7 +469,7 @@ export default function HourBank({
                             <td colSpan={2} className="px-4 py-2 text-sm font-bold text-blue-800">
                               Total {filterMonth !== 'todos' ? formatMonth(filterMonth) : ''}
                             </td>
-                            <td className="px-4 py-2 text-center font-bold text-blue-800">{totalHours}h</td>
+                            <td className="px-4 py-2 text-center font-bold text-blue-800">{formatHours(totalHours)}</td>
                             <td colSpan={2}></td>
                           </tr>
                         </tfoot>

@@ -17,6 +17,18 @@ export default function EventReports({ events, team, hourBank, onBack }) {
   const formatCurrency = (value) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0);
 
+  const fromDecimal = (decimal) => {
+  const hours = Math.floor(decimal);
+  const minutes = Math.round((decimal - hours) * 60);
+  return { hours, minutes };
+  };
+
+  const formatHours = (decimal) => {
+    const { hours, minutes } = fromDecimal(decimal);
+    if (minutes === 0) return `${hours}h`;
+    return `${hours}h${String(minutes).padStart(2, '0')}`;
+  };
+
   const formatDate = (date) => {
     if (!date) return '-';
     return new Date(date + 'T12:00:00').toLocaleDateString('pt-BR');
@@ -689,7 +701,7 @@ export default function EventReports({ events, team, hourBank, onBack }) {
                             <div className="font-bold text-gray-800">{emp.name}</div>
                             <div className="text-sm text-gray-500">{emp.position}</div>
                           </div>
-                          <div className="text-2xl font-bold text-blue-700">{emp.totalHours}h</div>
+                          <div className="text-2xl font-bold text-blue-700">{formatHours(emp.totalHours)}</div>
                         </div>
                         <table className="w-full">
                           <thead className="bg-gray-50">
@@ -702,7 +714,7 @@ export default function EventReports({ events, team, hourBank, onBack }) {
                             {months.map(([month, hours]) => (
                               <tr key={month} className="hover:bg-gray-50">
                                 <td className="px-4 py-2 text-sm text-gray-700">{formatMonth(month)}</td>
-                                <td className="px-4 py-2 text-right font-medium text-blue-700">{hours}h</td>
+                                <td className="px-4 py-2 text-right font-medium text-blue-700">{formatHours(hours)}</td>
                               </tr>
                             ))}
                           </tbody>

@@ -749,6 +749,7 @@ const loadEvents = async () => {
         id: ex.id,
         expenseType: ex.expense_type,
         expenseCategory: ex.expense_category,
+        expenseDate: ex.expense_date,
         shifts: ex.shifts,
         quantity: ex.quantity,
         unitValue: ex.unit_value,
@@ -831,14 +832,12 @@ const deleteEvent = async (eventId) => {
 
 const addEventExpense = async (expenseData) => {
   try {
-    // Calcular total automaticamente
     let totalValue = 0;
     if (expenseData.expenseCategory === 'pessoal') {
-      totalValue = (expenseData.shifts || 1) 
-        * (expenseData.quantity || 1) 
+      totalValue = (expenseData.shifts || 1)
+        * (expenseData.quantity || 1)
         * (expenseData.unitValue || 0);
     } else {
-      // aluguel: valor fixo
       totalValue = expenseData.unitValue || 0;
     }
 
@@ -848,9 +847,10 @@ const addEventExpense = async (expenseData) => {
         event_id: expenseData.eventId,
         expense_type: expenseData.expenseType,
         expense_category: expenseData.expenseCategory,
-        shifts: expenseData.expenseCategory === 'pessoal' 
+        expense_date: expenseData.expenseDate || null,
+        shifts: expenseData.expenseCategory === 'pessoal'
           ? (expenseData.shifts || 1) : 1,
-        quantity: expenseData.expenseCategory === 'pessoal' 
+        quantity: expenseData.expenseCategory === 'pessoal'
           ? (expenseData.quantity || 1) : 1,
         unit_value: expenseData.unitValue || 0,
         total_value: totalValue,
@@ -869,11 +869,10 @@ const addEventExpense = async (expenseData) => {
 
 const updateEventExpense = async (expenseId, expenseData) => {
   try {
-    // Recalcular total
     let totalValue = 0;
     if (expenseData.expenseCategory === 'pessoal') {
-      totalValue = (expenseData.shifts || 1) 
-        * (expenseData.quantity || 1) 
+      totalValue = (expenseData.shifts || 1)
+        * (expenseData.quantity || 1)
         * (expenseData.unitValue || 0);
     } else {
       totalValue = expenseData.unitValue || 0;
@@ -884,9 +883,10 @@ const updateEventExpense = async (expenseId, expenseData) => {
       .update({
         expense_type: expenseData.expenseType,
         expense_category: expenseData.expenseCategory,
-        shifts: expenseData.expenseCategory === 'pessoal' 
+        expense_date: expenseData.expenseDate || null,
+        shifts: expenseData.expenseCategory === 'pessoal'
           ? (expenseData.shifts || 1) : 1,
-        quantity: expenseData.expenseCategory === 'pessoal' 
+        quantity: expenseData.expenseCategory === 'pessoal'
           ? (expenseData.quantity || 1) : 1,
         unit_value: expenseData.unitValue || 0,
         total_value: totalValue,
@@ -1134,6 +1134,112 @@ const loadHourBankSummary = async () => {
 };
 
 /* ================================
+   FÉRIAS / COBERTURA DE POSTO
+================================ */
+
+const loadVacationExpenses = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('vacation_expenses')
+      .select('*')
+      .order('start_date', { ascending: false });
+
+    if (error) throw error;
+
+    return (data || []).map(v => ({
+      id: v.id,
+      position: v.position,
+      postLocation: v.post_location,
+      startDate: v.start_date,
+      endDate: v.end_date,
+      totalDays: v.total_days,
+      workSchedule: v.work_schedule,
+      dailyRate: v.daily_rate,
+      totalValue: v.total_value,
+      employeeOnVacation: v.employee_on_vacation,
+      notes: v.notes,
+      createdAt: new Date(v.created_at).toLocaleString('pt-BR')
+    }));
+  } catch (err) {
+    console.error('Erro ao carregar férias:', err);
+    throw err;
+  }
+};
+
+const addVacationExpense = async (vacationData) => {
+  try {
+    const totalValue = (vacationData.totalDays || 0) * (vacationData.dailyRate || 0);
+
+    const { data, error } = await supabase
+      .from('vacation_expenses')
+      .insert({
+        position: vacationData.position,
+        post_location: normalizeText(vacationData.postLocation),
+        start_date: vacationData.startDate,
+        end_date: vacationData.endDate,
+        total_days: vacationData.totalDays,
+        work_schedule: vacationData.workSchedule,
+        daily_rate: vacationData.dailyRate,
+        total_value: totalValue,
+        employee_on_vacation: normalizeText(vacationData.employeeOnVacation),
+        notes: normalizeText(vacationData.notes)
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Erro ao adicionar férias:', err);
+    throw err;
+  }
+};
+
+const updateVacationExpense = async (vacationId, vacationData) => {
+  try {
+    const totalValue = (vacationData.totalDays || 0) * (vacationData.dailyRate || 0);
+
+    const { error } = await supabase
+      .from('vacation_expenses')
+      .update({
+        position: vacationData.position,
+        post_location: normalizeText(vacationData.postLocation),
+        start_date: vacationData.startDate,
+        end_date: vacationData.endDate,
+        total_days: vacationData.totalDays,
+        work_schedule: vacationData.workSchedule,
+        daily_rate: vacationData.dailyRate,
+        total_value: totalValue,
+        employee_on_vacation: normalizeText(vacationData.employeeOnVacation),
+        notes: normalizeText(vacationData.notes),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', vacationId);
+
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.error('Erro ao atualizar férias:', err);
+    throw err;
+  }
+};
+
+const deleteVacationExpense = async (vacationId) => {
+  try {
+    const { error } = await supabase
+      .from('vacation_expenses')
+      .delete()
+      .eq('id', vacationId);
+
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.error('Erro ao deletar férias:', err);
+    throw err;
+  }
+};
+
+/* ================================
    EXPORT
 ================================ */
 
@@ -1179,5 +1285,10 @@ export const storage = {
   addHourBank,
   updateHourBank,
   deleteHourBank,
-  loadHourBankSummary
+  loadHourBankSummary,
+  // Férias
+  loadVacationExpenses,
+  addVacationExpense,
+  updateVacationExpense,
+  deleteVacationExpense,
 };

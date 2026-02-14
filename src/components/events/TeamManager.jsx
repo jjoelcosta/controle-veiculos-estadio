@@ -5,7 +5,7 @@ import LoadingButton from '../ui/LoadingButton';
 
 const POSITIONS = ['Supervisor', 'Coordenador', 'Analista', 'Gerente', 'Outro'];
 
-const emptyForm = { name: '', position: 'Agente', phone: '', email: '' };
+const emptyForm = { name: '', position: '', phone: '', email: '' };
 
 export default function TeamManager({ team, onAdd, onUpdate, onDelete, onBack }) {
   const { error: showError } = useToast();
