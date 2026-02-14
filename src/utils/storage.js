@@ -709,6 +709,431 @@ const registerDocumentNumber = async (documentType, documentNumber, loanId) => {
 };
 
 /* ================================
+   EVENTOS
+================================ */
+
+const loadEvents = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('events')
+      .select(`
+        *,
+        event_expenses (
+          id,
+          expense_type,
+          expense_category,
+          shifts,
+          quantity,
+          unit_value,
+          total_value,
+          notes
+        )
+      `)
+      .order('start_date', { ascending: false });
+
+    if (error) throw error;
+
+    return (data || []).map(event => ({
+      id: event.id,
+      name: event.name,
+      category: event.category,
+      startDate: event.start_date,
+      endDate: event.end_date,
+      status: event.status,
+      notes: event.notes,
+      createdAt: new Date(event.created_at).toLocaleString('pt-BR'),
+      updatedAt: event.updated_at 
+        ? new Date(event.updated_at).toLocaleString('pt-BR') 
+        : null,
+      expenses: (event.event_expenses || []).map(ex => ({
+        id: ex.id,
+        expenseType: ex.expense_type,
+        expenseCategory: ex.expense_category,
+        shifts: ex.shifts,
+        quantity: ex.quantity,
+        unitValue: ex.unit_value,
+        totalValue: ex.total_value,
+        notes: ex.notes
+      })),
+      totalExpenses: (event.event_expenses || [])
+        .reduce((sum, ex) => sum + (ex.total_value || 0), 0)
+    }));
+  } catch (err) {
+    console.error('Erro ao carregar eventos:', err);
+    throw err;
+  }
+};
+
+const addEvent = async (eventData) => {
+  try {
+    const { data, error } = await supabase
+      .from('events')
+      .insert({
+        name: normalizeText(eventData.name),
+        category: eventData.category,
+        start_date: eventData.startDate,
+        end_date: eventData.endDate || eventData.startDate,
+        status: eventData.status || 'planejado',
+        notes: normalizeText(eventData.notes)
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Erro ao criar evento:', err);
+    throw err;
+  }
+};
+
+const updateEvent = async (eventId, eventData) => {
+  try {
+    const { error } = await supabase
+      .from('events')
+      .update({
+        name: normalizeText(eventData.name),
+        category: eventData.category,
+        start_date: eventData.startDate,
+        end_date: eventData.endDate || eventData.startDate,
+        status: eventData.status,
+        notes: normalizeText(eventData.notes),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', eventId);
+
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.error('Erro ao atualizar evento:', err);
+    throw err;
+  }
+};
+
+const deleteEvent = async (eventId) => {
+  try {
+    const { error } = await supabase
+      .from('events')
+      .delete()
+      .eq('id', eventId);
+
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.error('Erro ao deletar evento:', err);
+    throw err;
+  }
+};
+
+/* ================================
+   GASTOS DE EVENTOS
+================================ */
+
+const addEventExpense = async (expenseData) => {
+  try {
+    // Calcular total automaticamente
+    let totalValue = 0;
+    if (expenseData.expenseCategory === 'pessoal') {
+      totalValue = (expenseData.shifts || 1) 
+        * (expenseData.quantity || 1) 
+        * (expenseData.unitValue || 0);
+    } else {
+      // aluguel: valor fixo
+      totalValue = expenseData.unitValue || 0;
+    }
+
+    const { data, error } = await supabase
+      .from('event_expenses')
+      .insert({
+        event_id: expenseData.eventId,
+        expense_type: expenseData.expenseType,
+        expense_category: expenseData.expenseCategory,
+        shifts: expenseData.expenseCategory === 'pessoal' 
+          ? (expenseData.shifts || 1) : 1,
+        quantity: expenseData.expenseCategory === 'pessoal' 
+          ? (expenseData.quantity || 1) : 1,
+        unit_value: expenseData.unitValue || 0,
+        total_value: totalValue,
+        notes: normalizeText(expenseData.notes)
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Erro ao adicionar gasto:', err);
+    throw err;
+  }
+};
+
+const updateEventExpense = async (expenseId, expenseData) => {
+  try {
+    // Recalcular total
+    let totalValue = 0;
+    if (expenseData.expenseCategory === 'pessoal') {
+      totalValue = (expenseData.shifts || 1) 
+        * (expenseData.quantity || 1) 
+        * (expenseData.unitValue || 0);
+    } else {
+      totalValue = expenseData.unitValue || 0;
+    }
+
+    const { error } = await supabase
+      .from('event_expenses')
+      .update({
+        expense_type: expenseData.expenseType,
+        expense_category: expenseData.expenseCategory,
+        shifts: expenseData.expenseCategory === 'pessoal' 
+          ? (expenseData.shifts || 1) : 1,
+        quantity: expenseData.expenseCategory === 'pessoal' 
+          ? (expenseData.quantity || 1) : 1,
+        unit_value: expenseData.unitValue || 0,
+        total_value: totalValue,
+        notes: normalizeText(expenseData.notes),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', expenseId);
+
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.error('Erro ao atualizar gasto:', err);
+    throw err;
+  }
+};
+
+const deleteEventExpense = async (expenseId) => {
+  try {
+    const { error } = await supabase
+      .from('event_expenses')
+      .delete()
+      .eq('id', expenseId);
+
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.error('Erro ao deletar gasto:', err);
+    throw err;
+  }
+};
+
+/* ================================
+   EQUIPE DE SEGURANÇA
+================================ */
+
+const loadSecurityTeam = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('security_team')
+      .select('*')
+      .eq('active', true)
+      .order('name', { ascending: true });
+
+    if (error) throw error;
+
+    return (data || []).map(emp => ({
+      id: emp.id,
+      name: emp.name,
+      position: emp.position,
+      phone: emp.phone,
+      email: emp.email,
+      active: emp.active,
+      createdAt: new Date(emp.created_at).toLocaleString('pt-BR')
+    }));
+  } catch (err) {
+    console.error('Erro ao carregar equipe:', err);
+    throw err;
+  }
+};
+
+const addSecurityEmployee = async (employeeData) => {
+  try {
+    const { data, error } = await supabase
+      .from('security_team')
+      .insert({
+        name: normalizeText(employeeData.name),
+        position: normalizeText(employeeData.position),
+        phone: normalizeText(employeeData.phone),
+        email: normalizeText(employeeData.email),
+        active: true
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Erro ao adicionar funcionário:', err);
+    throw err;
+  }
+};
+
+const updateSecurityEmployee = async (employeeId, employeeData) => {
+  try {
+    const { error } = await supabase
+      .from('security_team')
+      .update({
+        name: normalizeText(employeeData.name),
+        position: normalizeText(employeeData.position),
+        phone: normalizeText(employeeData.phone),
+        email: normalizeText(employeeData.email),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', employeeId);
+
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.error('Erro ao atualizar funcionário:', err);
+    throw err;
+  }
+};
+
+const deleteSecurityEmployee = async (employeeId) => {
+  try {
+    // Soft delete
+    const { error } = await supabase
+      .from('security_team')
+      .update({ 
+        active: false,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', employeeId);
+
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.error('Erro ao remover funcionário:', err);
+    throw err;
+  }
+};
+
+/* ================================
+   BANCO DE HORAS
+================================ */
+
+const loadHourBank = async (employeeId = null) => {
+  try {
+    let query = supabase
+      .from('hour_bank')
+      .select(`
+        *,
+        security_team (id, name, position),
+        events (id, name, category)
+      `)
+      .order('event_date', { ascending: false });
+
+    if (employeeId) {
+      query = query.eq('employee_id', employeeId);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    return (data || []).map(hb => ({
+      id: hb.id,
+      employeeId: hb.employee_id,
+      employeeName: hb.security_team?.name,
+      employeePosition: hb.security_team?.position,
+      eventId: hb.event_id,
+      eventName: hb.events?.name,
+      eventCategory: hb.events?.category,
+      eventDate: hb.event_date,
+      hoursWorked: hb.hours_worked,
+      notes: hb.notes,
+      createdAt: new Date(hb.created_at).toLocaleString('pt-BR')
+    }));
+  } catch (err) {
+    console.error('Erro ao carregar banco de horas:', err);
+    throw err;
+  }
+};
+
+const addHourBank = async (hourData) => {
+  try {
+    const { data, error } = await supabase
+      .from('hour_bank')
+      .insert({
+        employee_id: hourData.employeeId,
+        event_id: hourData.eventId || null,
+        event_date: hourData.eventDate,
+        hours_worked: hourData.hoursWorked,
+        notes: normalizeText(hourData.notes)
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Erro ao registrar horas:', err);
+    throw err;
+  }
+};
+
+const updateHourBank = async (hourId, hourData) => {
+  try {
+    const { error } = await supabase
+      .from('hour_bank')
+      .update({
+        employee_id: hourData.employeeId,
+        event_id: hourData.eventId || null,
+        event_date: hourData.eventDate,
+        hours_worked: hourData.hoursWorked,
+        notes: normalizeText(hourData.notes),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', hourId);
+
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.error('Erro ao atualizar horas:', err);
+    throw err;
+  }
+};
+
+const deleteHourBank = async (hourId) => {
+  try {
+    const { error } = await supabase
+      .from('hour_bank')
+      .delete()
+      .eq('id', hourId);
+
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.error('Erro ao deletar horas:', err);
+    throw err;
+  }
+};
+
+const loadHourBankSummary = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('v_hour_bank_summary')
+      .select('*')
+      .order('total_hours', { ascending: false });
+
+    if (error) throw error;
+
+    return (data || []).map(row => ({
+      employeeId: row.employee_id,
+      employeeName: row.employee_name,
+      position: row.position,
+      active: row.active,
+      totalHours: row.total_hours,
+      totalEvents: row.total_events,
+      lastEventDate: row.last_event_date
+    }));
+  } catch (err) {
+    console.error('Erro ao carregar resumo de horas:', err);
+    throw err;
+  }
+};
+
+/* ================================
    EXPORT
 ================================ */
 
@@ -734,5 +1159,25 @@ export const storage = {
   updateLoanItemReturn,
   deleteLoan,
   getNextDocumentNumber,
-  registerDocumentNumber
+  registerDocumentNumber,
+  // Eventos
+  loadEvents,
+  addEvent,
+  updateEvent,
+  deleteEvent,
+  // Gastos
+  addEventExpense,
+  updateEventExpense,
+  deleteEventExpense,
+  // Equipe
+  loadSecurityTeam,
+  addSecurityEmployee,
+  updateSecurityEmployee,
+  deleteSecurityEmployee,
+  // Banco de Horas
+  loadHourBank,
+  addHourBank,
+  updateHourBank,
+  deleteHourBank,
+  loadHourBankSummary
 };
