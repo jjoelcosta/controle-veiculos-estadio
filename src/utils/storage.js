@@ -1290,5 +1290,5 @@ export const storage = {
   loadVacationExpenses,
   addVacationExpense,
   updateVacationExpense,
-  deleteVacationExpense,
+  deleteVacationExpense
 };

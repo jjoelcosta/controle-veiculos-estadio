@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, ArrowLeft, Calendar, Tag, TrendingUp, Search, Edit, Trash2, Eye, CheckCircle, Clock, XCircle, BarChart2 } from 'lucide-react';
+import { Plus, ArrowLeft, Calendar, Tag, TrendingUp, Search, Edit, Trash2, Eye, CheckCircle, Clock, XCircle, BarChart2, Sun } from 'lucide-react';
 
 const CATEGORIES = ['Show', 'Jogo', 'Treinamento', 'Corporativo', 'Férias', 'Feira', 'Outro'];
 
@@ -28,7 +28,8 @@ export default function EventList({
   onBack,
   onManageTeam,
   onHourBank,
-  onReports
+  onReports,
+  onVacations
 }) {
     
   const [search, setSearch] = useState('');
@@ -82,6 +83,13 @@ export default function EventList({
             >
               <Clock size={18} />
               Banco de Horas
+            </button>
+            <button
+              onClick={onVacations}
+              className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2.5 rounded-xl flex items-center gap-2 transition-all shadow-md font-medium"
+            >
+              <Sun size={18} />
+              Férias
             </button>
             <button
               onClick={onManageTeam}

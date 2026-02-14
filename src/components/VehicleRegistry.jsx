@@ -21,6 +21,7 @@ import EventDetail from './events/EventDetail';
 import TeamManager from './events/TeamManager';
 import HourBank from './events/HourBank';
 import EventReports from './events/EventReports';
+import VacationList from './events/VacationList';
 
 export default function VehicleRegistry() {
   // Estados principais
@@ -52,6 +53,8 @@ export default function VehicleRegistry() {
   const [showTeamManager, setShowTeamManager] = useState(false);
   const [showHourBank, setShowHourBank] = useState(false);
   const [showEventReports, setShowEventReports] = useState(false);
+  const [vacations, setVacations] = useState([]);
+  const [showVacationList, setShowVacationList] = useState(false);
 
   // ✅ CARREGAR DADOS DO SUPABASE
   const loadData = async () => {
@@ -60,7 +63,7 @@ export default function VehicleRegistry() {
     setError(null);
     
   const [vehiclesData, ownersData, thirdPartyData, loanItemsData, loansData,
-       eventsData, teamData, hourBankData] = await Promise.all([
+       eventsData, teamData, hourBankData, vacationsData] = await Promise.all([
   storage.loadVehicles(),
   storage.loadOwners(),
   storage.loadThirdPartyVehicles(),
@@ -68,7 +71,8 @@ export default function VehicleRegistry() {
   storage.loadLoans(),
   storage.loadEvents(),
   storage.loadSecurityTeam(),
-  storage.loadHourBank()
+  storage.loadHourBank(),
+  storage.loadVacationExpenses()
 ]);
 
   setVehicles(vehiclesData);
@@ -79,6 +83,7 @@ export default function VehicleRegistry() {
   setEvents(eventsData);
   setSecurityTeam(teamData);
   setHourBank(hourBankData);
+  setVacations(vacationsData);
 
   } catch (err) {
     console.error('❌ Erro ao carregar dados:', err);
@@ -239,7 +244,7 @@ export default function VehicleRegistry() {
 
   /* ================================
    CRUD - VEÍCULOS TERCEIROS
-================================ */
+  ================================ */
 
 const handleAddThirdPartyVehicle = async (vehicleData) => {
   try {
@@ -438,6 +443,18 @@ const handleDeleteThirdPartyVehicle = async (vehicleId) => {
 }
 
 case 'events': {
+  if (showVacationList) {
+    return (
+      <VacationList
+        vacations={vacations}
+        onAdd={handleAddVacation}
+        onUpdate={handleUpdateVacation}
+        onDelete={handleDeleteVacation}
+        onBack={() => setShowVacationList(false)}
+      />
+    );
+  }
+
   if (showEventReports) {
     return (
       <EventReports
@@ -518,6 +535,7 @@ case 'events': {
       onManageTeam={() => setShowTeamManager(true)}
       onHourBank={() => setShowHourBank(true)}
       onReports={() => setShowEventReports(true)}
+      onVacations={() => setShowVacationList(true)}
     />
   );
 }
@@ -769,6 +787,40 @@ const handleReturnSubmit = async (returnData) => {
       throw err;
     }
   };
+
+/* ================================
+   CRUD - FÉRIAS
+================================ */
+
+const handleAddVacation = async (vacationData) => {
+  try {
+    await storage.addVacationExpense(vacationData);
+    await loadData();
+  } catch (err) {
+    console.error('❌ Erro ao adicionar férias:', err);
+    throw err;
+  }
+};
+
+const handleUpdateVacation = async (vacationId, vacationData) => {
+  try {
+    await storage.updateVacationExpense(vacationId, vacationData);
+    await loadData();
+  } catch (err) {
+    console.error('❌ Erro ao atualizar férias:', err);
+    throw err;
+  }
+};
+
+const handleDeleteVacation = async (vacationId) => {
+  try {
+    await storage.deleteVacationExpense(vacationId);
+    await loadData();
+  } catch (err) {
+    console.error('❌ Erro ao deletar férias:', err);
+    throw err;
+  }
+};
 
   /* ================================
     CRUD - BANCO DE HORAS
