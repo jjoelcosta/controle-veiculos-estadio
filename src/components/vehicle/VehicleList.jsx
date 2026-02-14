@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Plus, Search, Filter, Download, User, MapPin, Building2, Briefcase, X, Car, Truck, Package, FileText } from 'lucide-react';
+import { Plus, Search, Filter, Download, User, MapPin, Building2, Briefcase, X, Car, Truck, Package, FileText, Calendar } from 'lucide-react';
 import VehicleCard from './VehicleCard';
 import VehicleForm from './VehicleForm';
 import Header from '../ui/Header';
@@ -20,6 +20,7 @@ export default function VehicleList({
   onNavigateToThirdParty,
   onNavigateToLoans,
   onNavigateToReports,
+  onNavigateToEvents,
   onCancelEdit 
 }) {
   const { openModal, ModalComponent } = useModal();
@@ -254,6 +255,14 @@ export default function VehicleList({
               >
                 <FileText size={20} />
                 <span>Relatórios</span>
+              </button>
+
+              <button
+                onClick={onNavigateToEvents}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 sm:px-7 py-2.5 sm:py-3.5 rounded-xl flex items-center gap-2 text-base sm:text-lg transition-all shadow-lg hover:shadow-xl whitespace-nowrap font-medium"
+              >
+                <Calendar size={20} />
+                <span>Eventos</span>
               </button>
 
               <button

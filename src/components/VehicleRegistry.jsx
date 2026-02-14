@@ -15,6 +15,12 @@ import LoanDetail from './loan/LoanDetail';
 import LoanReturnForm from './loan/LoanReturnForm';
 import LoanEditForm from './loan/LoanEditForm';
 import Reports from './reports/Reports';
+import EventList from './events/EventList';
+import EventForm from './events/EventForm';
+import EventDetail from './events/EventDetail';
+import TeamManager from './events/TeamManager';
+import HourBank from './events/HourBank';
+import EventReports from './events/EventReports';
 
 export default function VehicleRegistry() {
   // Estados principais
@@ -36,6 +42,16 @@ export default function VehicleRegistry() {
   const [selectedLoan, setSelectedLoan] = useState(null);
   const [showLoanReturn, setShowLoanReturn] = useState(false);
   const [showLoanEdit, setShowLoanEdit] = useState(false);
+  // Estados de Eventos
+  const [events, setEvents] = useState([]);
+  const [securityTeam, setSecurityTeam] = useState([]);
+  const [hourBank, setHourBank] = useState([]);
+  const [selectedEvent, setSelectedEvent] = useState(null);
+  const [showEventForm, setShowEventForm] = useState(false);
+  const [editingEvent, setEditingEvent] = useState(null);
+  const [showTeamManager, setShowTeamManager] = useState(false);
+  const [showHourBank, setShowHourBank] = useState(false);
+  const [showEventReports, setShowEventReports] = useState(false);
 
   // ✅ CARREGAR DADOS DO SUPABASE
   const loadData = async () => {
@@ -43,19 +59,27 @@ export default function VehicleRegistry() {
     setLoading(true);
     setError(null);
     
-    const [vehiclesData, ownersData, thirdPartyData, loanItemsData, loansData] = await Promise.all([
-      storage.loadVehicles(),
-      storage.loadOwners(),
-      storage.loadThirdPartyVehicles(),
-      storage.loadLoanItems(),
-      storage.loadLoans()
-    ]);
-    
-    setVehicles(vehiclesData);
-    setOwners(ownersData);
-    setThirdPartyVehicles(thirdPartyData);
-    setLoanItems(loanItemsData);
-    setLoans(loansData);
+  const [vehiclesData, ownersData, thirdPartyData, loanItemsData, loansData,
+       eventsData, teamData, hourBankData] = await Promise.all([
+  storage.loadVehicles(),
+  storage.loadOwners(),
+  storage.loadThirdPartyVehicles(),
+  storage.loadLoanItems(),
+  storage.loadLoans(),
+  storage.loadEvents(),
+  storage.loadSecurityTeam(),
+  storage.loadHourBank()
+]);
+
+  setVehicles(vehiclesData);
+  setOwners(ownersData);
+  setThirdPartyVehicles(thirdPartyData);
+  setLoanItems(loanItemsData);
+  setLoans(loansData);
+  setEvents(eventsData);
+  setSecurityTeam(teamData);
+  setHourBank(hourBankData);
+
   } catch (err) {
     console.error('❌ Erro ao carregar dados:', err);
     setError(err.message || 'Erro ao conectar com o banco de dados');
@@ -420,6 +444,96 @@ if (selectedLoan) {
     />
   );
 
+  case 'events':
+  // Relatórios de Eventos
+  if (showEventReports) {
+    return (
+      <EventReports
+        events={events}
+        team={securityTeam}
+        hourBank={hourBank}
+        onBack={() => setShowEventReports(false)}
+      />
+    );
+  }
+
+  // Banco de Horas
+  if (showHourBank) {
+    return (
+      <HourBank
+        team={securityTeam}
+        events={events}
+        hourBank={hourBank}
+        onAdd={handleAddHourBank}
+        onUpdate={handleUpdateHourBank}
+        onDelete={handleDeleteHourBank}
+        onBack={() => setShowHourBank(false)}
+      />
+    );
+  }
+
+  // Gerenciar Equipe
+  if (showTeamManager) {
+    return (
+      <TeamManager
+        team={securityTeam}
+        onAdd={handleAddEmployee}
+        onUpdate={handleUpdateEmployee}
+        onDelete={handleDeleteEmployee}
+        onBack={() => setShowTeamManager(false)}
+      />
+    );
+  }
+
+  // Formulário de Evento (novo ou editar)
+  if (showEventForm) {
+    return (
+      <EventForm
+        event={editingEvent}
+        onSubmit={editingEvent ? handleUpdateEvent : handleAddEvent}
+        onCancel={() => {
+          setShowEventForm(false);
+          setEditingEvent(null);
+        }}
+      />
+    );
+  }
+
+  // Detalhes do Evento
+  if (selectedEvent) {
+    return (
+      <EventDetail
+        event={selectedEvent}
+        onBack={() => setSelectedEvent(null)}
+        onEdit={(event) => {
+          setEditingEvent(event);
+          setShowEventForm(true);
+        }}
+        onAddExpense={handleAddExpense}
+        onUpdateExpense={handleUpdateExpense}
+        onDeleteExpense={handleDeleteExpense}
+      />
+    );
+  }
+
+  // Lista de Eventos
+  return (
+  <EventList
+    events={events}
+    onAdd={() => setShowEventForm(true)}
+    onViewDetail={(event) => setSelectedEvent(event)}
+    onEdit={(event) => {
+      setEditingEvent(event);
+      setShowEventForm(true);
+    }}
+    onDelete={handleDeleteEvent}
+    onBack={() => setCurrentView('vehicles')}
+    onManageTeam={() => setShowTeamManager(true)}
+    onHourBank={() => setShowHourBank(true)}
+    onReports={() => setShowEventReports(true)}
+  />
+);
+
   case 'reports':
   return (
     <Reports
@@ -448,6 +562,7 @@ if (selectedLoan) {
           onNavigateToThirdParty={() => setCurrentView('thirdParty')}
           onNavigateToLoans={() => setCurrentView('loans')}
           onNavigateToReports={() => setCurrentView('reports')}
+          onNavigateToEvents={() => setCurrentView('events')}
           onCancelEdit={() => setEditingVehicleId(null)}
         />
       );
@@ -549,6 +664,155 @@ const handleReturnSubmit = async (returnData) => {
       if (updatedLoan) setSelectedLoan(updatedLoan);
     } catch (err) {
       console.error('❌ Erro ao atualizar empréstimo:', err);
+      throw err;
+    }
+  };
+
+  /* ================================
+    CRUD - EVENTOS
+  ================================ */
+
+  const handleAddEvent = async (eventData) => {
+    try {
+      await storage.addEvent(eventData);
+      await loadData();
+      setShowEventForm(false);
+      setEditingEvent(null);
+    } catch (err) {
+      console.error('❌ Erro ao adicionar evento:', err);
+      throw err;
+    }
+  };
+
+  const handleUpdateEvent = async (eventData) => {
+    try {
+      await storage.updateEvent(editingEvent.id, eventData);
+      await loadData();
+      setShowEventForm(false);
+      setEditingEvent(null);
+      if (selectedEvent?.id === editingEvent.id) {
+        const updated = events.find(e => e.id === editingEvent.id);
+        if (updated) setSelectedEvent(updated);
+      }
+    } catch (err) {
+      console.error('❌ Erro ao atualizar evento:', err);
+      throw err;
+    }
+  };
+
+  const handleDeleteEvent = async (eventId) => {
+    try {
+      await storage.deleteEvent(eventId);
+      await loadData();
+      if (selectedEvent?.id === eventId) setSelectedEvent(null);
+    } catch (err) {
+      console.error('❌ Erro ao deletar evento:', err);
+      throw err;
+    }
+  };
+
+  const handleAddExpense = async (expenseData) => {
+    try {
+      await storage.addEventExpense(expenseData);
+      await loadData();
+      const updated = events.find(e => e.id === expenseData.eventId);
+      if (updated) setSelectedEvent(updated);
+    } catch (err) {
+      console.error('❌ Erro ao adicionar gasto:', err);
+      throw err;
+    }
+  };
+
+  const handleUpdateExpense = async (expenseId, expenseData) => {
+    try {
+      await storage.updateEventExpense(expenseId, expenseData);
+      await loadData();
+      const updated = events.find(e => e.id === expenseData.eventId);
+      if (updated) setSelectedEvent(updated);
+    } catch (err) {
+      console.error('❌ Erro ao atualizar gasto:', err);
+      throw err;
+    }
+  };
+
+  const handleDeleteExpense = async (expenseId) => {
+    try {
+      await storage.deleteEventExpense(expenseId);
+      await loadData();
+      if (selectedEvent) {
+        const updated = events.find(e => e.id === selectedEvent.id);
+        if (updated) setSelectedEvent(updated);
+      }
+    } catch (err) {
+      console.error('❌ Erro ao deletar gasto:', err);
+      throw err;
+    }
+  };
+
+  /* ================================
+    CRUD - EQUIPE
+  ================================ */
+
+  const handleAddEmployee = async (employeeData) => {
+    try {
+      await storage.addSecurityEmployee(employeeData);
+      await loadData();
+    } catch (err) {
+      console.error('❌ Erro ao adicionar funcionário:', err);
+      throw err;
+    }
+  };
+
+  const handleUpdateEmployee = async (employeeId, employeeData) => {
+    try {
+      await storage.updateSecurityEmployee(employeeId, employeeData);
+      await loadData();
+    } catch (err) {
+      console.error('❌ Erro ao atualizar funcionário:', err);
+      throw err;
+    }
+  };
+
+  const handleDeleteEmployee = async (employeeId) => {
+    try {
+      await storage.deleteSecurityEmployee(employeeId);
+      await loadData();
+    } catch (err) {
+      console.error('❌ Erro ao deletar funcionário:', err);
+      throw err;
+    }
+  };
+
+  /* ================================
+    CRUD - BANCO DE HORAS
+  ================================ */
+
+  const handleAddHourBank = async (hourData) => {
+    try {
+      await storage.addHourBank(hourData);
+      await loadData();
+    } catch (err) {
+      console.error('❌ Erro ao registrar horas:', err);
+      throw err;
+    }
+  };
+
+  const handleUpdateHourBank = async (hourId, hourData) => {
+    try {
+      await storage.updateHourBank(hourId, hourData);
+      await loadData();
+    } catch (err) {
+      console.error('❌ Erro ao atualizar horas:', err);
+      throw err;
+    }
+  };
+
+  const handleDeleteHourBank = async (hourId) => {
+    try {
+      await storage.deleteHourBank(hourId);
+      await loadData();
+    } catch (err) {
+      console.error('❌ Erro ao deletar horas:', err);
       throw err;
     }
   };
