@@ -76,60 +76,61 @@ export default function EventList({
             <p className="text-gray-600 mt-1">Eventos, gastos com pessoal e banco de horas</p>
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            <button
-              onClick={onHourBank}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl flex items-center gap-2 transition-all shadow-md font-medium"
-            >
-              <Clock size={18} />
-              Banco de Horas
-            </button>
-            <button
-              onClick={onVacations}
-              className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2.5 rounded-xl flex items-center gap-2 transition-all shadow-md font-medium"
-            >
-              <Sun size={18} />
-              Férias
-            </button>
-            <button
-              onClick={onManageTeam}
-              className="bg-slate-600 hover:bg-slate-700 text-white px-4 py-2.5 rounded-xl flex items-center gap-2 transition-all shadow-md font-medium"
-            >
-              <Tag size={18} />
-              Equipe
-            </button>
-            <button
+          <div className="grid grid-cols-3 sm:flex sm:flex-wrap gap-2 mt-2 md:mt-0">
+          <button
+            onClick={onHourBank}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-2 sm:px-4 py-2 sm:py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-md font-medium text-xs sm:text-sm"
+          >
+            <Clock size={15} />
+            <span className="hidden sm:inline">Banco de </span>Horas
+          </button>
+          <button
+            onClick={onVacations}
+            className="bg-amber-500 hover:bg-amber-600 text-white px-2 sm:px-4 py-2 sm:py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-md font-medium text-xs sm:text-sm"
+          >
+            <Sun size={15} />
+            Férias
+          </button>
+          <button
+            onClick={onManageTeam}
+            className="bg-slate-600 hover:bg-slate-700 text-white px-2 sm:px-4 py-2 sm:py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-md font-medium text-xs sm:text-sm"
+          >
+            <Tag size={15} />
+            Equipe
+          </button>
+          <button
             onClick={onReports}
-            className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2.5 rounded-xl flex items-center gap-2 transition-all shadow-md font-medium"
-            >
-            <BarChart2 size={18} />
-            Relatórios
-            </button>
-            <button
-              onClick={onAdd}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl flex items-center gap-2 transition-all shadow-md font-medium"
-            >
-              <Plus size={18} />
-              Novo Evento
-            </button>
-          </div>
+            className="bg-purple-600 hover:bg-purple-700 text-white px-2 sm:px-4 py-2 sm:py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-md font-medium text-xs sm:text-sm"
+          >
+            <BarChart2 size={15} />
+            <span className="hidden sm:inline">Relatórios</span>
+            <span className="sm:hidden">Relat.</span>
+          </button>
+          <button
+            onClick={onAdd}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white px-2 sm:px-4 py-2 sm:py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-md font-medium text-xs sm:text-sm col-span-2 sm:col-span-1"
+          >
+            <Plus size={15} />
+            Novo Evento
+          </button>
+        </div>
         </div>
 
         {/* DASHBOARD */}
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
-          <div className="bg-white rounded-xl p-4 shadow-md border-l-4 border-emerald-500">
-            <div className="text-2xl font-bold text-emerald-700">{totalEventos}</div>
-            <div className="text-sm text-gray-600">Total de Eventos</div>
-          </div>
-          <div className="bg-white rounded-xl p-4 shadow-md border-l-4 border-green-500">
-            <div className="text-2xl font-bold text-green-700">{realizados}</div>
-            <div className="text-sm text-gray-600">Realizados</div>
-          </div>
-          <div className="bg-white rounded-xl p-4 shadow-md border-l-4 border-red-500 col-span-2 md:col-span-1">
-            <div className="text-2xl font-bold text-red-700">{formatCurrency(totalGasto)}</div>
-            <div className="text-sm text-gray-600">Total de Gastos</div>
-          </div>
+        <div className="grid grid-cols-3 gap-3 mb-6">
+        <div className="bg-white rounded-xl p-3 sm:p-4 shadow-md border-l-4 border-emerald-500">
+          <div className="text-xl sm:text-2xl font-bold text-emerald-700">{totalEventos}</div>
+          <div className="text-xs sm:text-sm text-gray-600">Total</div>
         </div>
+        <div className="bg-white rounded-xl p-3 sm:p-4 shadow-md border-l-4 border-green-500">
+          <div className="text-xl sm:text-2xl font-bold text-green-700">{realizados}</div>
+          <div className="text-xs sm:text-sm text-gray-600">Realizados</div>
+        </div>
+        <div className="bg-white rounded-xl p-3 sm:p-4 shadow-md border-l-4 border-red-500">
+          <div className="text-base sm:text-xl font-bold text-red-700 truncate">{formatCurrency(totalGasto)}</div>
+          <div className="text-xs sm:text-sm text-gray-600">Gastos</div>
+        </div>
+      </div>
 
         {/* FILTROS */}
         <div className="bg-white rounded-xl p-4 shadow-md mb-6">
@@ -175,7 +176,7 @@ export default function EventList({
             <p className="text-gray-400">Clique em "Novo Evento" para começar</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
             {filtered.map(event => {
               const statusCfg = STATUS_CONFIG[event.status] || STATUS_CONFIG.planejado;
               const StatusIcon = statusCfg.icon;

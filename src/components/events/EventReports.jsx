@@ -507,25 +507,25 @@ export default function EventReports({ events, team, hourBank, onBack }) {
           </div>
 
           {/* Stats Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4">
-            <div className="bg-emerald-50 rounded-xl p-3 text-center border border-emerald-200">
-              <div className="text-2xl font-bold text-emerald-700">{stats.totalEvents}</div>
-              <div className="text-xs text-gray-600">Eventos</div>
-            </div>
-            <div className="bg-blue-50 rounded-xl p-3 text-center border border-blue-200">
-              <div className="text-2xl font-bold text-blue-700">{formatCurrency(stats.totalPessoal)}</div>
-              <div className="text-xs text-gray-600">Total Pessoal</div>
-            </div>
-            <div className="bg-orange-50 rounded-xl p-3 text-center border border-orange-200">
-              <div className="text-2xl font-bold text-orange-600">{formatCurrency(stats.totalAluguel)}</div>
-              <div className="text-xs text-gray-600">Total Aluguéis</div>
-            </div>
-            <div className="bg-red-50 rounded-xl p-3 text-center border border-red-200">
-              <div className="text-2xl font-bold text-red-700">{formatCurrency(stats.totalExpenses)}</div>
-              <div className="text-xs text-gray-600">Total Geral</div>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 p-4">
+              <div className="bg-emerald-50 rounded-xl p-3 text-center border border-emerald-200">
+                <div className="text-xl sm:text-2xl font-bold text-emerald-700">{stats.totalEvents}</div>
+                <div className="text-xs text-gray-600">Eventos</div>
+              </div>
+              <div className="bg-blue-50 rounded-xl p-3 text-center border border-blue-200">
+                <div className="text-sm sm:text-lg font-bold text-blue-700 truncate">{formatCurrency(stats.totalPessoal)}</div>
+                <div className="text-xs text-gray-600">Pessoal</div>
+              </div>
+              <div className="bg-orange-50 rounded-xl p-3 text-center border border-orange-200">
+                <div className="text-sm sm:text-lg font-bold text-orange-600 truncate">{formatCurrency(stats.totalAluguel)}</div>
+                <div className="text-xs text-gray-600">Aluguéis</div>
+              </div>
+              <div className="bg-red-50 rounded-xl p-3 text-center border border-red-200 col-span-2 lg:col-span-1">
+                <div className="text-sm sm:text-lg font-bold text-red-700 truncate">{formatCurrency(stats.totalExpenses)}</div>
+                <div className="text-xs text-gray-600">Total Geral</div>
+              </div>
             </div>
           </div>
-        </div>
 
         {/* TABS */}
         <div className="bg-white rounded-2xl shadow-xl overflow-hidden">

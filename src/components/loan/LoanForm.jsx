@@ -117,9 +117,9 @@ export default function LoanForm({
     }
   };
 
-  return (
-    <div className="bg-gradient-to-br from-yellow-50 to-amber-50 p-6 rounded-xl border-2 border-yellow-200">
-      <div className="flex items-center justify-between mb-6">
+      return (
+      <div className="bg-gradient-to-br from-yellow-50 to-amber-50 p-4 sm:p-6 rounded-xl border-2 border-yellow-200 overflow-y-auto max-h-screen">
+          <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
           <Package className="text-yellow-600" size={28} />
           Novo Empréstimo
@@ -312,13 +312,13 @@ export default function LoanForm({
               Itens Emprestados
             </h3>
             <button
-              onClick={handleAddItem}
-              disabled={saving}
-              className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors disabled:opacity-50 text-sm"
-            >
-              <Plus size={16} />
-              Adicionar Item
-            </button>
+            onClick={handleAddItem}
+            disabled={saving}
+            className="bg-yellow-500 hover:bg-yellow-600 text-white px-3 sm:px-4 py-2 rounded-lg flex items-center gap-1.5 transition-colors disabled:opacity-50 text-xs sm:text-sm font-medium"
+          >
+            <Plus size={15} />
+            <span className="hidden sm:inline">Adicionar </span>Item
+          </button>
           </div>
 
           {errors.items && (
@@ -331,8 +331,8 @@ export default function LoanForm({
               
               return (
                 <div key={index} className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <div className="md:col-span-2">
+                  <div className="flex flex-col gap-3">
+                    <div>
                       <select
                         value={item.itemId}
                         onChange={(e) => handleItemChange(index, 'itemId', e.target.value)}
@@ -348,26 +348,27 @@ export default function LoanForm({
                       </select>
                     </div>
 
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 items-center">
+                      <label className="text-sm font-medium text-gray-600 whitespace-nowrap">Quantidade:</label>
                       <input
                         type="number"
-                        min="1"
+                        min=""
                         value={item.quantity}
-                        onChange={(e) => handleItemChange(index, 'quantity', parseInt(e.target.value) || 1)}
+                        onChange={(e) => handleItemChange(index, 'quantity', parseInt(e.target.value) || "")}
                         disabled={saving}
-                        className={`flex-1 px-3 py-2 border-2 rounded-lg focus:outline-none disabled:opacity-50 ${
+                        className={`w-24 px-3 py-2 border-2 rounded-lg focus:outline-none disabled:opacity-50 text-center ${
                           errors[`item_${index}`]
                             ? 'border-red-500'
                             : 'border-gray-300 focus:border-yellow-500'
                         }`}
-                        placeholder="Qtd"
                       />
                       <button
                         onClick={() => handleRemoveItem(index)}
                         disabled={saving}
-                        className="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg transition-colors disabled:opacity-50"
+                        className="ml-auto bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-1.5 text-sm"
                       >
-                        <Trash2 size={16} />
+                        <Trash2 size={15} />
+                        <span>Remover</span>
                       </button>
                     </div>
                   </div>
@@ -401,11 +402,11 @@ export default function LoanForm({
         </div>
 
         {/* BOTÕES */}
-        <div className="flex gap-3 pt-4">
+        <div className="flex flex-col sm:flex-row gap-3 pt-4 pb-6">
           <LoadingButton
             loading={saving}
             onClick={handleSubmit}
-            className="flex-1 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+            className="w-full sm:flex-1 bg-green-600 hover:bg-green-700 text-white px-6 py-4 sm:py-3 rounded-xl font-medium transition-colors flex items-center justify-center gap-2 text-base"
           >
             <Save size={18} />
             Cadastrar Empréstimo
@@ -413,7 +414,7 @@ export default function LoanForm({
           <button
             onClick={onCancel}
             disabled={saving}
-            className="flex-1 bg-gray-400 hover:bg-gray-500 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+            className="w-full sm:flex-1 bg-gray-400 hover:bg-gray-500 text-white px-6 py-4 sm:py-3 rounded-xl font-medium transition-colors flex items-center justify-center gap-2 disabled:opacity-50 text-base"
           >
             <X size={18} />
             Cancelar

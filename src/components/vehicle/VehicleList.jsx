@@ -178,22 +178,23 @@ export default function VehicleList({
             </div>
 
             {/* Stats Cards */}
-            <div className="hidden md:flex items-center gap-3">
-              <div className="bg-white/15 backdrop-blur rounded-xl px-4 py-2 text-center min-w-[90px]">
-                <div className="text-2xl font-bold text-white">{vehicles.length}</div>
-                <div className="text-blue-200 text-xs">Veículos</div>
+            {/* Stats Cards - aparecem em todas as telas */}
+            <div className="flex items-center gap-2">
+              <div className="bg-white/15 backdrop-blur rounded-xl px-3 py-1.5 text-center">
+                <div className="text-lg sm:text-2xl font-bold text-white">{vehicles.length}</div>
+                <div className="text-blue-200 text-xs hidden sm:block">Veículos</div>
               </div>
-              <div className="bg-white/15 backdrop-blur rounded-xl px-4 py-2 text-center min-w-[90px]">
-                <div className="text-2xl font-bold text-white">{owners.length}</div>
-                <div className="text-blue-200 text-xs">Proprietários</div>
+              <div className="bg-white/15 backdrop-blur rounded-xl px-3 py-1.5 text-center">
+                <div className="text-lg sm:text-2xl font-bold text-white">{owners.length}</div>
+                <div className="text-blue-200 text-xs hidden sm:block">Proprietários</div>
               </div>
-              <div className="bg-white/15 backdrop-blur rounded-xl px-4 py-2 text-center min-w-[90px]">
-                <div className="text-2xl font-bold text-white">{thirdPartyCount}</div>
+              <div className="hidden sm:block bg-white/15 backdrop-blur rounded-xl px-3 py-1.5 text-center">
+                <div className="text-lg sm:text-2xl font-bold text-white">{thirdPartyCount}</div>
                 <div className="text-blue-200 text-xs">Terceiros</div>
               </div>
-              <div className={`backdrop-blur rounded-xl px-4 py-2 text-center min-w-[90px] ${activeLoans > 0 ? 'bg-yellow-400/30' : 'bg-white/15'}`}>
-                <div className={`text-2xl font-bold ${activeLoans > 0 ? 'text-yellow-200' : 'text-white'}`}>{activeLoans}</div>
-                <div className="text-blue-200 text-xs">Empréstimos Ativos</div>
+              <div className={`hidden sm:block backdrop-blur rounded-xl px-3 py-1.5 text-center ${activeLoans > 0 ? 'bg-yellow-400/30' : 'bg-white/15'}`}>
+                <div className={`text-lg sm:text-2xl font-bold ${activeLoans > 0 ? 'text-yellow-200' : 'text-white'}`}>{activeLoans}</div>
+                <div className="text-blue-200 text-xs">Empréstimos</div>
               </div>
             </div>
 
@@ -216,8 +217,8 @@ export default function VehicleList({
 
         {/* ══════════════ SIDEBAR ESQUERDA ══════════════ */}
         <div className={`
-          bg-white shadow-xl border-r border-gray-200 flex flex-col transition-all duration-300
-          ${sidebarOpen ? 'w-56' : 'w-16'}
+          bg-white shadow-xl border-r border-gray-200 flex flex-col transition-all duration-300 flex-shrink-0
+          ${sidebarOpen ? 'w-48 sm:w-56' : 'w-12 sm:w-16'}
         `}>
           
           {/* Toggle */}
@@ -245,7 +246,7 @@ export default function VehicleList({
                     setActiveMenu(item.id);
                     if (item.action) item.action();
                   }}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-left ${
+                  className={`w-full flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2 sm:py-2.5 rounded-xl transition-all text-left ${
                     isActive ? item.activeClass : 'text-gray-500 hover:bg-gray-100 hover:text-gray-800'
                   }`}
                   title={!sidebarOpen ? item.label : ''}
