@@ -54,13 +54,30 @@ export const generateLoanPDF = async (loan, documentNumber) => {
   doc.setTextColor(0, 0, 0);
   
   // Número do Documento e Data
-const loanDate = new Date(loan.loanDate).toLocaleDateString('pt-BR', {
-  day: '2-digit',
-  month: '2-digit',
-  year: 'numeric',
-  hour: '2-digit',
-  minute: '2-digit'
-});
+const formatDateBR = (dateStr) => {
+  if (!dateStr) return '-';
+  // Adiciona T12:00:00 para evitar problema de fuso UTC
+  const d = new Date(dateStr.includes('T') ? dateStr : dateStr + 'T12:00:00');
+  return d.toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  });
+};
+
+const formatDateTimeBR = (dateStr) => {
+  if (!dateStr) return '-';
+  const d = new Date(dateStr.includes('T') ? dateStr : dateStr + 'T12:00:00');
+  return d.toLocaleString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+};
+
+const loanDate = formatDateTimeBR(loan.loanDate);
 
 doc.text(`Documento Nº: ${String(documentNumber).padStart(6, '0')}`, margin, yPos);
 doc.text(`Data: ${loanDate}`, pageWidth - margin - 50, yPos);
@@ -158,13 +175,13 @@ doc.text(`Data: ${loanDate}`, pageWidth - margin - 50, yPos);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
   
-  doc.text(`Data de Retirada: ${new Date(loan.loanDate).toLocaleDateString('pt-BR')}`, margin, yPos);
+  doc.text(`Data de Retirada: ${formatDateBR(loan.loanDate)}`, margin, yPos);
+yPos += 6;
+
+if (loan.expectedReturnDate) {
+  doc.text(`Previsão de Devolução: ${formatDateBR(loan.expectedReturnDate)}`, margin, yPos);
   yPos += 6;
-  
-  if (loan.expectedReturnDate) {
-    doc.text(`Previsão de Devolução: ${new Date(loan.expectedReturnDate).toLocaleDateString('pt-BR')}`, margin, yPos);
-    yPos += 6;
-  }
+}
   
   doc.text(`Entregue por (Arena): ${loan.deliveredBy}`, margin, yPos);
   
@@ -309,8 +326,8 @@ doc.text(`Data: ${loanDate}`, pageWidth - margin - 50, yPos);
   doc.text(`Solicitante: ${loan.requesterName}`, margin, yPos + 12);
   
   if (loan.actualReturnDate) {
-    doc.text(`Data de Devolução: ${new Date(loan.actualReturnDate).toLocaleString('pt-BR')}`, margin, yPos + 18);
-  }
+  doc.text(`Data de Devolução: ${formatDateTimeBR(loan.actualReturnDate)}`, margin, yPos + 18);
+}
   
   if (loan.returnedBy) {
     doc.text(`Recebido por: ${loan.returnedBy}`, margin, yPos + 24);

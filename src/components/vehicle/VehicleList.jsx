@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Plus, Search, Filter, Download, User, MapPin, Building2, Briefcase, X, Car, Truck, Package, FileText, Calendar } from 'lucide-react';
+import { Plus, Search, Filter, Download, User, MapPin, Building2, Briefcase, X, Car, Truck, Package, FileText, Calendar, ChevronLeft, ChevronRight, BarChart2, Users } from 'lucide-react';
 import VehicleCard from './VehicleCard';
 import VehicleForm from './VehicleForm';
 import Header from '../ui/Header';
@@ -26,12 +26,12 @@ export default function VehicleList({
   const { openModal, ModalComponent } = useModal();
   const { success, error } = useToast();
   
-  // Estados de UI
   const [showForm, setShowForm] = useState(false);
   const [editingVehicle, setEditingVehicle] = useState(null);
   const [showResults, setShowResults] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [activeMenu, setActiveMenu] = useState('vehicles');
   
-  // Estados de filtros
   const [searchTerm, setSearchTerm] = useState('');
   const [filterBrand, setFilterBrand] = useState('');
   const [filterType, setFilterType] = useState('');
@@ -39,77 +39,36 @@ export default function VehicleList({
   const [filterCompany, setFilterCompany] = useState('');
   const [filterSector, setFilterSector] = useState('');
 
-  /* ================================
-     LÓGICA DE FILTROS
-  ================================ */
-
   const thirdPartyCount = thirdPartyVehicles?.length || 0;
+  const activeLoans = loans?.filter(l => l.status === 'emprestado')?.length || 0;
   const loansCount = loans?.length || 0;
 
-  // Veículos filtrados
   const filteredVehicles = useMemo(() => {
     return vehicles.filter(v => {
       const owner = owners.find(o => o.id === v.ownerId);
-      
       const matchesSearch = !searchTerm || 
         v.plate.toLowerCase().includes(searchTerm.toLowerCase()) ||
         v.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
         v.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
         owner?.name.toLowerCase().includes(searchTerm.toLowerCase());
-      
       const matchesBrand = !filterBrand || v.brand === filterBrand;
       const matchesType = !filterType || v.type === filterType;
       const matchesLocation = !filterLocation || v.parkingLocation === filterLocation;
       const matchesCompany = !filterCompany || owner?.company === filterCompany;
       const matchesSector = !filterSector || owner?.sector === filterSector;
-      
       return matchesSearch && matchesBrand && matchesType && matchesLocation && matchesCompany && matchesSector;
     });
   }, [vehicles, owners, searchTerm, filterBrand, filterType, filterLocation, filterCompany, filterSector]);
 
-  // Listas únicas para filtros
-  const uniqueBrands = useMemo(() => 
-    [...new Set(vehicles.map(v => v.brand))].filter(Boolean).sort(),
-    [vehicles]
-  );
-  
-  const uniqueTypes = useMemo(() => 
-    [...new Set(vehicles.map(v => v.type))].filter(Boolean).sort(),
-    [vehicles]
-  );
-  
-  const uniqueLocations = useMemo(() => 
-    [...new Set(vehicles.map(v => v.parkingLocation))].filter(Boolean).sort(),
-    [vehicles]
-  );
-  
-  const uniqueCompanies = useMemo(() => 
-    [...new Set(owners.map(o => o.company))].filter(Boolean).sort(),
-    [owners]
-  );
-  
-  const uniqueSectors = useMemo(() => 
-    [...new Set(owners.map(o => o.sector))].filter(Boolean).sort(),
-    [owners]
-  );
-
-  // Verificar se tem filtros ativos
+  const uniqueBrands = useMemo(() => [...new Set(vehicles.map(v => v.brand))].filter(Boolean).sort(), [vehicles]);
+  const uniqueTypes = useMemo(() => [...new Set(vehicles.map(v => v.type))].filter(Boolean).sort(), [vehicles]);
+  const uniqueLocations = useMemo(() => [...new Set(vehicles.map(v => v.parkingLocation))].filter(Boolean).sort(), [vehicles]);
+  const uniqueCompanies = useMemo(() => [...new Set(owners.map(o => o.company))].filter(Boolean).sort(), [owners]);
+  const uniqueSectors = useMemo(() => [...new Set(owners.map(o => o.sector))].filter(Boolean).sort(), [owners]);
   const hasActiveFilters = searchTerm || filterBrand || filterType || filterLocation || filterCompany || filterSector;
 
-  /* ================================
-     HANDLERS - FORMULÁRIO
-  ================================ */
-
-  const handleAddClick = () => {
-    setEditingVehicle(null);
-    setShowForm(true);
-  };
-
-  const handleEditClick = (vehicle) => {
-    setEditingVehicle(vehicle);
-    setShowForm(true);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+  const handleAddClick = () => { setEditingVehicle(null); setShowForm(true); };
+  const handleEditClick = (vehicle) => { setEditingVehicle(vehicle); setShowForm(true); window.scrollTo({ top: 0, behavior: 'smooth' }); };
 
   const handleFormSubmit = async (vehicleData) => {
     try {
@@ -128,17 +87,9 @@ export default function VehicleList({
   };
 
   const handleFormCancel = () => {
-    if (owners.length === 0) {
-      onNavigateToOwners();
-    } else {
-      setShowForm(false);
-      setEditingVehicle(null);
-    }
+    if (owners.length === 0) { onNavigateToOwners(); } 
+    else { setShowForm(false); setEditingVehicle(null); }
   };
-
-  /* ================================
-     HANDLERS - AÇÕES
-  ================================ */
 
   const handleDeleteClick = (vehicle) => {
     openModal({
@@ -158,17 +109,11 @@ export default function VehicleList({
     });
   };
 
-  const handleSearch = () => {
-    setShowResults(true);
-  };
+  const handleSearch = () => setShowResults(true);
 
   const clearAllFilters = () => {
-    setSearchTerm('');
-    setFilterBrand('');
-    setFilterType('');
-    setFilterLocation('');
-    setFilterCompany('');
-    setFilterSector('');
+    setSearchTerm(''); setFilterBrand(''); setFilterType('');
+    setFilterLocation(''); setFilterCompany(''); setFilterSector('');
     setShowResults(false);
   };
 
@@ -176,103 +121,173 @@ export default function VehicleList({
     const headers = ['Placa', 'Tipo', 'Marca', 'Modelo', 'Local', 'Proprietário', 'Telefone', 'Empresa', 'Setor'];
     const rows = filteredVehicles.map(v => {
       const owner = owners.find(o => o.id === v.ownerId);
-      return [
-        v.plate,
-        v.type,
-        v.brand,
-        v.model,
-        v.parkingLocation || '',
-        owner?.name || '',
-        owner?.phone || '',
-        owner?.company || '',
-        owner?.sector || ''
-      ];
+      return [v.plate, v.type, v.brand, v.model, v.parkingLocation || '', owner?.name || '', owner?.phone || '', owner?.company || '', owner?.sector || ''];
     });
-
-    const csvContent = [
-      headers.join(','),
-      ...rows.map(row => row.join(','))
-    ].join('\n');
-
+    const csvContent = [headers.join(','), ...rows.map(row => row.join(','))].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     link.download = `veiculos_${new Date().toISOString().split('T')[0]}.csv`;
     link.click();
-    
     success('✅ Arquivo CSV exportado com sucesso!');
   };
 
-  /* ================================
-     RENDERIZAÇÃO
-  ================================ */
+  // Menu lateral
+  const menuItems = [
+  { id: 'vehicles', label: 'Veículos', icon: Car, action: null, badge: vehicles.length,
+    activeClass: 'bg-blue-50 text-blue-700 border-l-4 border-blue-500 font-semibold',
+    iconClass: 'text-blue-600', badgeClass: 'bg-blue-100 text-blue-700' },
+  { id: 'owners', label: 'Proprietários', icon: User, action: onNavigateToOwners, badge: owners.length,
+    activeClass: 'bg-slate-100 text-slate-700 border-l-4 border-slate-500 font-semibold',
+    iconClass: 'text-slate-600', badgeClass: 'bg-slate-200 text-slate-700' },
+  { id: 'thirdparty', label: 'Terceiros', icon: Truck, action: onNavigateToThirdParty, badge: thirdPartyCount,
+    activeClass: 'bg-orange-50 text-orange-700 border-l-4 border-orange-500 font-semibold',
+    iconClass: 'text-orange-600', badgeClass: 'bg-orange-100 text-orange-700' },
+  { id: 'loans', label: 'Empréstimos', icon: Package, action: onNavigateToLoans, badge: loansCount,
+    activeClass: 'bg-yellow-50 text-yellow-700 border-l-4 border-yellow-500 font-semibold',
+    iconClass: 'text-yellow-600', badgeClass: 'bg-yellow-100 text-yellow-700' },
+  { id: 'reports', label: 'Relatórios', icon: BarChart2, action: onNavigateToReports, badge: null,
+    activeClass: 'bg-indigo-50 text-indigo-700 border-l-4 border-indigo-500 font-semibold',
+    iconClass: 'text-indigo-600', badgeClass: 'bg-indigo-100 text-indigo-700' },
+  { id: 'events', label: 'Eventos', icon: Calendar, action: onNavigateToEvents, badge: null,
+    activeClass: 'bg-emerald-50 text-emerald-700 border-l-4 border-emerald-500 font-semibold',
+    iconClass: 'text-emerald-600', badgeClass: 'bg-emerald-100 text-emerald-700' },
+];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-3 sm:p-6">
-      <div className="max-w-7xl mx-auto">
-        
-        <Header 
-          companyName="ARENA BRB / ARENA 360"
-          subtitle="Sistema de Controle de Veículos e Acervo - SEGURANÇA"
-          vehicleCount={vehicles.length}
-          ownerCount={owners.length}
-        />
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex flex-col">
 
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl p-8 border border-gray-200">
-          
-          {/* Botões de Ação */}
-          <div className="flex flex-wrap justify-end gap-2 sm:gap-3 mb-6">
-              <button
-                onClick={onNavigateToOwners}
-                className="bg-gradient-to-r from-blue-500 to-green-600 hover:from-orange-600 hover:to-blue-700 text-white px-5 sm:px-7 py-2.5 sm:py-3.5 rounded-xl flex items-center gap-2 text-base sm:text-lg transition-all duration-200 shadow-lg hover:shadow-xl whitespace-nowrap font-medium"
-              >
-                <User size={20} />
-                <span>Proprietários ARENA</span>
-                <span className="bg-white/20 px-2.5 py-1 rounded-full text-sm font-bold">{owners.length}</span>
-              </button>
-
-              <button
-                onClick={onNavigateToThirdParty}
-                className="bg-orange-600 hover:bg-orange-500 text-white px-5 sm:px-7 py-2.5 sm:py-3.5 rounded-xl flex items-center gap-2 text-base sm:text-lg transition-all shadow-lg hover:shadow-xl whitespace-nowrap font-medium"
-              >
-                <Truck size={20} />
-                <span>Terceiros</span>
-                <span className="bg-white/20 px-2.5 py-1 rounded-full text-sm font-bold">{thirdPartyCount}</span>
-              </button>
-
-              <button
-                onClick={onNavigateToLoans}
-                className="bg-yellow-500 hover:bg-yellow-600 text-white px-5 sm:px-7 py-2.5 sm:py-3.5 rounded-xl flex items-center gap-2 text-base sm:text-lg transition-all shadow-lg hover:shadow-xl whitespace-nowrap font-medium"
-              >
-                <Package size={20} />
-                <span>Empréstimos</span>
-                <span className="bg-white/20 px-2.5 py-1 rounded-full text-sm font-bold">{loansCount}</span>
-              </button>
-
-              <button
-                onClick={onNavigateToReports}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 sm:px-7 py-2.5 sm:py-3.5 rounded-xl flex items-center gap-2 text-base sm:text-lg transition-all shadow-lg hover:shadow-xl whitespace-nowrap font-medium"
-              >
-                <FileText size={20} />
-                <span>Relatórios</span>
-              </button>
-
-              <button
-                onClick={onNavigateToEvents}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 sm:px-7 py-2.5 sm:py-3.5 rounded-xl flex items-center gap-2 text-base sm:text-lg transition-all shadow-lg hover:shadow-xl whitespace-nowrap font-medium"
-              >
-                <Calendar size={20} />
-                <span>Eventos</span>
-              </button>
-
-              <button
-                onClick={handleAddClick}
-                className="bg-gradient-to-r from-green-700 to-green-600 hover:from-blue-400 hover:to-green-500 text-white px-5 sm:px-7 py-2.5 sm:py-3.5 rounded-xl flex items-center gap-2 text-base sm:text-lg transition-all shadow-lg hover:shadow-xl whitespace-nowrap font-medium"
-              >
-                <Plus size={20} />
-                <span>Novo Veículo</span>
-              </button>
+      {/* ══════════════ HEADER TOPO ══════════════ */}
+      <div className="bg-gradient-to-r from-blue-700 via-blue-600 to-indigo-700 shadow-xl">
+        <div className="px-4 sm:px-6 py-4">
+          <div className="flex items-center justify-between gap-4">
+            
+            {/* Logo + Título */}
+            <div className="flex items-center gap-3">
+              <div className="bg-white/20 p-2 rounded-xl">
+                <Car size={28} className="text-white" />
+              </div>
+              <div>
+                <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
+                  ARENA BRB / ARENA 360
+                </h1>
+                <p className="text-blue-200 text-xs sm:text-sm hidden sm:block">
+                  Sistema de Controle de Veículos e Acervo — SEGURANÇA
+                </p>
+              </div>
             </div>
+
+            {/* Stats Cards */}
+            <div className="hidden md:flex items-center gap-3">
+              <div className="bg-white/15 backdrop-blur rounded-xl px-4 py-2 text-center min-w-[90px]">
+                <div className="text-2xl font-bold text-white">{vehicles.length}</div>
+                <div className="text-blue-200 text-xs">Veículos</div>
+              </div>
+              <div className="bg-white/15 backdrop-blur rounded-xl px-4 py-2 text-center min-w-[90px]">
+                <div className="text-2xl font-bold text-white">{owners.length}</div>
+                <div className="text-blue-200 text-xs">Proprietários</div>
+              </div>
+              <div className="bg-white/15 backdrop-blur rounded-xl px-4 py-2 text-center min-w-[90px]">
+                <div className="text-2xl font-bold text-white">{thirdPartyCount}</div>
+                <div className="text-blue-200 text-xs">Terceiros</div>
+              </div>
+              <div className={`backdrop-blur rounded-xl px-4 py-2 text-center min-w-[90px] ${activeLoans > 0 ? 'bg-yellow-400/30' : 'bg-white/15'}`}>
+                <div className={`text-2xl font-bold ${activeLoans > 0 ? 'text-yellow-200' : 'text-white'}`}>{activeLoans}</div>
+                <div className="text-blue-200 text-xs">Empréstimos Ativos</div>
+              </div>
+            </div>
+
+            {/* User */}
+            <div className="flex items-center gap-2 bg-white/15 rounded-xl px-3 py-2">
+              <div className="w-8 h-8 rounded-full bg-white/30 flex items-center justify-center">
+                <User size={16} className="text-white" />
+              </div>
+              <div className="hidden sm:block text-right">
+                <div className="text-white text-xs font-medium">admin@estadio.com</div>
+                <div className="text-blue-200 text-xs">Conectado</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ══════════════ LAYOUT PRINCIPAL ══════════════ */}
+      <div className="flex flex-1">
+
+        {/* ══════════════ SIDEBAR ESQUERDA ══════════════ */}
+        <div className={`
+          bg-white shadow-xl border-r border-gray-200 flex flex-col transition-all duration-300
+          ${sidebarOpen ? 'w-56' : 'w-16'}
+        `}>
+          
+          {/* Toggle */}
+          <div className="flex items-center justify-between p-3 border-b border-gray-100">
+            {sidebarOpen && (
+              <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Menu</span>
+            )}
+            <button
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="ml-auto p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              {sidebarOpen ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
+            </button>
+          </div>
+
+          {/* Items do Menu */}
+          <nav className="flex-1 p-2 space-y-1">
+           {menuItems.map(item => {
+              const Icon = item.icon;
+              const isActive = activeMenu === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => {
+                    setActiveMenu(item.id);
+                    if (item.action) item.action();
+                  }}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-left ${
+                    isActive ? item.activeClass : 'text-gray-500 hover:bg-gray-100 hover:text-gray-800'
+                  }`}
+                  title={!sidebarOpen ? item.label : ''}
+                >
+                  <Icon size={20} className={`flex-shrink-0 ${isActive ? item.iconClass : 'text-gray-400'}`} />
+                  {sidebarOpen && (
+                    <>
+                      <span className="flex-1 text-sm truncate">{item.label}</span>
+                      {item.badge !== null && item.badge !== undefined && (
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${
+                          isActive ? item.badgeClass : 'bg-gray-100 text-gray-500'
+                        }`}>
+                          {item.badge}
+                        </span>
+                      )}
+                    </>
+                  )}
+                </button>
+              );
+            })}
+          </nav>
+
+          {/* Botão Novo Veículo no rodapé da sidebar */}
+          <div className="p-2 border-t border-gray-100">
+            <button
+              onClick={handleAddClick}
+              className={`
+                w-full flex items-center gap-3 px-3 py-2.5 rounded-xl
+                bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700
+                text-white font-semibold transition-all shadow-md hover:shadow-lg
+                ${!sidebarOpen ? 'justify-center' : ''}
+              `}
+              title={!sidebarOpen ? 'Novo Veículo' : ''}
+            >
+              <Plus size={20} className="flex-shrink-0" />
+              {sidebarOpen && <span className="text-sm">Novo Veículo</span>}
+            </button>
+          </div>
+        </div>
+
+        {/* ══════════════ CONTEÚDO PRINCIPAL ══════════════ */}
+        <div className="flex-1 p-4 sm:p-6 overflow-auto">
 
           {/* Formulário */}
           {showForm && (
@@ -286,213 +301,115 @@ export default function VehicleList({
             </div>
           )}
 
-          {/* Busca e Lista */}
           {!showForm && (
             <>
-              {/* 🔍 BUSCA AVANÇADA */}
-              <div className="mb-6">
-                    <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-200">
-                      
-                      {/* Busca Principal */}
-                      <div className="relative mb-4">
-                        <input
-                          type="text"
-                          value={searchTerm}
-                          onChange={(e) => {
-                              setSearchTerm(e.target.value);
-                              if (e.target.value === '') {
-                                setShowResults(false);
-                              }
-                            }}
-                          onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                          placeholder="Digite a placa, marca, modelo ou nome do proprietário..."
-                          className="w-full px-4 sm:px-6 py-3 sm:py-4 pl-10 sm:pl-14 text-base sm:text-lg border-2 border-blue-300 rounded-xl focus:border-blue-500 focus:outline-none transition-all shadow-sm"
-                        />
-                        <Search className="absolute left-3 sm:left-5 top-1/2 transform -translate-y-1/2 text-blue-400" size={20} />
-                        {searchTerm && (
-                          <button
-                            onClick={() => setSearchTerm('')}
-                            className="absolute right-5 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                          >
-                            <X size={20} />
-                          </button>
-                        )}
-                      </div>
+              {/* BUSCA */}
+              <div className="bg-white rounded-2xl shadow-lg p-5 border border-gray-200 mb-6">
+                <div className="relative mb-4">
+                  <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={(e) => { setSearchTerm(e.target.value); if (e.target.value === '') setShowResults(false); }}
+                    onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                    placeholder="Digite a placa, marca, modelo ou nome do proprietário..."
+                    className="w-full px-4 py-3 pl-12 text-base border-2 border-blue-300 rounded-xl focus:border-blue-500 focus:outline-none transition-all"
+                  />
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-400" size={20} />
+                  {searchTerm && (
+                    <button onClick={() => setSearchTerm('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                      <X size={20} />
+                    </button>
+                  )}
+                </div>
 
-                      {/* Filtros Rápidos (Opcionais) */}
-                      <details className="mb-4">
-                        <summary className="cursor-pointer text-sm font-medium text-gray-600 hover:text-blue-600 transition-colors flex items-center gap-2">
-                          <Filter size={16} />
-                          Filtros Avançados (opcional)
-                        </summary>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3 mt-4 p-3 sm:p-4 bg-gray-50 rounded-lg">
-                          {/* Tipo */}
-                          <div>
-                            <label className="block text-sm font-medium mb-1 text-gray-700">
-                              <Car size={16} className="inline mr-1 text-blue-600" />
-                              Tipo
-                            </label>
-                            <select
-                              value={filterType}
-                              onChange={(e) => setFilterType(e.target.value)}
-                              className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none bg-white"
-                            >
-                              <option value="">Todos os tipos</option>
-                              {uniqueTypes.map(type => (
-                                <option key={type} value={type}>{type}</option>
-                              ))}
-                            </select>
-                          </div>
-
-                          {/* Marca */}
-                          <div>
-                            <label className="block text-sm font-medium mb-1 text-gray-700">
-                              <Filter size={16} className="inline mr-1 text-blue-600" />
-                              Marca
-                            </label>
-                            <select
-                              value={filterBrand}
-                              onChange={(e) => setFilterBrand(e.target.value)}
-                              className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none bg-white"
-                            >
-                              <option value="">Todas as marcas</option>
-                              {uniqueBrands.map(brand => (
-                                <option key={brand} value={brand}>{brand}</option>
-                              ))}
-                            </select>
-                          </div>
-
-                          {/* Local */}
-                          <div>
-                            <label className="block text-sm font-medium mb-1 text-gray-700">
-                              <MapPin size={16} className="inline mr-1 text-green-600" />
-                              Local
-                            </label>
-                            <select
-                              value={filterLocation}
-                              onChange={(e) => setFilterLocation(e.target.value)}
-                              className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none bg-white"
-                            >
-                              <option value="">Todos os locais</option>
-                              {uniqueLocations.map(location => (
-                                <option key={location} value={location}>{location}</option>
-                              ))}
-                            </select>
-                          </div>
-
-                          {/* Empresa */}
-                          <div>
-                            <label className="block text-sm font-medium mb-1 text-gray-700">
-                              <Building2 size={16} className="inline mr-1 text-purple-600" />
-                              Empresa
-                            </label>
-                            <select
-                              value={filterCompany}
-                              onChange={(e) => setFilterCompany(e.target.value)}
-                              className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none bg-white"
-                            >
-                              <option value="">Todas as empresas</option>
-                              {uniqueCompanies.map(company => (
-                                <option key={company} value={company}>{company}</option>
-                              ))}
-                            </select>
-                          </div>
-
-                          {/* Setor */}
-                          <div>
-                            <label className="block text-sm font-medium mb-1 text-gray-700">
-                              <Briefcase size={16} className="inline mr-1 text-orange-600" />
-                              Setor
-                            </label>
-                            <select
-                              value={filterSector}
-                              onChange={(e) => setFilterSector(e.target.value)}
-                              className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none bg-white"
-                            >
-                              <option value="">Todos os setores</option>
-                              {uniqueSectors.map(sector => (
-                                <option key={sector} value={sector}>{sector}</option>
-                              ))}
-                            </select>
-                          </div>
-                        </div>
-                        </details>
-
-                      {/* Botões de Ação */}
-                      <div className="flex gap-2 sm:gap-3 flex-wrap">
-                      <button
-                        onClick={handleSearch}
-                        className="flex-1 sm:flex-initial bg-blue-600 hover:bg-blue-700 text-white px-4 sm:px-8 py-2.5 sm:py-3 rounded-xl font-semibold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 text-sm sm:text-base"
-                      >
-                        <Search size={18} />
-                        Buscar
-                      </button>
-                      
-                      {hasActiveFilters && (
-                        <button
-                          onClick={clearAllFilters}
-                          className="bg-gray-500 hover:bg-gray-600 text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl font-medium transition-all flex items-center justify-center gap-2 text-sm sm:text-base"
-                        >
-                          <X size={16} />
-                          <span className="hidden sm:inline">Limpar</span>
-                        </button>
-                      )}
-
-                      <button
-                        onClick={exportToCSV}
-                        disabled={!showResults || filteredVehicles.length === 0}
-                        className="bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl font-medium transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 text-sm sm:text-base"
-                      >
-                        <Download size={16} />
-                        <span className="hidden sm:inline">CSV</span>
-                        <span className="sm:hidden">↓</span>
-                      </button>
+                <details className="mb-4">
+                  <summary className="cursor-pointer text-sm font-medium text-gray-600 hover:text-blue-600 flex items-center gap-2">
+                    <Filter size={16} /> Filtros Avançados (opcional)
+                  </summary>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3 mt-4 p-4 bg-gray-50 rounded-lg">
+                    <div>
+                      <label className="block text-sm font-medium mb-1 text-gray-700"><Car size={14} className="inline mr-1 text-blue-600" />Tipo</label>
+                      <select value={filterType} onChange={(e) => setFilterType(e.target.value)} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none bg-white text-sm">
+                        <option value="">Todos</option>
+                        {uniqueTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                      </select>
                     </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1 text-gray-700"><Filter size={14} className="inline mr-1 text-blue-600" />Marca</label>
+                      <select value={filterBrand} onChange={(e) => setFilterBrand(e.target.value)} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none bg-white text-sm">
+                        <option value="">Todas</option>
+                        {uniqueBrands.map(b => <option key={b} value={b}>{b}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1 text-gray-700"><MapPin size={14} className="inline mr-1 text-green-600" />Local</label>
+                      <select value={filterLocation} onChange={(e) => setFilterLocation(e.target.value)} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none bg-white text-sm">
+                        <option value="">Todos</option>
+                        {uniqueLocations.map(l => <option key={l} value={l}>{l}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1 text-gray-700"><Building2 size={14} className="inline mr-1 text-purple-600" />Empresa</label>
+                      <select value={filterCompany} onChange={(e) => setFilterCompany(e.target.value)} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none bg-white text-sm">
+                        <option value="">Todas</option>
+                        {uniqueCompanies.map(c => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1 text-gray-700"><Briefcase size={14} className="inline mr-1 text-orange-600" />Setor</label>
+                      <select value={filterSector} onChange={(e) => setFilterSector(e.target.value)} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none bg-white text-sm">
+                        <option value="">Todos</option>
+                        {uniqueSectors.map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
                     </div>
                   </div>
+                </details>
 
-              {/* TELA INICIAL OU RESULTADOS */}
+                <div className="flex gap-2 flex-wrap">
+                  <button onClick={handleSearch} className="flex-1 sm:flex-initial bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl font-semibold transition-all shadow-md flex items-center justify-center gap-2">
+                    <Search size={18} /> Buscar
+                  </button>
+                  {hasActiveFilters && (
+                    <button onClick={clearAllFilters} className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2.5 rounded-xl font-medium flex items-center gap-2">
+                      <X size={16} /> Limpar
+                    </button>
+                  )}
+                  <button
+                    onClick={exportToCSV}
+                    disabled={!showResults || filteredVehicles.length === 0}
+                    className="bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-4 py-2.5 rounded-xl font-medium flex items-center gap-2"
+                  >
+                    <Download size={16} /> CSV
+                  </button>
+                </div>
+              </div>
+
+              {/* RESULTADOS */}
               {!showResults ? (
-                <div className="text-center py-24 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl">
-                  <Car size={80} className="mx-auto mb-6 text-blue-400 opacity-50" />
-                  <h3 className="text-2xl font-bold text-gray-700 mb-3">
-                    Sistema de Controle de Veículos e Acervo
-                  </h3>
-                  <p className="text-gray-500 text-lg">
-                    Use a busca acima para consultar
-                  </p>
+                <div className="text-center py-24 bg-white/60 rounded-2xl border border-gray-200">
+                  <Car size={80} className="mx-auto mb-6 text-blue-400 opacity-40" />
+                  <h3 className="text-2xl font-bold text-gray-700 mb-3">Sistema de Controle de Veículos e Acervo</h3>
+                  <p className="text-gray-500 text-lg">Use a busca acima para consultar</p>
                 </div>
               ) : (
                 <>
-                  {/* Contador de resultados */}
                   <div className="mb-4 flex items-center justify-between flex-wrap gap-4">
                     <div className="text-lg">
                       📊 Mostrando <strong className="text-blue-600">{filteredVehicles.length}</strong> de {vehicles.length} veículos
                     </div>
                     {hasActiveFilters && (
                       <div className="text-sm text-gray-600">
-                        Filtros ativos: {[
-                          searchTerm && 'Busca', 
-                          filterType && 'Tipo', 
-                          filterBrand && 'Marca', 
-                          filterLocation && 'Local', 
-                          filterCompany && 'Empresa', 
-                          filterSector && 'Setor'
-                        ].filter(Boolean).join(', ')}
+                        Filtros ativos: {[searchTerm && 'Busca', filterType && 'Tipo', filterBrand && 'Marca', filterLocation && 'Local', filterCompany && 'Empresa', filterSector && 'Setor'].filter(Boolean).join(', ')}
                       </div>
                     )}
                   </div>
-
-                  {/* Lista de Veículos */}
                   {filteredVehicles.length === 0 ? (
-                    <div className="text-center py-12 text-gray-400 bg-gray-50 rounded-xl">
+                    <div className="text-center py-12 text-gray-400 bg-white rounded-xl">
                       <Car size={64} className="mx-auto mb-4 opacity-30" />
                       <p className="text-lg">Nenhum veículo encontrado</p>
-                      <p className="text-sm">Tente ajustar os filtros</p>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                       {filteredVehicles.map(vehicle => (
                         <VehicleCard
                           key={vehicle.id}
@@ -511,6 +428,7 @@ export default function VehicleList({
           )}
         </div>
       </div>
+
       <ModalComponent />
     </div>
   );
