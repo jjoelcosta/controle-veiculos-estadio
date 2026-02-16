@@ -3,7 +3,7 @@ import { X, Save, Calendar } from 'lucide-react';
 import { useToast } from '../ui/Toast';
 import LoadingButton from '../ui/LoadingButton';
 
-const CATEGORIES = ['Show', 'Jogo', 'Treinamento', 'Corporativo', 'Férias', 'Feira', 'Outro'];
+const CATEGORIES = ['Corporativo', 'Corrida', 'Evento Esportivo', 'Feira', 'Jogo', 'Luta', 'Outro', 'Religioso', 'Show', 'Treinamento'];
 
 export default function EventForm({ event, onSubmit, onCancel }) {
   const { error: showError } = useToast();
