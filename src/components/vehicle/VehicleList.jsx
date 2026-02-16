@@ -11,6 +11,7 @@ export default function VehicleList({
   owners,
   thirdPartyVehicles,
   loans,
+  events,
   editingVehicleId,
   onViewDetail, 
   onAdd, 
@@ -149,7 +150,7 @@ export default function VehicleList({
   { id: 'reports', label: 'Relatórios', icon: BarChart2, action: onNavigateToReports, badge: null,
     activeClass: 'bg-indigo-50 text-indigo-700 border-l-4 border-indigo-500 font-semibold',
     iconClass: 'text-indigo-600', badgeClass: 'bg-indigo-100 text-indigo-700' },
-  { id: 'events', label: 'Eventos', icon: Calendar, action: onNavigateToEvents, badge: null,
+  { id: 'events', label: 'Eventos', icon: Calendar, action: onNavigateToEvents, badge: events?.length || 0,
     activeClass: 'bg-emerald-50 text-emerald-700 border-l-4 border-emerald-500 font-semibold',
     iconClass: 'text-emerald-600', badgeClass: 'bg-emerald-100 text-emerald-700' },
 ];
@@ -195,6 +196,10 @@ export default function VehicleList({
               <div className={`hidden sm:block backdrop-blur rounded-xl px-3 py-1.5 text-center ${activeLoans > 0 ? 'bg-yellow-400/30' : 'bg-white/15'}`}>
                 <div className={`text-lg sm:text-2xl font-bold ${activeLoans > 0 ? 'text-yellow-200' : 'text-white'}`}>{activeLoans}</div>
                 <div className="text-blue-200 text-xs">Empréstimos</div>
+              </div>
+              <div className="hidden sm:block bg-white/15 backdrop-blur rounded-xl px-3 py-1.5 text-center">
+                <div className="text-lg sm:text-2xl font-bold text-white">{events?.length || 0}</div>
+                <div className="text-blue-200 text-xs">Eventos</div>
               </div>
             </div>
 

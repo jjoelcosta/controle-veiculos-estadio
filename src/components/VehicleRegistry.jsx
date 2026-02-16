@@ -570,6 +570,7 @@ case 'events': {
           owners={owners}
           thirdPartyVehicles={thirdPartyVehicles}
           loans={loans}
+          events={events}
           editingVehicleId={editingVehicleId}
           onViewDetail={handleViewVehicleDetail}
           onAdd={handleAddVehicle}
