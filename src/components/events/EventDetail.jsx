@@ -657,15 +657,15 @@ export default function EventDetail({
         )}
 
         {/* TOTAL GERAL */}
-        <div className="bg-gradient-to-r from-emerald-600 to-green-700 rounded-2xl shadow-xl p-6">
-          <div className="flex items-center justify-between">
+        <div className="bg-gradient-to-r from-emerald-600 to-green-700 rounded-2xl shadow-xl p-4 sm:p-6">
+          <div className="flex flex-col sm:items-center sm:justify-between gap-2">
             <div>
-              <div className="text-emerald-200 text-sm font-medium">TOTAL GERAL DO EVENTO</div>
-              <div className="text-white text-sm mt-1">
+              <div className="text-emerald-200 text-xs sm:text-sm font-medium">TOTAL GERAL DO EVENTO</div>
+              <div className="text-white text-xs sm:text-sm mt-1">
                 Pessoal: {formatCurrency(totalPessoal)} + Aluguéis: {formatCurrency(totalAluguel)}
               </div>
             </div>
-            <div className="text-4xl font-bold text-white">
+            <div className="text-2xl sm:text-4xl font-bold text-white">
               {formatCurrency(event.totalExpenses)}
             </div>
           </div>
