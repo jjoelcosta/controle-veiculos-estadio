@@ -1,37 +1,140 @@
-# 🚗 Sistema de Controle de Veículos
+# 🏟️ Arena 360 — Sistema de Gestão de Segurança
 
-> Gerenciamento de veículos de colaboradores que tem acesso ao estacionamento interno do estádio ARENA BRB.
+> Plataforma completa de gestão operacional para a equipe de segurança do Estádio Arena BRB (Mané Garrincha), cobrindo controle de acesso veicular, empréstimos de acervo, gestão de eventos e administração de pessoal.
 
 ## 📋 **O que é?**
 
-Sistema web responsivo para controle de veículos autorizados em estacionamentos corporativos. Permite gerenciar proprietários, seus veículos e locais autorizados de estacionamento.
+Sistema web responsivo desenvolvido para centralizar e digitalizar as operações de segurança da Arena BRB. Substitui planilhas e processos manuais por uma interface integrada que cobre desde o controle de veículos no estacionamento até relatórios anuais de gastos com pessoal.
 
-**🌐 [Ver Demo ao Vivo](https://blue-forest-0c585dc10.azurestaticapps.net)**
+**🌐 [Ver Sistema](https://blue-forest-0c585dc10.azurestaticapps.net)**
 
 ---
 
-## ✨ **Principais Funcionalidades**
+## ✨ **Módulos Implementados**
 
-- ✅ **Gerenciar Proprietários** - Cadastro com nome, telefone, empresa, cargo e setor
-- ✅ **Gerenciar Veículos** - Placa, marca, modelo, tipo e local autorizado
-- ✅ **Múltiplos Veículos** - Um proprietário pode ter vários veículos
-- ✅ **Tipos de Veículos** - Carro, Moto, Caminhão, Van, Ônibus
-- ✅ **12 Locais de Estacionamento** - VIP, Imprensa, Staff, Garagens, etc.
-- ✅ **Busca Avançada** - Por placa, proprietário, marca, tipo ou local
-- ✅ **Exportação** - CSV (Excel) e JSON
-- ✅ **100% Responsivo** - Funciona em desktop, tablet e celular
+### 🔵 **Veículos** (`/vehicles`)
+Controle de veículos autorizados no estacionamento interno do estádio.
+- Cadastro completo: placa, marca, modelo, tipo, cor e local autorizado
+- 12 locais de estacionamento: VIP, Imprensa, Staff, Garagens, etc.
+- Tipos suportados: Carro, Moto, Caminhão, Van, Ônibus
+- Soft delete com restauração de registros
+- Vinculação com proprietários
+
+### ⚫ **Proprietários** (`/owners`)
+Gestão dos responsáveis pelos veículos cadastrados.
+- Cadastro com nome, telefone, empresa, cargo e setor
+- Um proprietário pode ter múltiplos veículos vinculados
+- Validação: não permite excluir proprietário com veículos ativos
+- Histórico completo de veículos por proprietário
+
+### 🟠 **Veículos de Terceiros** (`/thirdparty`)
+Controle de veículos externos que acessam o estádio.
+- Dados do motorista, empresa e tipo de serviço
+- Registro de telefone e empresa prestadora
+- Busca por placa, motorista, empresa ou marca
+
+### 🟡 **Empréstimos de Acervo** (`/loans`)
+Controle de equipamentos emprestados a empresas e colaboradores.
+- Gestão de estoque com quantidades disponíveis e totais
+- Emissão de PDF de empréstimo e PDF de devolução
+- Controle de status: Emprestado, Devolvido, Atrasado, Perdido/Danificado
+- Registro de devolução parcial ou total com nota de condição
+- **Relatórios anuais** com:
+  - Itens mais emprestados (ranking por quantidade)
+  - Empresas que mais pegam emprestado
+  - Tempo médio de empréstimo por empresa
+  - Evolução mensal
+  - Exportação PDF e Excel (6 abas)
+
+### 💚 **Gestão de Eventos** (`/events`)
+Controle financeiro e operacional dos eventos realizados no estádio.
+
+**Eventos**
+- Cadastro com nome, categoria, status e datas
+- Categorias: Corporativo, Corrida, Evento Esportivo, Feira, Jogo, Luta, Outro, Religioso, Show, Treinamento
+- Timeline de gastos por dia (antes, durante e após o evento)
+- Visualização por tipo (pessoal vs aluguel)
+
+**Gastos por Evento**
+- Categoria Pessoal: Carregador, Segurança, Ascensorista, Segurança Motorizado
+- Categoria Aluguel: Fechamento Cego, Gradis
+- Cálculo automático: plantões × pessoas × valor unitário
+
+**Banco de Horas**
+- Registro de horas por funcionário por evento
+- Totais mensais e anuais por colaborador
+
+**Equipe de Segurança**
+- Cadastro de funcionários com cargo, telefone e e-mail
+- Vinculação com banco de horas
+
+**Cobertura de Férias**
+- Registro de seguranças terceirizados contratados por diária
+- Cálculo automático de plantões pela escala 12x36
+- Campo editável para ajuste manual dos dias a pagar
+- Preview em tempo real do total da cobertura
+
+**Relatórios de Eventos**
+- Por evento, por mês, por tipo de pessoal/aluguel e banco de horas
+- Exportação PDF (5 páginas) e Excel (6 abas)
+
+### 🟣 **Relatórios Gerais** (`/reports`)
+Visão consolidada de veículos, proprietários, terceiros e empréstimos.
 
 ---
 
 ## 🛠️ **Tecnologias**
 
-- **React 18** - Interface interativa
-- **Vite 6** - Build ultrarrápido
-- **Tailwind CSS** - Estilização moderna
-- **Lucide React** - Ícones
-- **Azure Static Web Apps** - Hospedagem
-- **GitHub Actions** - Deploy automático
-- **Supabase** - Backend
+| Camada | Tecnologia |
+|--------|-----------|
+| Frontend | React 18 + Vite 6 |
+| Estilização | Tailwind CSS |
+| Ícones | Lucide React |
+| Backend/DB | Supabase (PostgreSQL) |
+| Segurança DB | Row Level Security (RLS) + Security Invoker Views |
+| PDF | jsPDF + jspdf-autotable |
+| Excel | SheetJS (xlsx) |
+| Hospedagem | Azure Static Web Apps |
+| CI/CD | GitHub Actions |
+
+---
+
+## 🗄️ **Banco de Dados**
+
+### Tabelas principais
+```
+vehicles              → veículos cadastrados
+owners                → proprietários
+third_party_vehicles  → veículos terceiros
+loans                 → empréstimos
+loan_items            → catálogo de itens do acervo
+loan_items_detail     → itens por empréstimo
+events                → eventos do estádio
+event_expenses        → gastos por evento
+security_team         → equipe de segurança
+hour_bank             → banco de horas
+vacation_expenses     → coberturas de férias
+audit_logs            → log de auditoria
+document_control      → controle de documentos
+```
+
+### Views (Security Invoker)
+```
+v_event_totals        → totais por evento
+v_monthly_expenses    → gastos mensais
+v_hour_bank_summary   → resumo do banco de horas
+v_monthly_hours       → horas mensais por funcionário
+```
+
+### Funções SQL
+```
+soft_delete_vehicle(uuid)   → exclusão lógica de veículo
+restore_vehicle(uuid)       → restauração de veículo
+soft_delete_owner(uuid)     → exclusão lógica de proprietário
+restore_owner(uuid)         → restauração de proprietário
+log_audit()                 → trigger de auditoria
+update_updated_at_column()  → trigger de timestamp
+```
 
 ---
 
@@ -48,48 +151,76 @@ cd controle-veiculos-estadio
 npm install
 ```
 
-### **3. Executar**
+### **3. Configurar ambiente**
+Crie `.env.local` na raiz:
+```env
+VITE_SUPABASE_URL=sua_url_supabase
+VITE_SUPABASE_ANON_KEY=sua_chave_anon
+```
+
+### **4. Executar**
 ```bash
 npm run dev
 ```
-
 Acesse: `http://localhost:5173`
 
 ---
 
-## 💡 **Como Usar**
+## 📁 **Estrutura do Projeto**
 
-### **Cadastrar Proprietário**
-1. Clique em **"Proprietários"**
-2. **"Novo Proprietário"** → Preencha o nome
-3. **"Cadastrar"**
-
-### **Cadastrar Veículo**
-1. **"Novo Veículo"** → Preencha placa, marca e selecione proprietário
-2. Escolha tipo e local autorizado
-3. **"Cadastrar"**
-
-### **Buscar**
-- Digite na busca ou use filtros (Tipo/Marca/Local)
-
-### **Exportar**
-- Clique em **"Exportar CSV"** ou **"Exportar JSON"**
+```
+src/
+├── components/
+│   ├── VehicleRegistry.jsx         # Orquestrador principal (navegação + CRUD)
+│   ├── vehicle/
+│   │   ├── VehicleList.jsx         # Lista + menu lateral + dashboard
+│   │   ├── VehicleDetail.jsx       # Detalhe do veículo
+│   │   └── VehicleEditModal.jsx    # Modal de edição
+│   ├── owner/
+│   │   ├── OwnerList.jsx           # Lista de proprietários (tabela)
+│   │   └── OwnerDetail.jsx         # Detalhe com veículos vinculados
+│   ├── thirdparty/
+│   │   └── ThirdPartyVehicleList.jsx
+│   ├── loan/
+│   │   ├── LoanList.jsx            # Lista de empréstimos (tabela/cards)
+│   │   ├── LoanForm.jsx            # Formulário de novo empréstimo
+│   │   ├── LoanDetail.jsx          # Detalhe + ações
+│   │   ├── LoanReturnForm.jsx      # Formulário de devolução
+│   │   ├── LoanEditForm.jsx        # Edição de empréstimo
+│   │   ├── LoanInventory.jsx       # Gestão de estoque
+│   │   └── LoanReports.jsx         # Relatórios anuais de acervo
+│   ├── events/
+│   │   ├── EventList.jsx           # Lista de eventos (tabela/cards)
+│   │   ├── EventForm.jsx           # Formulário de evento
+│   │   ├── EventDetail.jsx         # Detalhe + timeline de gastos
+│   │   ├── TeamManager.jsx         # Gestão da equipe
+│   │   ├── HourBank.jsx            # Banco de horas
+│   │   ├── EventReports.jsx        # Relatórios de gastos
+│   │   └── VacationList.jsx        # Coberturas de férias
+│   ├── reports/
+│   │   └── Reports.jsx             # Relatórios gerais
+│   └── ui/
+│       ├── Modal.jsx               # Modal de confirmação
+│       ├── Toast.jsx               # Notificações
+│       └── LoadingButton.jsx       # Botão com estado de loading
+├── utils/
+│   ├── storage.js                  # Todas as operações Supabase (CRUD)
+│   ├── loanPDF.js                  # Geração de PDFs de empréstimo
+│   └── vehicleTypes.js             # Configuração de tipos de veículo
+├── App.jsx
+└── index.css
+```
 
 ---
 
-## 📁 **Estrutura**
+## 📱 **Responsividade**
 
-```
-controle-veiculos-estadio/
-├── src/
-│   ├── components/
-│   │   └── VehicleRegistry.jsx    # Componente principal
-│   ├── App.jsx
-│   └── index.css
-├── package.json
-├── vite.config.js
-└── README.md
-```
+O sistema é 100% responsivo com breakpoints adaptados para cada módulo:
+
+| Tela | Comportamento |
+|------|--------------|
+| Mobile (< 1024px) | Cards empilhados, campos de data compactos, botões full-width |
+| Desktop (≥ 1024px) | Tabelas com colunas, menu lateral expandido, layout em grid |
 
 ---
 
@@ -99,54 +230,21 @@ Deploy automático no Azure via GitHub Actions:
 
 ```bash
 git add .
-git commit -m "Descrição"
+git commit -m "Descrição da mudança"
 git push origin main
 ```
 
-Aguarde 3-5 minutos → Site atualizado automaticamente!
-
----
-
-## 🗺️ **Roadmap**
-
-**Agora (v1.0)** ✅
-- CRUD completo
-- Busca e filtros
-- Exportação
-- Deploy Azure
-
-**Próximo (v1.1)** 🚧
-- Animações suaves
-- Notificações toast
-- Dark mode
-
-**Futuro (v2.0)** 📅
-- Banco de dados
-- Login Microsoft 365
-- Dashboard
-- QR Codes
-- Relatórios PDF
+Aguarde 3-5 minutos → Site atualizado automaticamente.
 
 ---
 
 ## 📄 **Licença**
 
-MIT License - uso livre
+MIT License — uso livre
 
 ---
 
 ## 👤 **Autor**
 
-**Joel Costa**
+**Joel Costa** — Analista de Segurança, Arena BRB
 - GitHub: [@jjoelcosta](https://github.com/jjoelcosta)
-- Email: contato@exemplo.com
-
----
-
-<div align="center">
-
-**⭐ Deixe uma estrela se gostou! **
-
-Feito com ❤️ e ☕
-
-</div>
