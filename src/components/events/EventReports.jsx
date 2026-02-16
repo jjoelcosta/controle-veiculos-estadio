@@ -24,7 +24,10 @@ export default function EventReports({ events, team, hourBank, onBack }) {
   };
 
   const formatHours = (decimal) => {
-    const { hours, minutes } = fromDecimal(decimal);
+    // Arredonda para evitar erro de ponto flutuante (118.4999999...)
+    const rounded = Math.round(decimal * 100) / 100;
+    const hours = Math.floor(rounded);
+    const minutes = Math.round((rounded - hours) * 60);
     if (minutes === 0) return `${hours}h`;
     return `${hours}h${String(minutes).padStart(2, '0')}`;
   };
@@ -294,7 +297,7 @@ export default function EventReports({ events, team, hourBank, onBack }) {
           body: hourBankMonthly.map(e => [
             e.name,
             e.position,
-            `${e.totalHours}h`
+            formatHours(e.totalHours)
           ]),
           theme: 'striped',
           headStyles: { fillColor: [37, 99, 235] },
@@ -395,7 +398,7 @@ export default function EventReports({ events, team, hourBank, onBack }) {
       // ABA 5: BANCO DE HORAS
       const wsHours = XLSX.utils.aoa_to_sheet([
         ['Funcionário', 'Cargo', 'Total de Horas'],
-        ...hourBankMonthly.map(e => [e.name, e.position, e.totalHours])
+        ...hourBankMonthly.map(e => [e.name, e.position, formatHours(e.totalHours)])
       ]);
       XLSX.utils.book_append_sheet(wb, wsHours, 'Banco de Horas');
 
@@ -414,7 +417,7 @@ export default function EventReports({ events, team, hourBank, onBack }) {
           h.employeePosition,
           formatDate(h.eventDate),
           h.eventName || '-',
-          h.hoursWorked,
+          formatHours(parseFloat(h.hoursWorked) || 0),
           h.notes || '-'
         ])
       ]);

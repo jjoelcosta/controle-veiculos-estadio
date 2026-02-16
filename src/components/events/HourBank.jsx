@@ -50,7 +50,10 @@ export default function HourBank({
 
   // Formata para exibição (ex: 12.50 → "12h30")
   const formatHours = (decimal) => {
-    const { hours, minutes } = fromDecimal(decimal);
+    // Arredonda para evitar erro de ponto flutuante (118.4999999...)
+    const rounded = Math.round(decimal * 100) / 100;
+    const hours = Math.floor(rounded);
+    const minutes = Math.round((rounded - hours) * 60);
     if (minutes === 0) return `${hours}h`;
     return `${hours}h${String(minutes).padStart(2, '0')}`;
   };
@@ -174,7 +177,7 @@ const handleSubmit = async () => {
           {/* Dashboard */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 border-b border-gray-100">
             <div className="text-center">
-              <div className="text-2xl font-bold text-blue-700">{totalHoursAll}h</div>
+              <div className="text-2xl font-bold text-blue-700">{formatHours(totalHoursAll)}</div>
               <div className="text-xs text-gray-500">Total de Horas</div>
             </div>
             <div className="text-center">
@@ -187,7 +190,7 @@ const handleSubmit = async () => {
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-purple-700">
-                {team.length > 0 ? (totalHoursAll / team.length).toFixed(1) : 0}h
+                {team.length > 0 ? formatHours(totalHoursAll / team.length) : '0h'}
               </div>
               <div className="text-xs text-gray-500">Média/Pessoa</div>
             </div>
