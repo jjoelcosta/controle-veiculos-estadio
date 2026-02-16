@@ -719,8 +719,9 @@ const handleReturnSubmit = async (returnData) => {
   const handleAddExpense = async (expenseData) => {
     try {
       await storage.addEventExpense(expenseData);
-      await loadData();
-      const updated = events.find(e => e.id === expenseData.eventId);
+      const freshEvents = await storage.loadEvents();
+      setEvents(freshEvents);
+      const updated = freshEvents.find(e => e.id === expenseData.eventId);
       if (updated) setSelectedEvent(updated);
     } catch (err) {
       console.error('❌ Erro ao adicionar gasto:', err);
@@ -731,8 +732,9 @@ const handleReturnSubmit = async (returnData) => {
   const handleUpdateExpense = async (expenseId, expenseData) => {
     try {
       await storage.updateEventExpense(expenseId, expenseData);
-      await loadData();
-      const updated = events.find(e => e.id === expenseData.eventId);
+      const freshEvents = await storage.loadEvents();
+      setEvents(freshEvents);
+      const updated = freshEvents.find(e => e.id === expenseData.eventId);
       if (updated) setSelectedEvent(updated);
     } catch (err) {
       console.error('❌ Erro ao atualizar gasto:', err);
@@ -743,9 +745,10 @@ const handleReturnSubmit = async (returnData) => {
   const handleDeleteExpense = async (expenseId) => {
     try {
       await storage.deleteEventExpense(expenseId);
-      await loadData();
+      const freshEvents = await storage.loadEvents();
+      setEvents(freshEvents);
       if (selectedEvent) {
-        const updated = events.find(e => e.id === selectedEvent.id);
+        const updated = freshEvents.find(e => e.id === selectedEvent.id);
         if (updated) setSelectedEvent(updated);
       }
     } catch (err) {

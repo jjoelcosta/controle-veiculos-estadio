@@ -722,6 +722,7 @@ const loadEvents = async () => {
           id,
           expense_type,
           expense_category,
+          expense_date,
           shifts,
           quantity,
           unit_value,
