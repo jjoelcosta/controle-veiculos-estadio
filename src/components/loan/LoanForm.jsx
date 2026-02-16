@@ -275,7 +275,7 @@ export default function LoanForm({
             Datas
           </h3>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Data de Retirada
@@ -285,7 +285,7 @@ export default function LoanForm({
                 value={formData.loanDate}
                 onChange={(e) => handleChange('loanDate', e.target.value)}
                 disabled={saving}
-                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-yellow-500 focus:outline-none transition-colors disabled:opacity-50"
+                className="w-full max-w-full px-2 sm:px-4 py-2 sm:py-3 border-2 border-gray-300 rounded-lg focus:border-yellow-500 focus:outline-none transition-colors disabled:opacity-50 text-sm"
               />
             </div>
 
@@ -298,7 +298,7 @@ export default function LoanForm({
                 value={formData.expectedReturnDate}
                 onChange={(e) => handleChange('expectedReturnDate', e.target.value)}
                 disabled={saving}
-                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-yellow-500 focus:outline-none transition-colors disabled:opacity-50"
+                className="w-full max-w-full px-2 sm:px-4 py-2 sm:py-3 border-2 border-gray-300 rounded-lg focus:border-yellow-500 focus:outline-none transition-colors disabled:opacity-50 text-sm"
               />
             </div>
           </div>

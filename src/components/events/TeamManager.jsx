@@ -209,8 +209,9 @@ export default function TeamManager({ team, onAdd, onUpdate, onDelete, onBack })
                         </span>
                       )}
                       {emp.email && (
-                        <span className="text-xs text-gray-500 flex items-center gap-1">
-                          <Mail size={11} /> {emp.email}
+                        <span className="text-xs text-gray-500 flex items-center gap-1 min-w-0">
+                          <Mail size={11} className="flex-shrink-0" />
+                          <span className="truncate max-w-[140px] sm:max-w-none">{emp.email}</span>
                         </span>
                       )}
                     </div>

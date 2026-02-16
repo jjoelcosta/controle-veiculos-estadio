@@ -120,7 +120,7 @@ export default function EventForm({ event, onSubmit, onCancel }) {
             </div>
 
             {/* Datas */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Data Início *
@@ -130,7 +130,7 @@ export default function EventForm({ event, onSubmit, onCancel }) {
                   value={formData.startDate}
                   onChange={(e) => handleChange('startDate', e.target.value)}
                   disabled={saving}
-                  className={`w-full px-4 py-3 border-2 rounded-lg focus:outline-none disabled:opacity-50 ${
+                  className={`w-full max-w-full px-2 sm:px-4 py-2 sm:py-3 border-2 rounded-lg focus:outline-none disabled:opacity-50 text-sm ${
                     errors.startDate ? 'border-red-500' : 'border-gray-300 focus:border-emerald-500'
                   }`}
                 />
@@ -146,7 +146,7 @@ export default function EventForm({ event, onSubmit, onCancel }) {
                   value={formData.endDate}
                   onChange={(e) => handleChange('endDate', e.target.value)}
                   disabled={saving}
-                  className={`w-full px-4 py-3 border-2 rounded-lg focus:outline-none disabled:opacity-50 ${
+                  className={`w-full max-w-full px-2 sm:px-4 py-2 sm:py-3 border-2 rounded-lg focus:outline-none disabled:opacity-50 text-sm ${
                     errors.endDate ? 'border-red-500' : 'border-gray-300 focus:border-emerald-500'
                   }`}
                 />

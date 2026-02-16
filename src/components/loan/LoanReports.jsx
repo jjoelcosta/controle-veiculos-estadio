@@ -354,19 +354,20 @@ export default function LoanReports({ loans, onBack }) {
           </div>
 
           {/* FILTROS */}
-          <div className="p-4 border-b border-gray-100">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {/* FILTROS */}
+          <div className="p-3 sm:p-4 border-b border-gray-100">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1">Data Inicial</label>
                 <input type="date" value={filters.startDate}
                   onChange={(e) => setFilters(p => ({ ...p, startDate: e.target.value }))}
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-yellow-500 focus:outline-none text-sm" />
+                  className="w-full max-w-full px-2 py-1.5 border-2 border-gray-200 rounded-lg focus:border-yellow-500 focus:outline-none text-xs sm:text-sm" />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1">Data Final</label>
                 <input type="date" value={filters.endDate}
                   onChange={(e) => setFilters(p => ({ ...p, endDate: e.target.value }))}
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-yellow-500 focus:outline-none text-sm" />
+                  className="w-full max-w-full px-2 py-1.5 border-2 border-gray-200 rounded-lg focus:border-yellow-500 focus:outline-none text-xs sm:text-sm" />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1">Ano de Referência</label>
@@ -375,11 +376,10 @@ export default function LoanReports({ loans, onBack }) {
                     const year = parseInt(e.target.value);
                     setFilters({ year, startDate: `${year}-01-01`, endDate: `${year}-12-31` });
                   }}
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-yellow-500 focus:outline-none text-sm" />
+                  className="w-full max-w-full px-2 py-1.5 border-2 border-gray-200 rounded-lg focus:border-yellow-500 focus:outline-none text-xs sm:text-sm" />
               </div>
             </div>
           </div>
-
           {/* STATS */}
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 p-4">
             {[
