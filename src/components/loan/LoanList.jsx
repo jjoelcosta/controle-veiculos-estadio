@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Package, Plus, Search, ArrowLeft, Clock, CheckCircle, XCircle, AlertCircle, Eye, Trash2, X } from 'lucide-react';
+import { Package, Plus, Search, ArrowLeft, Clock, CheckCircle, XCircle, AlertCircle, Eye, Trash2, X, BarChart2 } from 'lucide-react';
 import { useModal } from '../ui/Modal';
 import { useToast } from '../ui/Toast';
 
@@ -17,7 +17,7 @@ const formatDateBR = (dateStr) => {
   return `${day}/${month}/${year}`;
 };
 
-export default function LoanList({ loans, onAdd, onViewDetail, onDelete, onManageInventory, onBackToVehicles }) {
+export default function LoanList({ loans, onAdd, onViewDetail, onDelete, onManageInventory, onBackToVehicles, onReports }) {
   const { openModal, ModalComponent } = useModal();
   const { success, error } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
@@ -160,15 +160,19 @@ export default function LoanList({ loans, onAdd, onViewDetail, onDelete, onManag
               <p className="text-gray-600 mt-2">🎯 {loans.length} empréstimo(s) registrado(s)</p>
             </div>
             <div className="flex gap-3 flex-wrap">
-              <button onClick={onManageInventory}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg flex items-center gap-2 shadow-md font-medium">
-                <Package size={18} /> Estoque
-              </button>
-              <button onClick={onAdd}
-                className="bg-yellow-500 hover:bg-yellow-600 text-white px-5 py-2.5 rounded-lg flex items-center gap-2 shadow-md font-medium">
-                <Plus size={18} /> Novo Empréstimo
-              </button>
-            </div>
+            <button onClick={onManageInventory}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg flex items-center gap-2 shadow-md font-medium">
+              <Package size={18} /> Estoque
+            </button>
+            <button onClick={onReports}
+              className="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2.5 rounded-lg flex items-center gap-2 shadow-md font-medium">
+              <BarChart2 size={18} /> Relatórios
+            </button>
+            <button onClick={onAdd}
+              className="bg-yellow-500 hover:bg-yellow-600 text-white px-5 py-2.5 rounded-lg flex items-center gap-2 shadow-md font-medium">
+              <Plus size={18} /> Novo Empréstimo
+            </button>
+          </div>
           </div>
 
           {/* STATS */}

@@ -12,6 +12,7 @@ import LoanList from './loan/LoanList';
 import LoanForm from './loan/LoanForm';
 import LoanInventory from './loan/LoanInventory';
 import LoanDetail from './loan/LoanDetail';
+import LoanReports from './loan/LoanReports';
 import LoanReturnForm from './loan/LoanReturnForm';
 import LoanEditForm from './loan/LoanEditForm';
 import Reports from './reports/Reports';
@@ -43,6 +44,7 @@ export default function VehicleRegistry() {
   const [selectedLoan, setSelectedLoan] = useState(null);
   const [showLoanReturn, setShowLoanReturn] = useState(false);
   const [showLoanEdit, setShowLoanEdit] = useState(false);
+  const [showLoanReports, setShowLoanReports] = useState(false);
   // Estados de Eventos
   const [events, setEvents] = useState([]);
   const [securityTeam, setSecurityTeam] = useState([]);
@@ -363,6 +365,15 @@ const handleDeleteThirdPartyVehicle = async (vehicleId) => {
     );
 
    case 'loans': {
+      if (showLoanReports) {
+        return (
+          <LoanReports
+            loans={loans}
+            onBack={() => setShowLoanReports(false)}
+          />
+        );
+      }
+
   if (showLoanInventory) {
     return (
       <LoanInventory
@@ -438,6 +449,7 @@ const handleDeleteThirdPartyVehicle = async (vehicleId) => {
       onDelete={handleDeleteLoan}
       onManageInventory={() => setShowLoanInventory(true)}
       onBackToVehicles={() => setCurrentView('vehicles')}
+      onReports={() => setShowLoanReports(true)}
     />
   );
 }
