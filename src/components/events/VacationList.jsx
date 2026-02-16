@@ -21,6 +21,7 @@ const emptyForm = {
   endDate: new Date().toISOString().split('T')[0],
   workSchedule: '07h00 às 19h00',
   dailyRate: '',
+  workedDays: '',       // ← dias trabalhados (editável)
   employeeOnVacation: '',
   notes: ''
 };
@@ -43,18 +44,32 @@ export default function VacationList({ vacations, onAdd, onUpdate, onDelete, onB
   };
 
   // Calcular total de dias automaticamente
-  const calcDays = (start, end) => {
-    if (!start || !end) return 0;
-    const s = new Date(start);
-    const e = new Date(end);
-    const diff = Math.round((e - s) / (1000 * 60 * 60 * 24)) + 1;
-    return diff > 0 ? diff : 0;
-  };
+ const calcDays = (start, end) => {
+  if (!start || !end) return 0;
+  const s = new Date(start);
+  const e = new Date(end);
+  const diff = Math.round((e - s) / (1000 * 60 * 60 * 24)) + 1;
+  return diff > 0 ? diff : 0;
+};
 
-  const calcTotal = () => {
-    const days = calcDays(formData.startDate, formData.endDate);
-    return days * (parseFloat(formData.dailyRate) || 0);
-  };
+// Escala 12x36: substituto trabalha metade dos dias
+const calcWorkedDays12x36 = (start, end) => {
+  const total = calcDays(start, end);
+  return Math.ceil(total / 2);
+};
+
+const getWorkedDays = () => {
+  // Se o usuário editou manualmente, usa o valor dele
+  if (formData.workedDays !== '' && formData.workedDays !== null) {
+    return parseInt(formData.workedDays) || 0;
+  }
+  // Senão calcula automaticamente
+  return calcWorkedDays12x36(formData.startDate, formData.endDate);
+};
+
+const calcTotal = () => {
+  return getWorkedDays() * (parseFloat(formData.dailyRate) || 0);
+};
 
   const filtered = vacations.filter(v =>
     filterPosition === 'todos' || v.position === filterPosition
@@ -79,7 +94,7 @@ export default function VacationList({ vacations, onAdd, onUpdate, onDelete, onB
     try {
       const dataToSave = {
         ...formData,
-        totalDays: calcDays(formData.startDate, formData.endDate),
+        totalDays: getWorkedDays(), // ← salva dias trabalhados (não dias de férias)
         dailyRate: parseFloat(formData.dailyRate)
       };
       if (editingId) {
@@ -97,17 +112,18 @@ export default function VacationList({ vacations, onAdd, onUpdate, onDelete, onB
     }
   };
 
-  const handleEdit = (vacation) => {
-    setFormData({
-      position: vacation.position,
-      postLocation: vacation.postLocation,
-      startDate: vacation.startDate,
-      endDate: vacation.endDate,
-      workSchedule: vacation.workSchedule,
-      dailyRate: vacation.dailyRate,
-      employeeOnVacation: vacation.employeeOnVacation || '',
-      notes: vacation.notes || ''
-    });
+ const handleEdit = (vacation) => {
+  setFormData({
+    position: vacation.position,
+    postLocation: vacation.postLocation,
+    startDate: vacation.startDate,
+    endDate: vacation.endDate,
+    workSchedule: vacation.workSchedule,
+    dailyRate: vacation.dailyRate,
+    workedDays: vacation.totalDays, // ← carrega os dias salvos
+    employeeOnVacation: vacation.employeeOnVacation || '',
+    notes: vacation.notes || ''
+  });
     setEditingId(vacation.id);
     setShowForm(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -161,9 +177,9 @@ export default function VacationList({ vacations, onAdd, onUpdate, onDelete, onB
             </div>
             <div className="text-center px-4">
               <div className="text-2xl font-bold text-orange-600">
-                {filtered.reduce((sum, v) => sum + (v.totalDays || 0), 0)}
-              </div>
-              <div className="text-xs text-gray-500">Total de Dias</div>
+              {filtered.reduce((sum, v) => sum + (v.totalDays || 0), 0)}
+            </div>
+            <div className="text-xs text-gray-500">Total de Plantões</div>
             </div>
             <div className="text-center px-4">
               <div className="text-xl font-bold text-red-700">{formatCurrency(totalGeral)}</div>
@@ -304,29 +320,64 @@ export default function VacationList({ vacations, onAdd, onUpdate, onDelete, onB
               </div>
 
               {/* Preview */}
-              {formData.startDate && formData.endDate && formData.dailyRate > 0 && (
-                <div className="bg-amber-50 border-2 border-amber-200 rounded-xl p-4">
-                  <div className="grid grid-cols-3 gap-4 text-center">
-                    <div>
-                      <div className="text-xl font-bold text-amber-700">
+              {formData.startDate && formData.endDate && (
+                <div className="bg-amber-50 border-2 border-amber-200 rounded-xl p-4 space-y-3">
+                  
+                  {/* Info escala */}
+                  <div className="grid grid-cols-2 gap-3 text-center">
+                    <div className="bg-white rounded-lg p-2 border border-amber-200">
+                      <div className="text-lg font-bold text-gray-700">
                         {calcDays(formData.startDate, formData.endDate)}
                       </div>
-                      <div className="text-xs text-gray-600">dias</div>
+                      <div className="text-xs text-gray-500">dias de férias</div>
                     </div>
-                    <div className="text-2xl font-bold text-amber-500 flex items-center justify-center">×</div>
-                    <div>
-                      <div className="text-xl font-bold text-amber-700">
-                        {formatCurrency(formData.dailyRate)}
+                    <div className="bg-white rounded-lg p-2 border border-amber-200">
+                      <div className="text-lg font-bold text-amber-700">
+                        {calcWorkedDays12x36(formData.startDate, formData.endDate)}
                       </div>
-                      <div className="text-xs text-gray-600">por diária</div>
+                      <div className="text-xs text-gray-500">plantões 12x36</div>
                     </div>
                   </div>
-                  <div className="text-center mt-3 pt-3 border-t border-amber-200">
-                    <div className="text-2xl font-bold text-orange-700">
-                      = {formatCurrency(calcTotal())}
-                    </div>
-                    <div className="text-xs text-gray-500">Total da Cobertura</div>
+
+                  {/* Dias trabalhados editável */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">
+                      Dias a Pagar
+                      <span className="text-xs text-amber-600 font-normal ml-2">
+                        (calculado automaticamente pela escala 12x36 — edite se necessário)
+                      </span>
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={formData.workedDays !== ''
+                        ? formData.workedDays
+                        : calcWorkedDays12x36(formData.startDate, formData.endDate)}
+                      onChange={(e) => handleChange('workedDays', e.target.value)}
+                      disabled={saving}
+                      className="w-full px-4 py-2.5 border-2 border-amber-300 rounded-lg focus:border-amber-500 focus:outline-none font-bold text-center text-lg disabled:opacity-50"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleChange('workedDays', calcWorkedDays12x36(formData.startDate, formData.endDate))}
+                      className="mt-1 text-xs text-amber-600 hover:text-amber-800 underline"
+                    >
+                      ↺ Recalcular automaticamente
+                    </button>
                   </div>
+
+                  {/* Total */}
+                  {formData.dailyRate > 0 && (
+                    <div className="border-t border-amber-200 pt-3 text-center">
+                      <div className="text-xs text-gray-500 mb-1">
+                        {getWorkedDays()} dias × {formatCurrency(formData.dailyRate)}/dia
+                      </div>
+                      <div className="text-2xl font-bold text-orange-700">
+                        = {formatCurrency(calcTotal())}
+                      </div>
+                      <div className="text-xs text-gray-500">Total da Cobertura</div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -386,7 +437,7 @@ export default function VacationList({ vacations, onAdd, onUpdate, onDelete, onB
                         {vacation.workSchedule}
                       </span>
                       <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
-                        {vacation.totalDays} dia(s)
+                        {vacation.totalDays} plantão(ões)
                       </span>
                     </div>
 

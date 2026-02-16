@@ -56,19 +56,23 @@ export const generateLoanPDF = async (loan, documentNumber) => {
   // Número do Documento e Data
 const formatDateBR = (dateStr) => {
   if (!dateStr) return '-';
-  // Adiciona T12:00:00 para evitar problema de fuso UTC
-  const d = new Date(dateStr.includes('T') ? dateStr : dateStr + 'T12:00:00');
-  return d.toLocaleDateString('pt-BR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric'
-  });
+  // Pega só a parte da data (YYYY-MM-DD) e ignora o horário/timezone
+  const datePart = String(dateStr).substring(0, 10);
+  const [year, month, day] = datePart.split('-');
+  return `${day}/${month}/${year}`;
 };
 
 const formatDateTimeBR = (dateStr) => {
   if (!dateStr) return '-';
-  const d = new Date(dateStr.includes('T') ? dateStr : dateStr + 'T12:00:00');
-  return d.toLocaleString('pt-BR', {
+  // Pega só a parte da data, sem conversão de fuso
+  const datePart = String(dateStr).substring(0, 10);
+  const [year, month, day] = datePart.split('-');
+  return `${day}/${month}/${year}`;
+};
+
+const getNowBR = () => {
+  return new Date().toLocaleString('pt-BR', {
+    timeZone: 'America/Sao_Paulo',
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -263,7 +267,7 @@ if (loan.expectedReturnDate) {
     { align: 'center' }
   );
   doc.text(
-    `Documento gerado em: ${new Date().toLocaleString('pt-BR')}`,
+    `Documento gerado em: ${getNowBR()}`,
     pageWidth / 2,
     footerY + 4,
     { align: 'center' }
@@ -389,11 +393,11 @@ if (loan.expectedReturnDate) {
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(150, 150, 150);
   doc.text(
-    `Documento gerado em: ${new Date().toLocaleString('pt-BR')}`,
-    pageWidth / 2,
-    footerY,
-    { align: 'center' }
-  );
+  `Documento gerado em: ${getNowBR()}`,
+  pageWidth / 2,
+  footerY,
+  { align: 'center' }
+);
 
   const fileName = `Devolucao_${String(documentNumber).padStart(6, '0')}_${loan.company.replace(/\s+/g, '_')}.pdf`;
   doc.save(fileName);
