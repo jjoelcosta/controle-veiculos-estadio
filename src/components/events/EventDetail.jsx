@@ -213,18 +213,18 @@ export default function EventDetail({
           </div>
 
           {/* Resumo */}
-          <div className="grid grid-cols-3 divide-x divide-gray-100 p-4">
-            <div className="text-center px-4">
-              <div className="text-xl font-bold text-emerald-700">{formatCurrency(totalPessoal)}</div>
-              <div className="text-xs text-gray-500">Pessoal</div>
+          <div className="grid grid-cols-3 divide-x divide-gray-100 p-3">
+            <div className="text-center px-2">
+              <div className="text-sm sm:text-xl font-bold text-emerald-700 trucante">{formatCurrency(totalPessoal)}</div>
+              <div className="text-xs text-gray-500 mt-0.5">Pessoal</div>
             </div>
-            <div className="text-center px-4">
-              <div className="text-xl font-bold text-orange-600">{formatCurrency(totalAluguel)}</div>
-              <div className="text-xs text-gray-500">Aluguéis</div>
+            <div className="text-center px-2">
+              <div className="text-sm sm:text-xl font-bold text-orange-600 trucante">{formatCurrency(totalAluguel)}</div>
+              <div className="text-xs text-gray-500 mt-0.5">Aluguéis</div>
             </div>
-            <div className="text-center px-4">
-              <div className="text-xl font-bold text-gray-800">{formatCurrency(event.totalExpenses)}</div>
-              <div className="text-xs text-gray-500">Total</div>
+            <div className="text-center px-2">
+              <div className="text-sm sm:text-xl font-bold text-gray-800 trucante">{formatCurrency(event.totalExpenses)}</div>
+              <div className="text-xs text-gray-500 mt-0.5">Total</div>
             </div>
           </div>
         </div>
