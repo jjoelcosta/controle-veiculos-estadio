@@ -170,19 +170,19 @@ const calcTotal = () => {
           </div>
 
           {/* Dashboard */}
-          <div className="grid grid-cols-3 divide-x divide-gray-100 p-4 border-b border-gray-100">
-            <div className="text-center px-4">
-              <div className="text-2xl font-bold text-amber-700">{filtered.length}</div>
+          <div className="grid grid-cols-3 divide-x divide-gray-100 p-3 border-b border-gray-100">
+            <div className="text-center px-2">
+              <div className="text-xl sm:text-2xl font-bold text-amber-700">{filtered.length}</div>
               <div className="text-xs text-gray-500">Coberturas</div>
             </div>
-            <div className="text-center px-4">
-              <div className="text-2xl font-bold text-orange-600">
-              {filtered.reduce((sum, v) => sum + (v.totalDays || 0), 0)}
+            <div className="text-center px-2">
+              <div className="text-xl sm:text-2xl font-bold text-orange-600">
+                {filtered.reduce((sum, v) => sum + (v.totalDays || 0), 0)}
+              </div>
+              <div className="text-xs text-gray-500">Plantões</div>
             </div>
-            <div className="text-xs text-gray-500">Total de Plantões</div>
-            </div>
-            <div className="text-center px-4">
-              <div className="text-xl font-bold text-red-700">{formatCurrency(totalGeral)}</div>
+            <div className="text-center px-2">
+              <div className="text-sm sm:text-xl font-bold text-red-700 truncate">{formatCurrency(totalGeral)}</div>
               <div className="text-xs text-gray-500">Total Gasto</div>
             </div>
           </div>
