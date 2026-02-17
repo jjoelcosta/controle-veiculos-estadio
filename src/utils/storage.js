@@ -435,9 +435,9 @@ const loadLoans = async () => {
       location: loan.location,
       deliveredBy: loan.delivered_by,
       returnedBy: loan.returned_by,
-      loanDate: loan.loan_date,
-      expectedReturnDate: loan.expected_return_date,
-      actualReturnDate: loan.actual_return_date,
+      loanDate: loan.loan_date?.split('T')[0],
+      expectedReturnDate: loan.expected_return_date?.split('T')[0],
+      actualReturnDate: loan.actual_return_date?.split('T')[0],
       status: loan.status,
       notes: loan.notes,
       items: loan.loan_items_detail.map(detail => ({
@@ -580,12 +580,11 @@ const updateLoanItemReturn = async (detailId, returnData) => {
         quantity_returned: returnData.quantityReturned,
         condition: returnData.condition,
         damage_fee: returnData.damageFee || 0,
-        payment_method: returnData.paymentMethod,
-        payment_date: returnData.paymentDate,
+        payment_method: returnData.paymentMethod || null,
+        payment_date: returnData.paymentDate || null,
         notes: normalizeText(returnData.notes)
       })
       .eq('id', detailId);
-
     if (error) throw error;
 
     // Atualizar quantidade disponível do item

@@ -79,12 +79,15 @@ export default function LoanList({ loans, onAdd, onViewDetail, onDelete, onManag
             {loan.items.length > 2 && '...'}
           </div>
         </div>
+      
         {/* Data */}
         <div className="col-span-2 text-sm text-gray-600">
-          <div>{formatDateBR(loan.loanDate)}</div>
-          {loan.expectedReturnDate && (
+          <div>📅 {formatDateBR(loan.loanDate)}</div>
+          {loan.actualReturnDate ? (
+            <div className="text-xs text-green-700 font-medium">✅ {formatDateBR(loan.actualReturnDate)}</div>
+          ) : loan.expectedReturnDate ? (
             <div className="text-xs text-gray-400">↩ {formatDateBR(loan.expectedReturnDate)}</div>
-          )}
+          ) : null}
         </div>
         {/* Status */}
         <div className="col-span-1">
@@ -124,7 +127,14 @@ export default function LoanList({ loans, onAdd, onViewDetail, onDelete, onManag
         <div className="space-y-1 text-sm text-gray-600 mb-3">
           <div>📍 {loan.location}</div>
           <div>📦 {loan.items.length} tipo(s): {loan.items.slice(0, 2).map(i => i.name).join(', ')}{loan.items.length > 2 && '...'}</div>
-          <div>📅 {formatDateBR(loan.loanDate)}{loan.expectedReturnDate && ` → ${formatDateBR(loan.expectedReturnDate)}`}</div>
+          <div>
+              📅 {formatDateBR(loan.loanDate)}
+              {loan.actualReturnDate 
+                ? ` ✅ ${formatDateBR(loan.actualReturnDate)}` 
+                : loan.expectedReturnDate 
+                ? ` → ${formatDateBR(loan.expectedReturnDate)}` 
+                : ''}
+            </div>
         </div>
         <div className="bg-yellow-50 rounded-lg p-2 mb-3 text-xs text-gray-600">
           {loan.items.map(item => <div key={item.id}>• {item.name} — <strong>{item.quantityBorrowed}x</strong></div>)}

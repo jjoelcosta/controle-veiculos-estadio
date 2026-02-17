@@ -27,15 +27,12 @@ export default function LoanDetail({
   const StatusIcon = statusBadge.icon;
 
   const formatDate = (dateString) => {
-    if (!dateString) return '-';
-    return new Date(dateString).toLocaleString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
+  if (!dateString) return '-';
+  // Remove qualquer parte de hora/timezone
+  const cleanDate = dateString.split('T')[0];
+  const [year, month, day] = cleanDate.split('-');
+  return `${day}/${month}/${year}`;
+};
 
   const formatDateOnly = (dateString) => {
     if (!dateString) return '-';
