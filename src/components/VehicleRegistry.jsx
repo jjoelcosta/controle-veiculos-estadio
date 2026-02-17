@@ -63,6 +63,7 @@ export default function VehicleRegistry() {
   const [showEventReports, setShowEventReports] = useState(false);
   const [vacations, setVacations] = useState([]);
   const [showVacationList, setShowVacationList] = useState(false);
+  const [staffTeamType, setStaffTeamType] = useState('operacional');
 
   // ✅ CARREGAR DADOS DO SUPABASE
   const loadData = async () => {
@@ -412,6 +413,7 @@ const handleDeleteStaff = async (staffId) => {
     return (
       <StaffForm
         staff={selectedStaff}
+        teamType={staffTeamType}
         onSubmit={async (data) => {
           if (selectedStaff && !showStaffForm) {
             await handleUpdateStaff(selectedStaff.id, data);
@@ -447,7 +449,11 @@ const handleDeleteStaff = async (staffId) => {
   return (
     <StaffList
       staff={staff}
-      onAdd={() => { setSelectedStaff(null); setShowStaffForm(true); }}
+      onAdd={(teamType) => {
+        setSelectedStaff(null);
+        setStaffTeamType(teamType);
+        setShowStaffForm(true);
+      }}
       onViewDetail={(s) => setSelectedStaff(s)}
       onEdit={(s) => { setSelectedStaff(s); setShowStaffForm(true); }}
       onDelete={handleDeleteStaff}

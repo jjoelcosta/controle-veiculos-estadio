@@ -3,11 +3,20 @@ import { X, Save, UserCheck, Calendar, MapPin, Clock } from 'lucide-react';
 import { useToast } from '../ui/Toast';
 import LoadingButton from '../ui/LoadingButton';
 
-const POSITIONS = [
+const POSITIONS_OPERACIONAL = [
   'Agente de Portaria',
   'Auxiliar de Segurança',
   'Segurança Motorizado',
   'Técnico de Monitoramento'
+];
+
+const POSITIONS_ADMINISTRATIVO = [
+  'Gerente de Segurança',
+  'Supervisor de Segurança',
+  'Coordenador de Monitoramento de Segurança',
+  'Analista de Segurança',
+  'Assistente Administrativo',
+  'Jovem Aprendiz'
 ];
 
 const EMPLOYMENT_TYPES = ['Efetivo', 'Terceirizado'];
@@ -15,31 +24,35 @@ const SHIFTS = ['Diurno', 'Noturno'];
 const SCHEDULES = ['Dias Pares', 'Dias Ímpares'];
 
 const POST_LOCATIONS = [
-  'Portaria Principal',
-  'Portaria Sul',
-  'Portaria Norte',
-  'Portaria Leste',
-  'Portaria Oeste',
+  'Portaria A',
+  'Portaria L',
+  'Portaria M',
+  'Portaria Guarita Sul',
+  'Área Leste',
   'CCO',
   'Ronda Motorizada',
-  'Estacionamento VIP',
-  'Estacionamento Geral',
-  'Setor Premium',
-  'Outro'
+  'Caixa-d,água',
+  'Rendição',
+  'GNN',
+  'Bosque / Defer',
+  'Gestão Operacional',
+  'Administrativo'
 ];
 
-const emptyForm = {
+const emptyForm = (teamType = 'operacional') => ({
   name: '',
   cpf: '',
   birth_date: '',
   hire_date: '',
-  position: 'Agente de Portaria',
+  position: teamType === 'administrativo' ? 'Gerente de Segurança' : 'Agente de Portaria',
   employment_type: 'Efetivo',
   post_location: '',
-  shift: 'Diurno',
-  current_schedule: 'Dias Pares',
+  shift: teamType === 'administrativo' ? '' : 'Diurno',
+  current_schedule: teamType === 'administrativo' ? 'Segunda a Sexta' : 'Dias Pares',
+  team_type: teamType,
+  work_hours: teamType === 'administrativo' ? '09h-19h' : '12x36',
   status: 'ativo'
-};
+});
 
 const formatCPF = (value) => {
   const digits = value.replace(/\D/g, '').slice(0, 11);
@@ -65,22 +78,26 @@ const validateCPF = (cpf) => {
   return check === parseInt(digits[10]);
 };
 
-export default function StaffForm({ staff, onSubmit, onCancel }) {
+export default function StaffForm({ staff, onSubmit, onCancel, teamType = 'operacional' }) {
   const { error: showError } = useToast();
   const [saving, setSaving] = useState(false);
+  const isAdm = staff?.team_type === 'administrativo' || teamType === 'administrativo';
+
   const [formData, setFormData] = useState(
     staff ? {
       name: staff.name || '',
       cpf: staff.cpf || '',
       birth_date: staff.birth_date || '',
       hire_date: staff.hire_date || '',
-      position: staff.position || 'Agente de Portaria',
+      position: staff.position || (isAdm ? 'Gerente' : 'Agente de Portaria'),
       employment_type: staff.employment_type || 'Efetivo',
       post_location: staff.post_location || '',
       shift: staff.shift || 'Diurno',
-      current_schedule: staff.current_schedule || 'Dias Pares',
+      current_schedule: staff.current_schedule || (isAdm ? 'Segunda a Sexta' : 'Dias Pares'),
+      team_type: staff.team_type || teamType || 'operacional',
+      work_hours: staff.work_hours || (isAdm ? '08h-17h' : '12x36'),
       status: staff.status || 'ativo'
-    } : emptyForm
+    } : emptyForm(teamType || 'operacional')
   );
   const [errors, setErrors] = useState({});
 
@@ -283,7 +300,10 @@ export default function StaffForm({ staff, onSubmit, onCancel }) {
                       errors.position ? 'border-red-500' : 'border-gray-300 focus:border-purple-500'
                     }`}
                   >
-                    {POSITIONS.map(p => <option key={p} value={p}>{p}</option>)}
+                    {(formData.team_type === 'administrativo'
+                      ? POSITIONS_ADMINISTRATIVO
+                      : POSITIONS_OPERACIONAL
+                    ).map(p => <option key={p} value={p}>{p}</option>)}
                   </select>
                 </div>
 
@@ -307,57 +327,90 @@ export default function StaffForm({ staff, onSubmit, onCancel }) {
               </div>
             </div>
 
-            {/* ── ESCALA ── */}
-            <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
-              <h3 className="font-bold text-blue-800 mb-4 flex items-center gap-2">
-                <Clock size={16} /> Escala de Trabalho
-              </h3>
+                {/* ── ESCALA ── */}
+                <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
+                  <h3 className="font-bold text-blue-800 mb-4 flex items-center gap-2">
+                    <Clock size={16} /> Escala de Trabalho
+                  </h3>
 
-              {/* Turno */}
-              <div className="grid grid-cols-2 gap-3 mb-4">
-                {SHIFTS.map(shift => (
-                  <button
-                    key={shift}
-                    type="button"
-                    onClick={() => handleChange('shift', shift)}
-                    disabled={saving}
-                    className={`py-3 rounded-xl font-medium text-sm border-2 transition-all flex items-center justify-center gap-2 ${
-                      formData.shift === shift
-                        ? shift === 'Diurno'
-                          ? 'border-yellow-500 bg-yellow-50 text-yellow-800'
-                          : 'border-indigo-500 bg-indigo-50 text-indigo-800'
-                        : 'border-gray-200 text-gray-500 hover:border-gray-300'
-                    }`}
-                  >
-                    {shift === 'Diurno' ? '☀️' : '🌙'} {shift}
-                  </button>
-                ))}
-              </div>
-
-              {/* Pares/Ímpares */}
-              <div className="grid grid-cols-2 gap-3">
-                {SCHEDULES.map(schedule => (
-                  <button
-                    key={schedule}
-                    type="button"
-                    onClick={() => handleChange('current_schedule', schedule)}
-                    disabled={saving}
-                    className={`py-3 rounded-xl font-medium text-sm border-2 transition-all ${
-                      formData.current_schedule === schedule
-                        ? 'border-blue-500 bg-blue-50 text-blue-800'
-                        : 'border-gray-200 text-gray-500 hover:border-gray-300'
-                    }`}
-                  >
-                    {schedule === 'Dias Pares' ? '2️⃣' : '1️⃣'} {schedule}
-                  </button>
-                ))}
-              </div>
+                  {formData.team_type === 'administrativo' ? (
+                    <div className="space-y-3">
+                      <div className="bg-white rounded-lg p-3 border border-indigo-200 text-sm text-indigo-800 text-center">
+                        🕐 Horário Comercial — Segunda a Sexta
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-600 mb-1">Horário</label>
+                        <select
+                          value={formData.work_hours}
+                          onChange={(e) => handleChange('work_hours', e.target.value)}
+                          disabled={saving}
+                          className="w-full px-4 py-2.5 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none disabled:opacity-50"
+                        >
+                          <option value="09h-19h">09h às 19h</option>
+                          <option value="06h-16h">06h às 16h</option>
+                          <option value="11h-21h">11h às 21h</option>
+                          <option value="09h-15h">09h às 15h</option>
+                          <option value="10h-20h">10h às 20h</option>
+                          <option value="08h-18h">08h às 18h</option>
+                        </select>
+                      </div>
+                      <div className="mt-3 bg-white rounded-lg p-3 border border-indigo-200 text-sm text-indigo-800 text-center">
+                        Escala: <strong>{formData.work_hours}</strong> • Segunda a Sexta
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Turno */}
+                      <div className="grid grid-cols-2 gap-3 mb-4">
+                        {SHIFTS.map(shift => (
+                          <button
+                            key={shift}
+                            type="button"
+                            onClick={() => handleChange('shift', shift)}
+                            disabled={saving}
+                            className={`py-3 rounded-xl font-medium text-sm border-2 transition-all flex items-center justify-center gap-2 ${
+                              formData.shift === shift
+                                ? shift === 'Diurno'
+                                  ? 'border-yellow-500 bg-yellow-50 text-yellow-800'
+                                  : 'border-indigo-500 bg-indigo-50 text-indigo-800'
+                                : 'border-gray-200 text-gray-500 hover:border-gray-300'
+                            }`}
+                          >
+                            {shift === 'Diurno' ? '☀️' : '🌙'} {shift}
+                          </button>
+                        ))}
+                      </div>
+                      {/* Pares/Ímpares */}
+                      <div className="grid grid-cols-2 gap-3">
+                        {SCHEDULES.map(schedule => (
+                          <button
+                            key={schedule}
+                            type="button"
+                            onClick={() => handleChange('current_schedule', schedule)}
+                            disabled={saving}
+                            className={`py-3 rounded-xl font-medium text-sm border-2 transition-all ${
+                              formData.current_schedule === schedule
+                                ? 'border-blue-500 bg-blue-50 text-blue-800'
+                                : 'border-gray-200 text-gray-500 hover:border-gray-300'
+                            }`}
+                          >
+                            {schedule === 'Dias Pares' ? '2️⃣' : '1️⃣'} {schedule}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="mt-3 bg-white rounded-lg p-3 border border-blue-200 text-sm text-blue-800 text-center">
+                        Escala: <strong>{formData.shift}</strong> • <strong>{formData.current_schedule}</strong> • 12x36h
+                      </div>
+                    </>
+                  )}
+                </div>
 
               {/* Preview da escala */}
-              <div className="mt-3 bg-white rounded-lg p-3 border border-blue-200 text-sm text-blue-800 text-center">
-                Escala: <strong>{formData.shift}</strong> • <strong>{formData.current_schedule}</strong> • 12x36h
-              </div>
-            </div>
+              {formData.team_type !== 'administrativo' && (
+                <div className="mt-3 bg-white rounded-lg p-3 border border-blue-200 text-sm text-blue-800 text-center">
+                  Escala: <strong>{formData.shift}</strong> • <strong>{formData.current_schedule}</strong> • 12x36h
+                </div>
+              )}
 
             {/* ── STATUS (só na edição) ── */}
             {staff && (

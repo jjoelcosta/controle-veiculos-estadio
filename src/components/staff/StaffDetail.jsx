@@ -435,7 +435,9 @@ export default function StaffDetail({
             {[
               { id: 'dados', label: 'Dados', icon: UserCheck },
               { id: 'ferias', label: 'Férias', icon: Sun, count: vacations.length },
-              { id: 'trocas', label: 'Trocas', icon: ArrowLeftRight, count: swaps.length },
+              ...(staff.team_type !== 'administrativo' ? [
+                { id: 'trocas', label: 'Trocas', icon: ArrowLeftRight, count: swaps.length }
+              ] : []),
               { id: 'afastamentos', label: 'Afastamentos', icon: FileText, count: absences.length }
             ].map(tab => {
               const Icon = tab.icon;

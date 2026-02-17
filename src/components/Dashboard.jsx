@@ -112,7 +112,7 @@ export default function Dashboard({
     <div className="space-y-6">
 
       {/* ── BOAS-VINDAS ── */}
-        <div className="bg-gradient-to-r from-gray-700 via-blue-400 to-indigo-700 rounded-2xl shadow-xl p-6 text-white">
+        <div className="bg-gradient-to-r from-gray-500 via-blue-400 to-indigo-700 rounded-2xl shadow-xl p-6 text-white">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
             <div className="flex items-center gap-3 mb-1">
