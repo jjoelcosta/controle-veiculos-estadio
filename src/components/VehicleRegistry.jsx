@@ -649,6 +649,8 @@ case 'events': {
       owners={owners}
       thirdPartyVehicles={thirdPartyVehicles}
       loans={loans}
+      events={events}
+      staff={staff}
       onBack={() => setCurrentView('vehicles')}
     />
   );

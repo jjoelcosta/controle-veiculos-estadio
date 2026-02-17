@@ -1,471 +1,743 @@
-import React, { useState } from 'react';
-import { ArrowLeft, FileText, Download, Calendar, Filter, TrendingUp } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import {
+  ArrowLeft, FileText, Download, Filter, TrendingUp,
+  Car, Users, Package, Calendar, UserCheck, BarChart2,
+  Truck, AlertCircle, Sun
+} from 'lucide-react';
 import { useToast } from '../ui/Toast';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 
-export default function Reports({ 
+export default function Reports({
   vehicles,
   owners,
   thirdPartyVehicles,
   loans,
-  onBack 
+  events,
+  staff,
+  onBack
 }) {
   const { success, error } = useToast();
   const [filters, setFilters] = useState({
     year: new Date().getFullYear(),
     startDate: `${new Date().getFullYear()}-01-01`,
     endDate: `${new Date().getFullYear()}-12-31`,
-    reportType: 'complete'
   });
+  const [activeTab, setActiveTab] = useState('resumo');
 
-  // Filtrar dados por período
-  const getFilteredData = () => {
-    const start = new Date(filters.startDate);
-    const end = new Date(filters.endDate);
-    end.setHours(23, 59, 59, 999);
+  const formatCurrency = (v) =>
+    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
 
-    return {
-      loans: loans.filter(loan => {
-        const loanDate = new Date(loan.loanDate);
-        return loanDate >= start && loanDate <= end;
-      }),
-      vehicles: vehicles,
-      owners: owners,
-      thirdPartyVehicles: thirdPartyVehicles.filter(v => {
-        if (!v.createdAt) return true;
-        const createdDate = new Date(v.createdAt);
-        return createdDate >= start && createdDate <= end;
-      })
-    };
+  const formatDate = (date) => {
+    if (!date) return '-';
+    return new Date(date + 'T12:00:00').toLocaleDateString('pt-BR');
   };
 
-  // Estatísticas
-  const getStatistics = () => {
-    const filtered = getFilteredData();
-    
-    const totalLoans = filtered.loans.length;
-    const emprestados = filtered.loans.filter(l => l.status === 'emprestado').length;
-    const devolvidos = filtered.loans.filter(l => l.status === 'devolvido').length;
-    const atrasados = filtered.loans.filter(l => l.status === 'atrasado').length;
-    const danificados = filtered.loans.filter(l => l.status === 'perdido_danificado').length;
+  const formatDateRaw = (date) => {
+    if (!date) return '-';
+    return new Date(date).toLocaleDateString('pt-BR');
+  };
 
-    const totalTaxas = filtered.loans.reduce((sum, loan) => {
-      return sum + loan.items.reduce((itemSum, item) => itemSum + (item.damageFee || 0), 0);
-    }, 0);
+  // ─────────────────────────────────────────
+  // DADOS FILTRADOS
+  // ─────────────────────────────────────────
+  const start = useMemo(() => new Date(filters.startDate), [filters.startDate]);
+  const end = useMemo(() => { const d = new Date(filters.endDate); d.setHours(23,59,59); return d; }, [filters.endDate]);
 
-    const empresas = [...new Set(filtered.loans.map(l => l.company))];
-    
+  const filteredLoans = useMemo(() =>
+    loans.filter(l => { const d = new Date(l.loanDate); return d >= start && d <= end; }),
+    [loans, start, end]);
+
+  const filteredEvents = useMemo(() =>
+    events.filter(e => { const d = new Date(e.startDate); return d >= start && d <= end; }),
+    [events, start, end]);
+
+  const filteredThirdParty = useMemo(() =>
+    thirdPartyVehicles.filter(v => {
+      if (!v.createdAt) return true;
+      const d = new Date(v.createdAt);
+      return d >= start && d <= end;
+    }),
+    [thirdPartyVehicles, start, end]);
+
+  // ─────────────────────────────────────────
+  // ESTATÍSTICAS
+  // ─────────────────────────────────────────
+  const stats = useMemo(() => {
+    const loanTaxas = filteredLoans.reduce((sum, l) =>
+      sum + l.items.reduce((s, i) => s + (i.damageFee || 0), 0), 0);
+
+    const eventTotal = filteredEvents.reduce((sum, e) => sum + (e.totalExpenses || 0), 0);
+    const eventPessoal = filteredEvents.reduce((sum, e) =>
+      sum + (e.expenses?.filter(ex => ex.expenseCategory === 'pessoal')
+        .reduce((s, ex) => s + (ex.totalValue || 0), 0) || 0), 0);
+    const eventAluguel = filteredEvents.reduce((sum, e) =>
+      sum + (e.expenses?.filter(ex => ex.expenseCategory === 'aluguel')
+        .reduce((s, ex) => s + (ex.totalValue || 0), 0) || 0), 0);
+
+    // Alertas de férias
+    const today = new Date();
+    const staffAlerts = (staff || []).filter(s => {
+      if (!s.hire_date || s.status === 'desligado') return false;
+      const hire = new Date(s.hire_date + 'T12:00:00');
+      const totalMonths = (today.getFullYear() - hire.getFullYear()) * 12 +
+        (today.getMonth() - hire.getMonth());
+      if (totalMonths < 12) return false;
+      // Verifica se tem férias vencendo em 90 dias ou vencidas
+      const periods = Math.floor(totalMonths / 12);
+      const lastPeriodEnd = new Date(hire);
+      lastPeriodEnd.setFullYear(lastPeriodEnd.getFullYear() + periods);
+      const expiresOn = new Date(lastPeriodEnd);
+      expiresOn.setFullYear(expiresOn.getFullYear() + 1);
+      const daysUntil = Math.round((expiresOn - today) / (1000 * 60 * 60 * 24));
+      return daysUntil <= 90;
+    });
+
     return {
-      totalLoans,
-      emprestados,
-      devolvidos,
-      atrasados,
-      danificados,
-      totalTaxas,
-      totalEmpresas: empresas.length,
+      // Veículos
       totalVehicles: vehicles.length,
       totalOwners: owners.length,
-      totalThirdParty: filtered.thirdPartyVehicles.length
+      totalThirdParty: filteredThirdParty.length,
+      // Empréstimos
+      totalLoans: filteredLoans.length,
+      activeLoans: filteredLoans.filter(l => l.status === 'emprestado').length,
+      returnedLoans: filteredLoans.filter(l => l.status === 'devolvido').length,
+      lateLoans: filteredLoans.filter(l => l.status === 'atrasado').length,
+      loanTaxas,
+      // Eventos
+      totalEvents: filteredEvents.length,
+      eventTotal,
+      eventPessoal,
+      eventAluguel,
+      // Pessoal
+      totalStaff: (staff || []).length,
+      activeStaff: (staff || []).filter(s => s.status === 'ativo').length,
+      staffOnVacation: (staff || []).filter(s => s.status === 'férias').length,
+      staffAbsent: (staff || []).filter(s => s.status === 'afastado').length,
+      staffAlerts: staffAlerts.length,
     };
-  };
+  }, [filteredLoans, filteredEvents, filteredThirdParty, vehicles, owners, staff]);
 
-  // Gerar PDF Completo
-  const generateCompletePDF = () => {
+  // ─────────────────────────────────────────
+  // GERAR PDF COMPLETO
+  // ─────────────────────────────────────────
+  const generatePDF = () => {
     try {
       const doc = new jsPDF();
-      const filtered = getFilteredData();
-      const stats = getStatistics();
-      
-      const pageWidth = doc.internal.pageSize.width;
-      const margin = 20;
-      let yPos = 20;
+      const W = doc.internal.pageSize.width;
+      const M = 20;
 
-      // HEADER
-      doc.setFontSize(20);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(0, 102, 204);
-      doc.text('ARENA BRB', pageWidth / 2, yPos, { align: 'center' });
-      
-      yPos += 8;
-      doc.setFontSize(14);
-      doc.setTextColor(100, 100, 100);
-      doc.text('RELATÓRIO ANUAL COMPLETO', pageWidth / 2, yPos, { align: 'center' });
-      
-      yPos += 6;
-      doc.setFontSize(10);
-      doc.text(`Período: ${new Date(filters.startDate).toLocaleDateString('pt-BR')} a ${new Date(filters.endDate).toLocaleDateString('pt-BR')}`, pageWidth / 2, yPos, { align: 'center' });
-      
-      yPos += 10;
-      doc.setDrawColor(0, 102, 204);
-      doc.setLineWidth(1);
-      doc.line(margin, yPos, pageWidth - margin, yPos);
-      
-      yPos += 15;
-
-      // RESUMO EXECUTIVO
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(0, 0, 0);
-      doc.text('RESUMO EXECUTIVO', margin, yPos);
-      
-      yPos += 8;
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-      
-      const resumoData = [
-        ['Total de Empréstimos', stats.totalLoans.toString()],
-        ['Empréstimos Ativos', stats.emprestados.toString()],
-        ['Devolvidos', stats.devolvidos.toString()],
-        ['Atrasados', stats.atrasados.toString()],
-        ['Perdidos/Danificados', stats.danificados.toString()],
-        ['Total de Taxas Cobradas', `R$ ${stats.totalTaxas.toFixed(2)}`],
-        ['Empresas Atendidas', stats.totalEmpresas.toString()],
-        ['Veículos Autorizados', stats.totalVehicles.toString()],
-        ['Proprietários Cadastrados', stats.totalOwners.toString()],
-        ['Veículos Terceiros', stats.totalThirdParty.toString()]
-      ];
-
-      autoTable(doc, {
-        startY: yPos,
-        head: [['Indicador', 'Quantidade']],
-        body: resumoData,
-        theme: 'grid',
-        headStyles: { fillColor: [0, 102, 204] },
-        margin: { left: margin, right: margin }
-      });
-
-      // NOVA PÁGINA - EMPRÉSTIMOS
-      doc.addPage();
-      yPos = 20;
-      
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'bold');
-      doc.text('EMPRÉSTIMOS REALIZADOS', margin, yPos);
-      
-      yPos += 8;
-      
-      const loansData = filtered.loans.map(loan => [
-        new Date(loan.loanDate).toLocaleDateString('pt-BR'),
-        loan.company,
-        loan.requesterName,
-        loan.items.length.toString(),
-        loan.status === 'emprestado' ? 'Ativo' :
-        loan.status === 'devolvido' ? 'Devolvido' :
-        loan.status === 'atrasado' ? 'Atrasado' : 'Perdido/Danif.'
-      ]);
-
-      autoTable(doc, {
-        startY: yPos,
-        head: [['Data', 'Empresa', 'Solicitante', 'Itens', 'Status']],
-        body: loansData,
-        theme: 'striped',
-        headStyles: { fillColor: [0, 102, 204] },
-        margin: { left: margin, right: margin },
-        styles: { fontSize: 8 }
-      });
-
-      // NOVA PÁGINA - VEÍCULOS TERCEIROS
-      if (filtered.thirdPartyVehicles.length > 0) {
-        doc.addPage();
-        yPos = 20;
-        
-        doc.setFontSize(12);
+      const addPageHeader = (title, subtitle = '', color = [37, 99, 235]) => {
+        let y = 20;
+        doc.setFontSize(18);
         doc.setFont('helvetica', 'bold');
-        doc.text('VEÍCULOS TERCEIROS CADASTRADOS', margin, yPos);
-        
-        yPos += 8;
-        
-        const thirdPartyData = filtered.thirdPartyVehicles.map(v => [
-          v.plate,
-          v.company,
-          v.driverName,
-          v.serviceType || '-',
-          new Date(v.createdAt).toLocaleDateString('pt-BR')
-        ]);
+        doc.setTextColor(...color);
+        doc.text('Arena BRB / Arena 360', W / 2, y, { align: 'center' });
+        y += 7;
+        doc.setFontSize(11);
+        doc.setTextColor(80, 80, 80);
+        doc.text('Gestão Integrada de Segurança', W / 2, y, { align: 'center' });
+        y += 6;
+        doc.setFontSize(13);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(30, 30, 30);
+        doc.text(title, W / 2, y, { align: 'center' });
+        if (subtitle) {
+          y += 5;
+          doc.setFontSize(9);
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(120, 120, 120);
+          doc.text(subtitle, W / 2, y, { align: 'center' });
+        }
+        y += 4;
+        doc.setDrawColor(...color);
+        doc.setLineWidth(0.8);
+        doc.line(M, y, W - M, y);
+        return y + 10;
+      };
 
+      const periodo = `Período: ${formatDate(filters.startDate)} a ${formatDate(filters.endDate)}`;
+
+      // ── PÁG 1: RESUMO EXECUTIVO ──
+      let y = addPageHeader('RELATÓRIO GERAL DO SISTEMA', periodo);
+      autoTable(doc, {
+        startY: y,
+        head: [['MÓDULO', 'INDICADOR', 'VALOR']],
+        body: [
+          ['🚗 Veículos', 'Veículos Autorizados', stats.totalVehicles],
+          ['🚗 Veículos', 'Proprietários', stats.totalOwners],
+          ['🚗 Veículos', 'Terceiros Cadastrados', stats.totalThirdParty],
+          ['📦 Empréstimos', 'Total no Período', stats.totalLoans],
+          ['📦 Empréstimos', 'Ativos', stats.activeLoans],
+          ['📦 Empréstimos', 'Devolvidos', stats.returnedLoans],
+          ['📦 Empréstimos', 'Taxas Cobradas', formatCurrency(stats.loanTaxas)],
+          ['💚 Eventos', 'Total no Período', stats.totalEvents],
+          ['💚 Eventos', 'Gasto com Pessoal', formatCurrency(stats.eventPessoal)],
+          ['💚 Eventos', 'Gasto com Aluguéis', formatCurrency(stats.eventAluguel)],
+          ['💚 Eventos', 'TOTAL GASTO', formatCurrency(stats.eventTotal)],
+          ['👥 Pessoal', 'Total Cadastrado', stats.totalStaff],
+          ['👥 Pessoal', 'Ativos', stats.activeStaff],
+          ['👥 Pessoal', 'De Férias', stats.staffOnVacation],
+          ['👥 Pessoal', 'Afastados', stats.staffAbsent],
+          ['👥 Pessoal', 'Alertas de Férias', stats.staffAlerts],
+        ],
+        theme: 'grid',
+        headStyles: { fillColor: [37, 99, 235] },
+        styles: { fontSize: 9 },
+        columnStyles: { 2: { halign: 'right' } },
+        margin: { left: M, right: M }
+      });
+
+      // ── PÁG 2: VEÍCULOS ──
+      doc.addPage();
+      y = addPageHeader('VEÍCULOS AUTORIZADOS', periodo, [59, 130, 246]);
+      autoTable(doc, {
+        startY: y,
+        head: [['Placa', 'Marca/Modelo', 'Tipo', 'Proprietário', 'Empresa', 'Local']],
+        body: vehicles.map(v => {
+          const owner = owners.find(o => o.id === v.ownerId);
+          return [v.plate, `${v.brand} ${v.model}`, v.type, owner?.name || '-', owner?.company || '-', v.parkingLocation || '-'];
+        }),
+        theme: 'striped',
+        headStyles: { fillColor: [59, 130, 246] },
+        styles: { fontSize: 8 },
+        margin: { left: M, right: M }
+      });
+
+      // ── PÁG 3: EMPRÉSTIMOS ──
+      doc.addPage();
+      y = addPageHeader('EMPRÉSTIMOS DE ACERVO', periodo, [202, 138, 4]);
+      autoTable(doc, {
+        startY: y,
+        head: [['Data', 'Empresa', 'Solicitante', 'Itens', 'Status', 'Taxa']],
+        body: filteredLoans.map(l => [
+          formatDateRaw(l.loanDate),
+          l.company,
+          l.requesterName,
+          l.items.length,
+          l.status,
+          formatCurrency(l.items.reduce((s, i) => s + (i.damageFee || 0), 0))
+        ]),
+        theme: 'striped',
+        headStyles: { fillColor: [202, 138, 4] },
+        styles: { fontSize: 8 },
+        margin: { left: M, right: M }
+      });
+
+      // ── PÁG 4: EVENTOS ──
+      doc.addPage();
+      y = addPageHeader('GESTÃO DE EVENTOS', periodo, [5, 150, 105]);
+      autoTable(doc, {
+        startY: y,
+        head: [['Evento', 'Categoria', 'Data', 'Status', 'Pessoal', 'Aluguel', 'Total']],
+        body: filteredEvents.map(e => [
+          e.name,
+          e.category,
+          formatDate(e.startDate),
+          e.status,
+          formatCurrency(e.expenses?.filter(ex => ex.expenseCategory === 'pessoal')
+            .reduce((s, ex) => s + (ex.totalValue || 0), 0) || 0),
+          formatCurrency(e.expenses?.filter(ex => ex.expenseCategory === 'aluguel')
+            .reduce((s, ex) => s + (ex.totalValue || 0), 0) || 0),
+          formatCurrency(e.totalExpenses)
+        ]),
+        theme: 'striped',
+        headStyles: { fillColor: [5, 150, 105] },
+        styles: { fontSize: 8 },
+        margin: { left: M, right: M }
+      });
+
+      // ── PÁG 5: PESSOAL ──
+      if ((staff || []).length > 0) {
+        doc.addPage();
+        y = addPageHeader('PESSOAL OPERACIONAL', periodo, [124, 58, 237]);
         autoTable(doc, {
-          startY: yPos,
-          head: [['Placa', 'Empresa', 'Motorista', 'Serviço', 'Data Cadastro']],
-          body: thirdPartyData,
+          startY: y,
+          head: [['Nome', 'Cargo', 'Posto', 'Turno', 'Escala', 'Admissão', 'Status']],
+          body: (staff || []).map(s => [
+            s.name,
+            s.position,
+            s.post_location || '-',
+            s.shift,
+            s.current_schedule,
+            formatDate(s.hire_date),
+            s.status
+          ]),
           theme: 'striped',
-          headStyles: { fillColor: [255, 140, 0] },
-          margin: { left: margin, right: margin },
-          styles: { fontSize: 8 }
+          headStyles: { fillColor: [124, 58, 237] },
+          styles: { fontSize: 8 },
+          margin: { left: M, right: M }
         });
       }
 
-      // RODAPÉ
+      // ── PÁG 6: TERCEIROS ──
+      if (filteredThirdParty.length > 0) {
+        doc.addPage();
+        y = addPageHeader('VEÍCULOS TERCEIROS', periodo, [234, 88, 12]);
+        autoTable(doc, {
+          startY: y,
+          head: [['Placa', 'Marca/Modelo', 'Empresa', 'Motorista', 'Serviço']],
+          body: filteredThirdParty.map(v => [
+            v.plate,
+            `${v.brand || ''} ${v.model || ''}`.trim(),
+            v.company || '-',
+            v.driverName || '-',
+            v.serviceType || '-'
+          ]),
+          theme: 'striped',
+          headStyles: { fillColor: [234, 88, 12] },
+          styles: { fontSize: 8 },
+          margin: { left: M, right: M }
+        });
+      }
+
+      // Rodapé em todas as páginas
       const totalPages = doc.internal.pages.length - 1;
       for (let i = 1; i <= totalPages; i++) {
         doc.setPage(i);
-        doc.setFontSize(8);
+        doc.setFontSize(7);
         doc.setTextColor(150, 150, 150);
         doc.text(
-          `Página ${i} de ${totalPages} | Gerado em ${new Date().toLocaleString('pt-BR')}`,
-          pageWidth / 2,
-          doc.internal.pageSize.height - 10,
-          { align: 'center' }
+          `Arena BRB / Arena 360 — Gestão Integrada de Segurança | Página ${i} de ${totalPages} | ${new Date().toLocaleString('pt-BR')}`,
+          W / 2, doc.internal.pageSize.height - 8, { align: 'center' }
         );
       }
 
-      doc.save(`Relatorio_Arena_BRB_${filters.year}.pdf`);
-      success('✅ Relatório PDF gerado com sucesso!');
+      doc.save(`Arena_BRB_360_Relatorio_${filters.year}.pdf`);
+      success('✅ Relatório PDF gerado!');
     } catch (err) {
-      console.error('Erro ao gerar PDF:', err);
-      error('❌ Erro ao gerar relatório PDF');
+      console.error(err);
+      error('❌ Erro ao gerar PDF');
     }
   };
 
-  // Gerar Excel Completo
-  const generateCompleteExcel = () => {
+  // ─────────────────────────────────────────
+  // GERAR EXCEL COMPLETO
+  // ─────────────────────────────────────────
+  const generateExcel = () => {
     try {
-      const filtered = getFilteredData();
-      const stats = getStatistics();
-      
       const wb = XLSX.utils.book_new();
 
       // ABA 1: RESUMO
-      const resumoData = [
-        ['RELATÓRIO ANUAL - ARENA BRB'],
-        [`Período: ${new Date(filters.startDate).toLocaleDateString('pt-BR')} a ${new Date(filters.endDate).toLocaleDateString('pt-BR')}`],
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+        ['Arena BRB / Arena 360 — Gestão Integrada de Segurança'],
+        [`Relatório Geral — Período: ${formatDate(filters.startDate)} a ${formatDate(filters.endDate)}`],
         [],
-        ['RESUMO EXECUTIVO'],
-        ['Indicador', 'Quantidade'],
-        ['Total de Empréstimos', stats.totalLoans],
-        ['Empréstimos Ativos', stats.emprestados],
-        ['Devolvidos', stats.devolvidos],
-        ['Atrasados', stats.atrasados],
-        ['Perdidos/Danificados', stats.danificados],
-        ['Total de Taxas Cobradas', stats.totalTaxas],
-        ['Empresas Atendidas', stats.totalEmpresas],
-        ['Veículos Autorizados', stats.totalVehicles],
-        ['Proprietários Cadastrados', stats.totalOwners],
-        ['Veículos Terceiros', stats.totalThirdParty]
-      ];
-      
-      const wsResumo = XLSX.utils.aoa_to_sheet(resumoData);
-      XLSX.utils.book_append_sheet(wb, wsResumo, 'Resumo');
+        ['MÓDULO', 'INDICADOR', 'VALOR'],
+        ['Veículos', 'Veículos Autorizados', stats.totalVehicles],
+        ['Veículos', 'Proprietários', stats.totalOwners],
+        ['Veículos', 'Terceiros Cadastrados', stats.totalThirdParty],
+        ['Empréstimos', 'Total no Período', stats.totalLoans],
+        ['Empréstimos', 'Ativos', stats.activeLoans],
+        ['Empréstimos', 'Devolvidos', stats.returnedLoans],
+        ['Empréstimos', 'Taxas Cobradas (R$)', stats.loanTaxas],
+        ['Eventos', 'Total no Período', stats.totalEvents],
+        ['Eventos', 'Gasto Pessoal (R$)', stats.eventPessoal],
+        ['Eventos', 'Gasto Aluguel (R$)', stats.eventAluguel],
+        ['Eventos', 'Total Gasto (R$)', stats.eventTotal],
+        ['Pessoal', 'Total Cadastrado', stats.totalStaff],
+        ['Pessoal', 'Ativos', stats.activeStaff],
+        ['Pessoal', 'De Férias', stats.staffOnVacation],
+        ['Pessoal', 'Afastados', stats.staffAbsent],
+      ]), 'Resumo Geral');
 
-      // ABA 2: EMPRÉSTIMOS
-      const loansHeader = ['Data', 'Empresa', 'Solicitante', 'CPF', 'Telefone', 'Local', 'Itens', 'Status', 'Taxas'];
-      const loansData = filtered.loans.map(loan => [
-        new Date(loan.loanDate).toLocaleDateString('pt-BR'),
-        loan.company,
-        loan.requesterName,
-        loan.requesterCpf || '-',
-        loan.requesterPhone || '-',
-        loan.location,
-        loan.items.length,
-        loan.status,
-        loan.items.reduce((sum, item) => sum + (item.damageFee || 0), 0)
-      ]);
-      
-      const wsLoans = XLSX.utils.aoa_to_sheet([loansHeader, ...loansData]);
-      XLSX.utils.book_append_sheet(wb, wsLoans, 'Empréstimos');
+      // ABA 2: VEÍCULOS
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+        ['Placa', 'Marca', 'Modelo', 'Tipo', 'Local', 'Proprietário', 'Empresa', 'Setor'],
+        ...vehicles.map(v => {
+          const owner = owners.find(o => o.id === v.ownerId);
+          return [v.plate, v.brand, v.model, v.type, v.parkingLocation || '-',
+            owner?.name || '-', owner?.company || '-', owner?.sector || '-'];
+        })
+      ]), 'Veículos');
 
-      // ABA 3: VEÍCULOS AUTORIZADOS
-      const vehiclesHeader = ['Placa', 'Marca', 'Modelo', 'Tipo', 'Proprietário', 'Local'];
-      const vehiclesData = vehicles.map(v => {
-        const owner = owners.find(o => o.id === v.ownerId);
-        return [
-          v.plate,
-          v.brand,
-          v.model,
-          v.type,
-          owner?.name || '-',
-          v.parkingLocation
-        ];
-      });
-      
-      const wsVehicles = XLSX.utils.aoa_to_sheet([vehiclesHeader, ...vehiclesData]);
-      XLSX.utils.book_append_sheet(wb, wsVehicles, 'Veículos Autorizados');
+      // ABA 3: PROPRIETÁRIOS
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+        ['Nome', 'Empresa', 'Setor', 'Cargo', 'Telefone', 'Qtd Veículos'],
+        ...owners.map(o => [
+          o.name, o.company, o.sector, o.position, o.phone,
+          vehicles.filter(v => v.ownerId === o.id).length
+        ])
+      ]), 'Proprietários');
 
       // ABA 4: TERCEIROS
-      const thirdPartyHeader = ['Placa', 'Marca', 'Modelo', 'Empresa', 'Motorista', 'Telefone', 'Serviço', 'Data Cadastro'];
-      const thirdPartyData = filtered.thirdPartyVehicles.map(v => [
-        v.plate,
-        v.brand,
-        v.model,
-        v.company,
-        v.driverName,
-        v.driverPhone || '-',
-        v.serviceType || '-',
-        new Date(v.createdAt).toLocaleDateString('pt-BR')
-      ]);
-      
-      const wsThirdParty = XLSX.utils.aoa_to_sheet([thirdPartyHeader, ...thirdPartyData]);
-      XLSX.utils.book_append_sheet(wb, wsThirdParty, 'Veículos Terceiros');
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+        ['Placa', 'Marca', 'Modelo', 'Empresa', 'Motorista', 'Telefone', 'Serviço'],
+        ...filteredThirdParty.map(v => [
+          v.plate, v.brand || '-', v.model || '-', v.company || '-',
+          v.driverName || '-', v.driverPhone || '-', v.serviceType || '-'
+        ])
+      ]), 'Terceiros');
 
-      // ABA 5: PROPRIETÁRIOS
-      const ownersHeader = ['Nome', 'Empresa', 'Setor', 'Cargo', 'Telefone', 'Veículos'];
-      const ownersData = owners.map(o => [
-        o.name,
-        o.company,
-        o.sector,
-        o.position,
-        o.phone,
-        vehicles.filter(v => v.ownerId === o.id).length
-      ]);
-      
-      const wsOwners = XLSX.utils.aoa_to_sheet([ownersHeader, ...ownersData]);
-      XLSX.utils.book_append_sheet(wb, wsOwners, 'Proprietários');
+      // ABA 5: EMPRÉSTIMOS
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+        ['Data', 'Empresa', 'Solicitante', 'CPF', 'Telefone', 'Local', 'Itens', 'Status', 'Taxa (R$)'],
+        ...filteredLoans.map(l => [
+          formatDateRaw(l.loanDate), l.company, l.requesterName,
+          l.requesterCpf || '-', l.requesterPhone || '-', l.location || '-',
+          l.items.length, l.status,
+          l.items.reduce((s, i) => s + (i.damageFee || 0), 0)
+        ])
+      ]), 'Empréstimos');
 
-      XLSX.writeFile(wb, `Relatorio_Arena_BRB_${filters.year}.xlsx`);
-      success('✅ Relatório Excel gerado com sucesso!');
+      // ABA 6: EVENTOS
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+        ['Evento', 'Categoria', 'Data Início', 'Data Fim', 'Status', 'Pessoal (R$)', 'Aluguel (R$)', 'Total (R$)'],
+        ...filteredEvents.map(e => [
+          e.name, e.category, formatDate(e.startDate), formatDate(e.endDate), e.status,
+          e.expenses?.filter(ex => ex.expenseCategory === 'pessoal').reduce((s, ex) => s + (ex.totalValue || 0), 0) || 0,
+          e.expenses?.filter(ex => ex.expenseCategory === 'aluguel').reduce((s, ex) => s + (ex.totalValue || 0), 0) || 0,
+          e.totalExpenses || 0
+        ])
+      ]), 'Eventos');
+
+      // ABA 7: PESSOAL
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+        ['Nome', 'CPF', 'Cargo', 'Vínculo', 'Posto', 'Turno', 'Escala', 'Admissão', 'Status'],
+        ...(staff || []).map(s => [
+          s.name,
+          s.cpf?.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') || '-',
+          s.position, s.employment_type, s.post_location || '-',
+          s.shift, s.current_schedule, formatDate(s.hire_date), s.status
+        ])
+      ]), 'Pessoal');
+
+      XLSX.writeFile(wb, `Arena_BRB_360_Relatorio_${filters.year}.xlsx`);
+      success('✅ Excel gerado!');
     } catch (err) {
-      console.error('Erro ao gerar Excel:', err);
-      error('❌ Erro ao gerar relatório Excel');
+      console.error(err);
+      error('❌ Erro ao gerar Excel');
     }
   };
 
-  const stats = getStatistics();
-
+  // ─────────────────────────────────────────
+  // RENDER
+  // ─────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-100 p-6">
-      <div className="max-w-7xl mx-auto">
-        <div className="bg-white rounded-2xl shadow-xl p-8">
-          
-          {/* Header */}
-          <div className="mb-8">
-            <button
-              onClick={onBack}
-              className="mb-4 flex items-center gap-2 text-indigo-600 hover:text-indigo-800 font-medium transition-colors"
-            >
-              <ArrowLeft size={20} />
-              Voltar
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-100 p-4 md:p-6">
+      <div className="max-w-7xl mx-auto space-y-6">
+
+        {/* HEADER */}
+        <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
+          <div className="bg-gradient-to-r from-indigo-600 to-purple-700 p-6">
+            <button onClick={onBack} className="flex items-center gap-2 text-indigo-200 hover:text-white mb-4">
+              <ArrowLeft size={20} /> Voltar
             </button>
-            
-            <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-3">
-              <FileText className="text-indigo-600" size={36} />
-              Relatórios e Estatísticas
-            </h1>
-            <p className="text-gray-600 mt-2">
-              Gere relatórios completos do sistema
-            </p>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+                  <BarChart2 size={28} /> Relatórios Gerais
+                </h1>
+                <p className="text-indigo-200 mt-1">
+                  Arena BRB / Arena 360 — Gestão Integrada de Segurança
+                </p>
+              </div>
+              <div className="flex gap-3">
+                <button onClick={generatePDF}
+                  className="bg-red-500 hover:bg-red-600 text-white px-5 py-2.5 rounded-xl flex items-center gap-2 font-medium shadow-md">
+                  <FileText size={18} /> PDF Completo
+                </button>
+                <button onClick={generateExcel}
+                  className="bg-green-500 hover:bg-green-600 text-white px-5 py-2.5 rounded-xl flex items-center gap-2 font-medium shadow-md">
+                  <Download size={18} /> Excel Completo
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* Filtros */}
-          <div className="bg-gradient-to-br from-indigo-50 to-purple-50 p-6 rounded-xl border-2 border-indigo-200 mb-8">
-            <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-              <Filter size={20} className="text-indigo-600" />
-              Período do Relatório
-            </h3>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Data Inicial
-                </label>
-                <input
-                  type="date"
-                  value={filters.startDate}
-                  onChange={(e) => setFilters(prev => ({ ...prev, startDate: e.target.value }))}
-                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none"
-                />
+          <div className="p-3 sm:p-4 border-b border-gray-100 overflow-hidden">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3 min-w-0">
+              <div className="min-w-0">
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Data Inicial</label>
+                <input type="date" value={filters.startDate}
+                  onChange={(e) => setFilters(p => ({ ...p, startDate: e.target.value }))}
+                  className="w-full min-w-0 px-2 py-1.5 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none text-xs sm:text-sm" />
               </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Data Final
-                </label>
-                <input
-                  type="date"
-                  value={filters.endDate}
-                  onChange={(e) => setFilters(prev => ({ ...prev, endDate: e.target.value }))}
-                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none"
-                />
+              <div className="min-w-0">
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Data Final</label>
+                <input type="date" value={filters.endDate}
+                  onChange={(e) => setFilters(p => ({ ...p, endDate: e.target.value }))}
+                  className="w-full min-w-0 px-2 py-1.5 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none text-xs sm:text-sm" />
               </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Ano de Referência
-                </label>
-                <input
-                  type="number"
-                  value={filters.year}
+              <div className="min-w-0">
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Ano de Referência</label>
+                <input type="number" value={filters.year}
                   onChange={(e) => {
                     const year = parseInt(e.target.value);
-                    setFilters({
-                      year,
-                      startDate: `${year}-01-01`,
-                      endDate: `${year}-12-31`,
-                      reportType: 'complete'
-                    });
+                    setFilters({ year, startDate: `${year}-01-01`, endDate: `${year}-12-31` });
                   }}
-                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none"
-                  min="2020"
-                  max="2030"
-                />
+                  className="w-full min-w-0 px-2 py-1.5 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none text-xs sm:text-sm"
+                  min="2020" max="2030" />
               </div>
             </div>
           </div>
 
-          {/* Estatísticas */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
-            <div className="bg-gradient-to-br from-blue-100 to-blue-200 p-4 rounded-lg text-center">
-              <div className="text-3xl font-bold text-blue-800">{stats.totalLoans}</div>
-              <div className="text-sm text-blue-700">Empréstimos</div>
-            </div>
+          {/* Stats Cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 p-4">
+            {[
+              { label: 'Veículos', value: stats.totalVehicles, color: 'bg-blue-50 text-blue-700', icon: Car },
+              { label: 'Proprietários', value: stats.totalOwners, color: 'bg-slate-50 text-slate-700', icon: Users },
+              { label: 'Terceiros', value: stats.totalThirdParty, color: 'bg-orange-50 text-orange-700', icon: Truck },
+              { label: 'Empréstimos', value: stats.totalLoans, color: 'bg-yellow-50 text-yellow-700', icon: Package },
+              { label: 'Eventos', value: stats.totalEvents, color: 'bg-emerald-50 text-emerald-700', icon: Calendar },
+              { label: 'Pessoal', value: stats.totalStaff, color: 'bg-purple-50 text-purple-700', icon: UserCheck },
+              { label: 'Alertas Férias', value: stats.staffAlerts, color: stats.staffAlerts > 0 ? 'bg-red-50 text-red-700' : 'bg-gray-50 text-gray-500', icon: AlertCircle },
+            ].map(s => {
+              const Icon = s.icon;
+              return (
+                <div key={s.label} className={`rounded-xl p-3 text-center ${s.color}`}>
+                  <Icon size={16} className="mx-auto mb-1 opacity-70" />
+                  <div className="text-xl font-bold">{s.value}</div>
+                  <div className="text-xs">{s.label}</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
 
-            <div className="bg-gradient-to-br from-green-100 to-green-200 p-4 rounded-lg text-center">
-              <div className="text-3xl font-bold text-green-800">{stats.devolvidos}</div>
-              <div className="text-sm text-green-700">Devolvidos</div>
-            </div>
-
-            <div className="bg-gradient-to-br from-yellow-100 to-yellow-200 p-4 rounded-lg text-center">
-              <div className="text-3xl font-bold text-yellow-800">{stats.emprestados}</div>
-              <div className="text-sm text-yellow-700">Ativos</div>
-            </div>
-
-            <div className="bg-gradient-to-br from-red-100 to-red-200 p-4 rounded-lg text-center">
-              <div className="text-3xl font-bold text-red-800">R$ {stats.totalTaxas.toFixed(2)}</div>
-              <div className="text-sm text-red-700">Taxas Cobradas</div>
-            </div>
-
-            <div className="bg-gradient-to-br from-purple-100 to-purple-200 p-4 rounded-lg text-center">
-              <div className="text-3xl font-bold text-purple-800">{stats.totalEmpresas}</div>
-              <div className="text-sm text-purple-700">Empresas</div>
-            </div>
+        {/* TABS */}
+        <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
+          <div className="flex border-b border-gray-200 overflow-x-auto">
+            {[
+              { id: 'resumo',      label: 'Resumo',      icon: BarChart2 },
+              { id: 'veiculos',    label: 'Veículos',    icon: Car },
+              { id: 'emprestimos', label: 'Empréstimos', icon: Package },
+              { id: 'eventos',     label: 'Eventos',     icon: Calendar },
+              { id: 'pessoal',     label: 'Pessoal',     icon: UserCheck },
+            ].map(tab => {
+              const Icon = tab.icon;
+              return (
+                <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-1.5 px-4 py-3 text-xs sm:text-sm font-medium whitespace-nowrap border-b-2 flex-1 justify-center transition-colors ${
+                    activeTab === tab.id
+                      ? 'border-indigo-500 text-indigo-700 bg-indigo-50'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}>
+                  <Icon size={14} /> {tab.label}
+                </button>
+              );
+            })}
           </div>
 
-          {/* Botões de Geração */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <button
-              onClick={generateCompletePDF}
-              className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-8 py-6 rounded-xl font-bold text-lg transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-3"
-            >
-              <FileText size={28} />
-              Gerar Relatório PDF Completo
-            </button>
+          <div className="p-4">
 
-            <button
-              onClick={generateCompleteExcel}
-              className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-8 py-6 rounded-xl font-bold text-lg transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-3"
-            >
-              <Download size={28} />
-              Gerar Relatório Excel Completo
-            </button>
-          </div>
+            {/* ── RESUMO ── */}
+            {activeTab === 'resumo' && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-          {/* Info */}
-          <div className="mt-8 bg-blue-50 border-2 border-blue-200 rounded-xl p-4">
-            <div className="flex gap-3">
-              <TrendingUp className="text-blue-600 flex-shrink-0" size={24} />
-              <div className="text-sm text-blue-800">
-                <strong>Relatório Completo inclui:</strong>
-                <ul className="mt-2 space-y-1">
-                  <li>• Resumo executivo com estatísticas gerais</li>
-                  <li>• Lista detalhada de todos os empréstimos realizados</li>
-                  <li>• Veículos autorizados e proprietários cadastrados</li>
-                  <li>• Veículos terceiros e prestadores de serviço</li>
-                  <li>• Totalizadores de taxas cobradas</li>
-                </ul>
+                  {/* Veículos */}
+                  <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
+                    <h3 className="font-bold text-blue-800 mb-3 flex items-center gap-2"><Car size={16}/> Veículos</h3>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between"><span>Autorizados</span><strong>{stats.totalVehicles}</strong></div>
+                      <div className="flex justify-between"><span>Proprietários</span><strong>{stats.totalOwners}</strong></div>
+                      <div className="flex justify-between"><span>Terceiros</span><strong>{stats.totalThirdParty}</strong></div>
+                    </div>
+                  </div>
+
+                  {/* Empréstimos */}
+                  <div className="bg-yellow-50 rounded-xl p-4 border border-yellow-200">
+                    <h3 className="font-bold text-yellow-800 mb-3 flex items-center gap-2"><Package size={16}/> Empréstimos</h3>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between"><span>Total no período</span><strong>{stats.totalLoans}</strong></div>
+                      <div className="flex justify-between"><span>Ativos</span><strong>{stats.activeLoans}</strong></div>
+                      <div className="flex justify-between"><span>Devolvidos</span><strong>{stats.returnedLoans}</strong></div>
+                      <div className="flex justify-between"><span>Taxas cobradas</span><strong className="text-yellow-700">{formatCurrency(stats.loanTaxas)}</strong></div>
+                    </div>
+                  </div>
+
+                  {/* Eventos */}
+                  <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-200">
+                    <h3 className="font-bold text-emerald-800 mb-3 flex items-center gap-2"><Calendar size={16}/> Eventos</h3>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between"><span>Total no período</span><strong>{stats.totalEvents}</strong></div>
+                      <div className="flex justify-between"><span>Gasto Pessoal</span><strong>{formatCurrency(stats.eventPessoal)}</strong></div>
+                      <div className="flex justify-between"><span>Gasto Aluguel</span><strong>{formatCurrency(stats.eventAluguel)}</strong></div>
+                      <div className="flex justify-between border-t border-emerald-200 pt-2"><span className="font-bold">Total Gasto</span><strong className="text-emerald-700">{formatCurrency(stats.eventTotal)}</strong></div>
+                    </div>
+                  </div>
+
+                  {/* Pessoal */}
+                  <div className="bg-purple-50 rounded-xl p-4 border border-purple-200">
+                    <h3 className="font-bold text-purple-800 mb-3 flex items-center gap-2"><UserCheck size={16}/> Pessoal Operacional</h3>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between"><span>Total cadastrado</span><strong>{stats.totalStaff}</strong></div>
+                      <div className="flex justify-between"><span className="text-green-700">Ativos</span><strong>{stats.activeStaff}</strong></div>
+                      <div className="flex justify-between"><span className="text-blue-700">De Férias</span><strong>{stats.staffOnVacation}</strong></div>
+                      <div className="flex justify-between"><span className="text-orange-700">Afastados</span><strong>{stats.staffAbsent}</strong></div>
+                      {stats.staffAlerts > 0 && (
+                        <div className="flex justify-between border-t border-red-200 pt-2">
+                          <span className="text-red-700 font-bold flex items-center gap-1"><AlertCircle size={12}/> Alertas Férias</span>
+                          <strong className="text-red-700">{stats.staffAlerts}</strong>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
+            )}
 
+            {/* ── VEÍCULOS ── */}
+            {activeTab === 'veiculos' && (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      {['Placa','Marca/Modelo','Tipo','Proprietário','Empresa','Local'].map(h => (
+                        <th key={h} className="text-left px-3 py-3 text-xs font-semibold text-gray-600">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {vehicles.map(v => {
+                      const owner = owners.find(o => o.id === v.ownerId);
+                      return (
+                        <tr key={v.id} className="hover:bg-gray-50">
+                          <td className="px-3 py-3 font-mono font-bold text-blue-700">{v.plate}</td>
+                          <td className="px-3 py-3 text-sm">{v.brand} {v.model}</td>
+                          <td className="px-3 py-3 text-sm text-gray-600">{v.type}</td>
+                          <td className="px-3 py-3 text-sm">{owner?.name || '-'}</td>
+                          <td className="px-3 py-3 text-sm text-gray-600">{owner?.company || '-'}</td>
+                          <td className="px-3 py-3 text-sm text-gray-600">{v.parkingLocation || '-'}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* ── EMPRÉSTIMOS ── */}
+            {activeTab === 'emprestimos' && (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      {['Data','Empresa','Solicitante','Itens','Status','Taxa'].map(h => (
+                        <th key={h} className="text-left px-3 py-3 text-xs font-semibold text-gray-600">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {filteredLoans.map(l => (
+                      <tr key={l.id} className="hover:bg-gray-50">
+                        <td className="px-3 py-3 text-sm">{formatDateRaw(l.loanDate)}</td>
+                        <td className="px-3 py-3 text-sm font-medium">{l.company}</td>
+                        <td className="px-3 py-3 text-sm">{l.requesterName}</td>
+                        <td className="px-3 py-3 text-sm text-center">{l.items.length}</td>
+                        <td className="px-3 py-3">
+                          <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                            l.status === 'devolvido' ? 'bg-green-100 text-green-800'
+                            : l.status === 'emprestado' ? 'bg-yellow-100 text-yellow-800'
+                            : l.status === 'atrasado' ? 'bg-red-100 text-red-800'
+                            : 'bg-gray-100 text-gray-800'
+                          }`}>{l.status}</span>
+                        </td>
+                        <td className="px-3 py-3 text-sm text-right">
+                          {formatCurrency(l.items.reduce((s, i) => s + (i.damageFee || 0), 0))}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot className="bg-yellow-50">
+                    <tr>
+                      <td colSpan={5} className="px-3 py-3 font-bold text-yellow-800">TOTAL TAXAS</td>
+                      <td className="px-3 py-3 text-right font-bold text-yellow-800">{formatCurrency(stats.loanTaxas)}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            )}
+
+            {/* ── EVENTOS ── */}
+            {activeTab === 'eventos' && (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      {['Evento','Categoria','Data','Status','Pessoal','Aluguel','Total'].map(h => (
+                        <th key={h} className="text-left px-3 py-3 text-xs font-semibold text-gray-600">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {filteredEvents.map(e => (
+                      <tr key={e.id} className="hover:bg-gray-50">
+                        <td className="px-3 py-3 font-medium text-sm">{e.name}</td>
+                        <td className="px-3 py-3 text-sm text-gray-600">{e.category}</td>
+                        <td className="px-3 py-3 text-sm">{formatDate(e.startDate)}</td>
+                        <td className="px-3 py-3">
+                          <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                            e.status === 'realizado' ? 'bg-green-100 text-green-800'
+                            : e.status === 'planejado' ? 'bg-blue-100 text-blue-800'
+                            : 'bg-gray-100 text-gray-800'
+                          }`}>{e.status}</span>
+                        </td>
+                        <td className="px-3 py-3 text-sm text-right text-emerald-700">
+                          {formatCurrency(e.expenses?.filter(ex => ex.expenseCategory === 'pessoal').reduce((s, ex) => s + (ex.totalValue || 0), 0) || 0)}
+                        </td>
+                        <td className="px-3 py-3 text-sm text-right text-orange-600">
+                          {formatCurrency(e.expenses?.filter(ex => ex.expenseCategory === 'aluguel').reduce((s, ex) => s + (ex.totalValue || 0), 0) || 0)}
+                        </td>
+                        <td className="px-3 py-3 text-sm text-right font-bold">{formatCurrency(e.totalExpenses)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot className="bg-emerald-50">
+                    <tr>
+                      <td colSpan={4} className="px-3 py-3 font-bold text-emerald-800">TOTAL</td>
+                      <td className="px-3 py-3 text-right font-bold text-emerald-800">{formatCurrency(stats.eventPessoal)}</td>
+                      <td className="px-3 py-3 text-right font-bold text-orange-700">{formatCurrency(stats.eventAluguel)}</td>
+                      <td className="px-3 py-3 text-right font-bold text-gray-900">{formatCurrency(stats.eventTotal)}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            )}
+
+            {/* ── PESSOAL ── */}
+            {activeTab === 'pessoal' && (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      {['Nome','Cargo','Posto','Turno/Escala','Admissão','Status'].map(h => (
+                        <th key={h} className="text-left px-3 py-3 text-xs font-semibold text-gray-600">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {(staff || []).map(s => (
+                      <tr key={s.id} className="hover:bg-gray-50">
+                        <td className="px-3 py-3 font-medium text-sm">{s.name}</td>
+                        <td className="px-3 py-3 text-sm text-gray-600">{s.position}</td>
+                        <td className="px-3 py-3 text-sm text-gray-600">{s.post_location || '-'}</td>
+                        <td className="px-3 py-3 text-sm">
+                          <span className={`text-xs px-2 py-0.5 rounded-full mr-1 ${
+                            s.shift === 'Diurno' ? 'bg-yellow-100 text-yellow-800' : 'bg-indigo-100 text-indigo-800'
+                          }`}>{s.shift}</span>
+                          <span className="text-xs text-gray-500">{s.current_schedule}</span>
+                        </td>
+                        <td className="px-3 py-3 text-sm">{formatDate(s.hire_date)}</td>
+                        <td className="px-3 py-3">
+                          <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                            s.status === 'ativo' ? 'bg-green-100 text-green-800'
+                            : s.status === 'férias' ? 'bg-blue-100 text-blue-800'
+                            : s.status === 'afastado' ? 'bg-orange-100 text-orange-800'
+                            : 'bg-gray-100 text-gray-800'
+                          }`}>{s.status}</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+          </div>
         </div>
       </div>
     </div>
