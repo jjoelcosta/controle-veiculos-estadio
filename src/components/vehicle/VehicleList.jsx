@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Plus, Search, Filter, Download, User, MapPin, Building2, Briefcase, X, Car, Truck, Package, FileText, Calendar, ChevronLeft, ChevronRight, BarChart2, Users } from 'lucide-react';
+import { Plus, Search, Filter, Download, User, MapPin, Building2, Briefcase, X, Car, Truck, Package, FileText, Calendar, ChevronLeft, ChevronRight, BarChart2, BarChart, UserCheck, Users } from 'lucide-react';
 import VehicleCard from './VehicleCard';
 import VehicleForm from './VehicleForm';
 import Header from '../ui/Header';
@@ -12,6 +12,7 @@ export default function VehicleList({
   thirdPartyVehicles,
   loans,
   events,
+  staff,
   editingVehicleId,
   onViewDetail, 
   onAdd, 
@@ -21,6 +22,7 @@ export default function VehicleList({
   onNavigateToThirdParty,
   onNavigateToLoans,
   onNavigateToReports,
+  onNavigateToStaff,
   onNavigateToEvents,
   onCancelEdit 
 }) {
@@ -150,6 +152,9 @@ export default function VehicleList({
   { id: 'reports', label: 'Relatórios', icon: BarChart2, action: onNavigateToReports, badge: null,
     activeClass: 'bg-indigo-50 text-indigo-700 border-l-4 border-indigo-500 font-semibold',
     iconClass: 'text-indigo-600', badgeClass: 'bg-indigo-100 text-indigo-700' },
+  { id: 'staff', label: 'Pessoal', icon: UserCheck, action: onNavigateToStaff, badge: staff?.filter(s => s.status === 'ativo').length || 0,
+    activeClass: 'bg-purple-50 text-purple-700 border-l-4 border-purple-500 font-semibold',
+    iconClass: 'text-purple-600', badgeClass: 'bg-purple-100 text-purple-700' },
   { id: 'events', label: 'Eventos', icon: Calendar, action: onNavigateToEvents, badge: events?.length || 0,
     activeClass: 'bg-emerald-50 text-emerald-700 border-l-4 border-emerald-500 font-semibold',
     iconClass: 'text-emerald-600', badgeClass: 'bg-emerald-100 text-emerald-700' },

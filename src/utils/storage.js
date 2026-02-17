@@ -1134,6 +1134,175 @@ const loadHourBankSummary = async () => {
   }
 };
 
+// ============================================
+// STAFF (Pessoal Operacional)
+// ============================================
+const loadStaff = async () => {
+  const { data, error } = await supabase
+    .from('staff')
+    .select('*')
+    .is('deleted_at', null)
+    .order('name');
+  if (error) throw error;
+  return data || [];
+};
+
+const addStaff = async (staffData) => {
+  const { data, error } = await supabase
+    .from('staff')
+    .insert([staffData])
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+const updateStaff = async (staffId, staffData) => {
+  const { data, error } = await supabase
+    .from('staff')
+    .update(staffData)
+    .eq('id', staffId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+const deleteStaff = async (staffId) => {
+  const { error } = await supabase
+    .from('staff')
+    .update({ deleted_at: new Date().toISOString(), active: false })
+    .eq('id', staffId);
+  if (error) throw error;
+};
+
+// ============================================
+// STAFF VACATIONS
+// ============================================
+const loadStaffVacations = async (staffId = null) => {
+  let query = supabase
+    .from('staff_vacations')
+    .select(`*, staff:staff_id (id, name, position, post_location)`)
+    .order('acquisition_start', { ascending: false });
+  if (staffId) query = query.eq('staff_id', staffId);
+  const { data, error } = await query;
+  if (error) throw error;
+  return data || [];
+};
+
+const addStaffVacation = async (vacationData) => {
+  const { data, error } = await supabase
+    .from('staff_vacations')
+    .insert([vacationData])
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+const updateStaffVacation = async (vacationId, vacationData) => {
+  const { data, error } = await supabase
+    .from('staff_vacations')
+    .update(vacationData)
+    .eq('id', vacationId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+const deleteStaffVacation = async (vacationId) => {
+  const { error } = await supabase
+    .from('staff_vacations')
+    .delete()
+    .eq('id', vacationId);
+  if (error) throw error;
+};
+
+// ============================================
+// STAFF SHIFT SWAPS
+// ============================================
+const loadStaffShiftSwaps = async () => {
+  const { data, error } = await supabase
+    .from('staff_shift_swaps')
+    .select(`*, requester:requester_id (id, name, position), target:target_id (id, name, position)`)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
+};
+
+const addStaffShiftSwap = async (swapData) => {
+  const { data, error } = await supabase
+    .from('staff_shift_swaps')
+    .insert([swapData])
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+const updateStaffShiftSwap = async (swapId, swapData) => {
+  const { data, error } = await supabase
+    .from('staff_shift_swaps')
+    .update(swapData)
+    .eq('id', swapId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+const deleteStaffShiftSwap = async (swapId) => {
+  const { error } = await supabase
+    .from('staff_shift_swaps')
+    .delete()
+    .eq('id', swapId);
+  if (error) throw error;
+};
+
+// ============================================
+// STAFF ABSENCES
+// ============================================
+const loadStaffAbsences = async (staffId = null) => {
+  let query = supabase
+    .from('staff_absences')
+    .select(`*, staff:staff_id (id, name, position)`)
+    .order('start_date', { ascending: false });
+  if (staffId) query = query.eq('staff_id', staffId);
+  const { data, error } = await query;
+  if (error) throw error;
+  return data || [];
+};
+
+const addStaffAbsence = async (absenceData) => {
+  const { data, error } = await supabase
+    .from('staff_absences')
+    .insert([absenceData])
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+const updateStaffAbsence = async (absenceId, absenceData) => {
+  const { data, error } = await supabase
+    .from('staff_absences')
+    .update(absenceData)
+    .eq('id', absenceId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+const deleteStaffAbsence = async (absenceId) => {
+  const { error } = await supabase
+    .from('staff_absences')
+    .delete()
+    .eq('id', absenceId);
+  if (error) throw error;
+};
+
 /* ================================
    FÉRIAS / COBERTURA DE POSTO
 ================================ */
@@ -1267,29 +1436,41 @@ export const storage = {
   deleteLoan,
   getNextDocumentNumber,
   registerDocumentNumber,
-  // Eventos
   loadEvents,
   addEvent,
   updateEvent,
   deleteEvent,
-  // Gastos
   addEventExpense,
   updateEventExpense,
   deleteEventExpense,
-  // Equipe
   loadSecurityTeam,
   addSecurityEmployee,
   updateSecurityEmployee,
   deleteSecurityEmployee,
-  // Banco de Horas
   loadHourBank,
   addHourBank,
   updateHourBank,
   deleteHourBank,
   loadHourBankSummary,
-  // Férias
   loadVacationExpenses,
   addVacationExpense,
   updateVacationExpense,
-  deleteVacationExpense
+  deleteVacationExpense,
+  // Staff operacional
+  loadStaff,
+  addStaff,
+  updateStaff,
+  deleteStaff,
+  loadStaffVacations,
+  addStaffVacation,
+  updateStaffVacation,
+  deleteStaffVacation,
+  loadStaffShiftSwaps,
+  addStaffShiftSwap,
+  updateStaffShiftSwap,
+  deleteStaffShiftSwap,
+  loadStaffAbsences,
+  addStaffAbsence,
+  updateStaffAbsence,
+  deleteStaffAbsence,
 };
