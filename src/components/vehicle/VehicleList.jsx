@@ -185,30 +185,6 @@ export default function VehicleList({
               </div>
             </div>
 
-            {/* Stats Cards - aparecem em todas as telas */}
-            <div className="flex items-center gap-2">
-              <div className="bg-white/15 backdrop-blur rounded-xl px-3 py-1.5 text-center">
-                <div className="text-lg sm:text-2xl font-bold text-white">{vehicles.length}</div>
-                <div className="text-blue-200 text-xs hidden sm:block">Veículos</div>
-              </div>
-              <div className="bg-white/15 backdrop-blur rounded-xl px-3 py-1.5 text-center">
-                <div className="text-lg sm:text-2xl font-bold text-white">{owners.length}</div>
-                <div className="text-blue-200 text-xs hidden sm:block">Proprietários</div>
-              </div>
-              <div className="hidden sm:block bg-white/15 backdrop-blur rounded-xl px-3 py-1.5 text-center">
-                <div className="text-lg sm:text-2xl font-bold text-white">{thirdPartyCount}</div>
-                <div className="text-blue-200 text-xs">Terceiros</div>
-              </div>
-              <div className={`hidden sm:block backdrop-blur rounded-xl px-3 py-1.5 text-center ${activeLoans > 0 ? 'bg-yellow-400/30' : 'bg-white/15'}`}>
-                <div className={`text-lg sm:text-2xl font-bold ${activeLoans > 0 ? 'text-yellow-200' : 'text-white'}`}>{activeLoans}</div>
-                <div className="text-blue-200 text-xs">Empréstimos</div>
-              </div>
-              <div className="hidden sm:block bg-white/15 backdrop-blur rounded-xl px-3 py-1.5 text-center">
-                <div className="text-lg sm:text-2xl font-bold text-white">{events?.length || 0}</div>
-                <div className="text-blue-200 text-xs">Eventos</div>
-              </div>
-            </div>
-
             {/* User */}
             <div className="flex items-center gap-2 bg-white/15 rounded-xl px-3 py-2">
               <div className="w-8 h-8 rounded-full bg-white/30 flex items-center justify-center">

@@ -112,16 +112,20 @@ export default function Dashboard({
     <div className="space-y-6">
 
       {/* ── BOAS-VINDAS ── */}
-      <div className="bg-gradient-to-r from-blue-700 via-blue-600 to-indigo-700 rounded-2xl shadow-xl p-6 text-white">
+        <div className="bg-gradient-to-r from-blue-700 via-blue-600 to-indigo-700 rounded-2xl shadow-xl p-6 text-white">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
+            <div>
             <div className="flex items-center gap-3 mb-1">
-              <Shield size={28} className="text-blue-200" />
-              <h2 className="text-2xl font-bold">Arena BRB / Arena 360</h2>
+            <h2 className="text-2xl font-bold">
+                {new Date().getHours() < 12
+                    ? 'Bom dia! ☀️'
+                    : new Date().getHours() < 18
+                    ? 'Boa tarde! 🌤️'
+                    : 'Boa noite! 🌙'}
+                </h2>
             </div>
-            <p className="text-blue-200 text-sm">Gestão Integrada de Segurança</p>
-            <p className="text-blue-300 text-xs mt-1">{todayFormatted}</p>
-          </div>
+            <p className="text-blue-200 text-sm">{todayFormatted}</p>
+            </div>
           {totalAlerts > 0 && (
             <div className="bg-red-500/30 border border-red-400/50 rounded-xl px-4 py-3 flex items-center gap-3">
               <AlertTriangle size={24} className="text-red-300 flex-shrink-0" />
