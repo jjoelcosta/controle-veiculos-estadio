@@ -1,11 +1,12 @@
-import React, { useState, useMemo } from 'react';
-import { Plus, Search, Filter, Download, User, MapPin, Building2, Briefcase, X, Car, Truck, Package, FileText, Calendar, ChevronLeft, ChevronRight, BarChart2, BarChart, UserCheck, Users } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Plus, Search, Filter, Download, User, MapPin, Building2, Briefcase, X, Car, Truck, Package, FileText, Calendar, ChevronLeft, ChevronRight, BarChart2, BarChart, UserCheck, Users, Shield, LogOut } from 'lucide-react';
 import VehicleCard from './VehicleCard';
 import VehicleForm from './VehicleForm';
 import Header from '../ui/Header';
 import { useModal } from '../ui/Modal';
 import { useToast } from '../ui/Toast';
 import Dashboard from '../Dashboard';
+import { storage } from '../../utils/storage';
 
 export default function VehicleList({ 
   vehicles, 
@@ -14,6 +15,7 @@ export default function VehicleList({
   loans,
   events,
   staff,
+  userRole,
   editingVehicleId,
   onViewDetail, 
   onAdd, 
@@ -25,6 +27,7 @@ export default function VehicleList({
   onNavigateToReports,
   onNavigateToStaff,
   onNavigateToEvents,
+  onNavigateToAdmin,
   onCancelEdit 
 }) {
   const { openModal, ModalComponent } = useModal();
@@ -43,6 +46,11 @@ export default function VehicleList({
   const [filterLocation, setFilterLocation] = useState('');
   const [filterCompany, setFilterCompany] = useState('');
   const [filterSector, setFilterSector] = useState('');
+  const [userEmail, setUserEmail] = useState('');
+
+          useEffect(() => {
+            storage.getUserEmail().then(setUserEmail);
+          }, []);
 
   const thirdPartyCount = thirdPartyVehicles?.length || 0;
   const activeLoans = loans?.filter(l => l.status === 'emprestado')?.length || 0;
@@ -96,23 +104,29 @@ export default function VehicleList({
     else { setShowForm(false); setEditingVehicle(null); }
   };
 
-  const handleDeleteClick = (vehicle) => {
-    openModal({
-      title: 'Remover Veículo',
-      message: `Deseja remover o veículo ${vehicle.plate} da lista?\n\nEle poderá ser restaurado posteriormente.`,
-      variant: 'warning',
-      confirmText: 'Sim, Remover',
-      cancelText: 'Cancelar',
-      onConfirm: async () => {
-        try {
-          await onDelete(vehicle.id);
-          success('✅ Veículo removido com sucesso!');
-        } catch (err) {
-          error('❌ Erro ao remover veículo');
-        }
+ const handleDeleteClick = async (vehicle) => {
+  const isAdmin = await storage.isAdmin();
+  if (!isAdmin) {
+    error('⛔ Sem permissão para excluir. Apenas administradores.');
+    return;
+  }
+  
+  openModal({
+    title: 'Remover Veículo',
+    message: `Deseja remover o veículo ${vehicle.plate} da lista?\n\nEle poderá ser restaurado posteriormente.`,
+    variant: 'warning',
+    confirmText: 'Sim, Remover',
+    cancelText: 'Cancelar',
+    onConfirm: async () => {
+      try {
+        await onDelete(vehicle.id);
+        success('✅ Veículo removido com sucesso!');
+      } catch (err) {
+        error(err.message || '❌ Erro ao remover veículo');
       }
-    });
-  };
+    }
+  });
+};
 
   const handleSearch = () => setShowResults(true);
 
@@ -160,6 +174,11 @@ export default function VehicleList({
   { id: 'reports', label: 'Relatórios', icon: BarChart2, action: onNavigateToReports, badge: null,
     activeClass: 'bg-indigo-50 text-indigo-700 border-l-4 border-indigo-500 font-semibold',
     iconClass: 'text-indigo-600', badgeClass: 'bg-indigo-100 text-indigo-700' },
+    ...(userRole === 'admin' ? [{
+    id: 'admin', label: 'Admin', icon: Shield, action: onNavigateToAdmin, badge: null,
+    activeClass: 'bg-red-50 text-red-700 border-l-4 border-red-500 font-semibold',
+    iconClass: 'text-red-600', badgeClass: 'bg-red-100 text-red-700'
+  }] : []),
 ];
 
   return (
@@ -186,15 +205,31 @@ export default function VehicleList({
             </div>
 
             {/* User */}
+            {/* User */}
+          <div className="flex items-center gap-2">
             <div className="flex items-center gap-2 bg-white/15 rounded-xl px-3 py-2">
               <div className="w-8 h-8 rounded-full bg-white/30 flex items-center justify-center">
                 <User size={16} className="text-white" />
               </div>
               <div className="hidden sm:block text-right">
-                <div className="text-white text-xs font-medium">admin@estadio.com</div>
-                <div className="text-blue-200 text-xs">Conectado</div>
+                <div className="text-white text-xs font-medium">{userEmail || 'Carregando...'}</div>
+                <div className="text-blue-200 text-xs">
+                  {userRole === 'admin' ? '👑 Administrador' : '👤 Operador'}
+                </div>
               </div>
             </div>
+            <button
+              onClick={async () => {
+                const { supabase } = await import('../../lib/supabase');
+                storage.clearRoleCache();
+                await supabase.auth.signOut();
+              }}
+              className="bg-white/15 hover:bg-white/25 text-white p-2 rounded-xl transition-colors"
+              title="Sair"
+            >
+              <LogOut size={18} />
+            </button>
+          </div>
           </div>
         </div>
       </div>

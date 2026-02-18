@@ -2,6 +2,13 @@ import React, { useState } from 'react';
 import { Car, Lock, Mail, AlertCircle, Loader2 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
+const ShieldBolt = ({ size = 40, className = "" }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M12 2L3 7v5c0 5.25 3.75 10.05 9 11 5.25-.95 9-5.75 9-11V7l-9-5z" />
+    <polyline points="14 4 10 13 14 13 9 23" />
+  </svg>
+);
+
 export default function LoginPage() {
   const { login } = useAuth();
   const [email, setEmail] = useState('');
@@ -37,13 +44,13 @@ export default function LoginPage() {
           {/* Logo e Título */}
           <div className="text-center mb-8">
             <div className="bg-gradient-to-r from-blue-500 to-purple-500 w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-              <Car className="text-white" size={40} />
+              <ShieldBolt size={40} className="text-white" />
             </div>
             <h1 className="text-3xl font-bold text-gray-800 mb-2">
-              Sistema de Veículos e Acervo
+              Arena BRB
             </h1>
-            <p className="text-gray-600">
-              ARENA BRB
+            <p className="text-xl font-bold text-gray-700">
+              Gestão Integrada de Segurança
             </p>
           </div>
 
@@ -136,7 +143,7 @@ export default function LoginPage() {
         {/* Footer */}
         <div className="text-center mt-6 text-white text-sm">
           <p>Sistema de Controle de Acesso</p>
-          <p className="opacity-75">© 2025 - Todos os direitos reservados</p>
+          <p className="opacity-75">© 2026 - Todos os direitos reservados</p>
         </div>
       </div>
     </div>

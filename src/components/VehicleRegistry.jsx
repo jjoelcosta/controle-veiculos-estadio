@@ -26,6 +26,7 @@ import TeamManager from './events/TeamManager';
 import HourBank from './events/HourBank';
 import EventReports from './events/EventReports';
 import VacationList from './events/VacationList';
+import UserManagement from './admin/UserManagement';
 
 export default function VehicleRegistry() {
   // Estados principais
@@ -64,49 +65,65 @@ export default function VehicleRegistry() {
   const [vacations, setVacations] = useState([]);
   const [showVacationList, setShowVacationList] = useState(false);
   const [staffTeamType, setStaffTeamType] = useState('operacional');
+  // Estado de role
+  const [userRole, setUserRole] = useState('operador');
 
   // ✅ CARREGAR DADOS DO SUPABASE
   const loadData = async () => {
-  try {
-    setLoading(true);
-    setError(null);
-    
-  const [vehiclesData, ownersData, thirdPartyData, loanItemsData, loansData,
-       eventsData, teamData, hourBankData, vacationsData, staffData] = await Promise.all([
-  storage.loadVehicles(),
-  storage.loadOwners(),
-  storage.loadThirdPartyVehicles(),
-  storage.loadLoanItems(),
-  storage.loadLoans(),
-  storage.loadEvents(),
-  storage.loadSecurityTeam(),
-  storage.loadHourBank(),
-  storage.loadVacationExpenses(),
-  storage.loadStaff()
-]);
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const [vehiclesData, ownersData, thirdPartyData, loanItemsData, loansData,
+           eventsData, teamData, hourBankData, vacationsData, staffData, role] = await Promise.all([
+        storage.loadVehicles(),
+        storage.loadOwners(),
+        storage.loadThirdPartyVehicles(),
+        storage.loadLoanItems(),
+        storage.loadLoans(),
+        storage.loadEvents(),
+        storage.loadSecurityTeam(),
+        storage.loadHourBank(),
+        storage.loadVacationExpenses(),
+        storage.loadStaff(),
+        storage.getUserRole()
+      ]);
 
-  setStaff(staffData);
-  setVehicles(vehiclesData);
-  setOwners(ownersData);
-  setThirdPartyVehicles(thirdPartyData);
-  setLoanItems(loanItemsData);
-  setLoans(loansData);
-  setEvents(eventsData);
-  setSecurityTeam(teamData);
-  setHourBank(hourBankData);
-  setVacations(vacationsData);
+      setStaff(staffData);
+      setVehicles(vehiclesData);
+      setOwners(ownersData);
+      setThirdPartyVehicles(thirdPartyData);
+      setLoanItems(loanItemsData);
+      setLoans(loansData);
+      setEvents(eventsData);
+      setSecurityTeam(teamData);
+      setHourBank(hourBankData);
+      setVacations(vacationsData);
+      setUserRole(role || 'operador');
 
-  } catch (err) {
-    console.error('❌ Erro ao carregar dados:', err);
-    setError(err.message || 'Erro ao conectar com o banco de dados');
-  } finally {
-    setLoading(false);
-  }
-};
+    } catch (err) {
+      console.error('❌ Erro ao carregar dados:', err);
+      setError(err.message || 'Erro ao conectar com o banco de dados');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // ✅ CARREGAR DADOS AO INICIAR
   useEffect(() => {
     loadData();
   }, []);
+
+  /* ================================
+     HELPER: CHECAGEM DE PERMISSÃO DELETE
+  ================================ */
+  const checkDeletePermission = async () => {
+    const admin = await storage.isAdmin();
+    if (!admin) {
+      throw new Error('⛔ Sem permissão para excluir. Apenas administradores.');
+    }
+    return true;
+  };
 
   /* ================================
      NAVEGAÇÃO
@@ -118,12 +135,9 @@ export default function VehicleRegistry() {
   };
 
   const handleViewOwnerDetail = (owner) => {
-  console.log('🟢 RECEBEU NO REGISTRY:', owner);
-  console.log('🟢 selectedOwner ANTES:', selectedOwner);
-  setSelectedOwner(owner);
-  setCurrentView('ownerDetail');
-  console.log('🟢 Mudou view pra ownerDetail');
-};
+    setSelectedOwner(owner);
+    setCurrentView('ownerDetail');
+  };
 
   const handleBackToVehicles = () => {
     setCurrentView('vehicles');
@@ -136,9 +150,9 @@ export default function VehicleRegistry() {
   };
 
   const handleNavigateToOwners = () => {
-  setCurrentView('owners');  // ✅ Vai pra LISTA, não pra detail
-  setSelectedOwner(null);    // ✅ Limpa o owner selecionado
-};
+    setCurrentView('owners');
+    setSelectedOwner(null);
+  };
 
   const handleNavigateToVehicles = () => {
     setCurrentView('vehicles');
@@ -151,47 +165,48 @@ export default function VehicleRegistry() {
   const handleAddVehicle = async (vehicleData) => {
     try {
       await storage.addVehicle(vehicleData);
-      await loadData(); // Recarrega tudo
+      await loadData();
     } catch (err) {
       console.error('❌ Erro ao adicionar veículo:', err);
       throw err;
     }
   };
 
-      const handleOpenEditModal = (vehicle) => {
-      setEditingVehicle(vehicle);
-      setEditModalOpen(true);
-    };
+  const handleOpenEditModal = (vehicle) => {
+    setEditingVehicle(vehicle);
+    setEditModalOpen(true);
+  };
 
-    const handleCloseEditModal = () => {
-      setEditModalOpen(false);
-      setEditingVehicle(null);
-    };
+  const handleCloseEditModal = () => {
+    setEditModalOpen(false);
+    setEditingVehicle(null);
+  };
 
-    const handleSaveFromModal = async (vehicleId, vehicleData) => {
-      await handleUpdateVehicle(vehicleId, vehicleData);
-      handleCloseEditModal();
-    };
+  const handleSaveFromModal = async (vehicleId, vehicleData) => {
+    await handleUpdateVehicle(vehicleId, vehicleData);
+    handleCloseEditModal();
+  };
 
   const handleUpdateVehicle = async (vehicleId, vehicleData) => {
     try {
       await storage.updateVehicle(vehicleId, vehicleData);
-      await loadData(); // Recarrega tudo
+      await loadData();
     } catch (err) {
       console.error('❌ Erro ao atualizar veículo:', err);
       throw err;
     }
   };
 
-    const handleEditVehicle = (vehicle) => {
-      setEditingVehicleId(vehicle.id);
-      setCurrentView('vehicles'); // Volta pra lista
-    };
+  const handleEditVehicle = (vehicle) => {
+    setEditingVehicleId(vehicle.id);
+    setCurrentView('vehicles');
+  };
 
   const handleDeleteVehicle = async (vehicleId) => {
     try {
+      await checkDeletePermission();
       await storage.deleteVehicle(vehicleId);
-      await loadData(); // Recarrega (sem o deletado)
+      await loadData();
       
       if (selectedVehicle?.id === vehicleId) {
         handleBackToVehicles();
@@ -209,7 +224,7 @@ export default function VehicleRegistry() {
   const handleAddOwner = async (ownerData) => {
     try {
       const newOwner = await storage.addOwner(ownerData);
-      await loadData(); // Recarrega tudo
+      await loadData();
       return newOwner.id;
     } catch (err) {
       console.error('❌ Erro ao adicionar proprietário:', err);
@@ -220,7 +235,7 @@ export default function VehicleRegistry() {
   const handleUpdateOwner = async (ownerId, ownerData) => {
     try {
       await storage.updateOwner(ownerId, ownerData);
-      await loadData(); // Recarrega tudo
+      await loadData();
     } catch (err) {
       console.error('❌ Erro ao atualizar proprietário:', err);
       throw err;
@@ -228,6 +243,13 @@ export default function VehicleRegistry() {
   };
 
   const handleDeleteOwner = async (ownerId) => {
+    // Checar permissão primeiro
+    try {
+      await checkDeletePermission();
+    } catch (err) {
+      return { success: false, message: err.message };
+    }
+
     // Validação: não permite deletar se tiver veículos vinculados
     const ownerVehicles = vehicles.filter(v => v.ownerId === ownerId);
     
@@ -240,7 +262,7 @@ export default function VehicleRegistry() {
 
     try {
       await storage.deleteOwner(ownerId);
-      await loadData(); // Recarrega tudo
+      await loadData();
       
       if (selectedOwner?.id === ownerId) {
         handleBackToOwners();
@@ -257,76 +279,77 @@ export default function VehicleRegistry() {
    CRUD - VEÍCULOS TERCEIROS
   ================================ */
 
-const handleAddThirdPartyVehicle = async (vehicleData) => {
-  try {
-    await storage.addThirdPartyVehicle(vehicleData);
-    await loadData();
-  } catch (err) {
-    console.error('❌ Erro ao adicionar veículo terceiro:', err);
-    throw err;
-  }
-};
+  const handleAddThirdPartyVehicle = async (vehicleData) => {
+    try {
+      await storage.addThirdPartyVehicle(vehicleData);
+      await loadData();
+    } catch (err) {
+      console.error('❌ Erro ao adicionar veículo terceiro:', err);
+      throw err;
+    }
+  };
 
-const handleUpdateThirdPartyVehicle = async (vehicleId, vehicleData) => {
-  try {
-    await storage.updateThirdPartyVehicle(vehicleId, vehicleData);
-    await loadData();
-  } catch (err) {
-    console.error('❌ Erro ao atualizar veículo terceiro:', err);
-    throw err;
-  }
-};
+  const handleUpdateThirdPartyVehicle = async (vehicleId, vehicleData) => {
+    try {
+      await storage.updateThirdPartyVehicle(vehicleId, vehicleData);
+      await loadData();
+    } catch (err) {
+      console.error('❌ Erro ao atualizar veículo terceiro:', err);
+      throw err;
+    }
+  };
 
-const handleDeleteThirdPartyVehicle = async (vehicleId) => {
-  try {
-    await storage.deleteThirdPartyVehicle(vehicleId);
-    await loadData();
-  } catch (err) {
-    console.error('❌ Erro ao deletar veículo terceiro:', err);
-    throw err;
-  }
-};
+  const handleDeleteThirdPartyVehicle = async (vehicleId) => {
+    try {
+      await checkDeletePermission();
+      await storage.deleteThirdPartyVehicle(vehicleId);
+      await loadData();
+    } catch (err) {
+      console.error('❌ Erro ao deletar veículo terceiro:', err);
+      throw err;
+    }
+  };
 
-/* ================================
-   CRUD - STAFF
-================================ */
-const handleAddStaff = async (staffData) => {
-  try {
-    await storage.addStaff(staffData);
-    await loadData();
-    setShowStaffForm(false);
-  } catch (err) {
-    console.error('❌ Erro ao adicionar funcionário:', err);
-    throw err;
-  }
-};
+  /* ================================
+     CRUD - STAFF
+  ================================ */
+  const handleAddStaff = async (staffData) => {
+    try {
+      await storage.addStaff(staffData);
+      await loadData();
+      setShowStaffForm(false);
+    } catch (err) {
+      console.error('❌ Erro ao adicionar funcionário:', err);
+      throw err;
+    }
+  };
 
-const handleUpdateStaff = async (staffId, staffData) => {
-  try {
-    await storage.updateStaff(staffId, staffData);
-    await loadData();
-  } catch (err) {
-    console.error('❌ Erro ao atualizar funcionário:', err);
-    throw err;
-  }
-};
+  const handleUpdateStaff = async (staffId, staffData) => {
+    try {
+      await storage.updateStaff(staffId, staffData);
+      await loadData();
+    } catch (err) {
+      console.error('❌ Erro ao atualizar funcionário:', err);
+      throw err;
+    }
+  };
 
-const handleDeleteStaff = async (staffId) => {
-  try {
-    await storage.deleteStaff(staffId);
-    await loadData();
-    if (selectedStaff?.id === staffId) setSelectedStaff(null);
-  } catch (err) {
-    console.error('❌ Erro ao deletar funcionário:', err);
-    throw err;
-  }
-};
+  const handleDeleteStaff = async (staffId) => {
+    try {
+      await checkDeletePermission();
+      await storage.deleteStaff(staffId);
+      await loadData();
+      if (selectedStaff?.id === staffId) setSelectedStaff(null);
+    } catch (err) {
+      console.error('❌ Erro ao deletar funcionário:', err);
+      throw err;
+    }
+  };
 
   /* ================================
      RENDERIZAÇÃO
   ================================ */
 
-  // Tela de loading
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center">
@@ -338,7 +361,6 @@ const handleDeleteStaff = async (staffId) => {
     );
   }
 
-  // Tela de erro
   if (error) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-red-50 to-orange-50 flex items-center justify-center p-6">
@@ -357,7 +379,6 @@ const handleDeleteStaff = async (staffId) => {
     );
   }
 
-  // Renderização condicional baseada na view
   const renderView = () => {
     switch (currentView) {
       case 'vehicleDetail':
@@ -366,12 +387,12 @@ const handleDeleteStaff = async (staffId) => {
             vehicle={selectedVehicle}
             owner={owners.find(o => o.id === selectedVehicle?.ownerId)}
             onBack={handleBackToVehicles}
-            onEdit={handleOpenEditModal}  // ✅ Abre o modal
+            onEdit={handleOpenEditModal}
             onDelete={handleDeleteVehicle}
           />
         );
 
-            case 'owners':
+      case 'owners':
         return (
           <OwnerList
             owners={owners}
@@ -384,389 +405,394 @@ const handleDeleteStaff = async (staffId) => {
           />
         );
 
-          case 'ownerDetail':
-      return (
-        <OwnerDetail
-          owner={selectedOwner}
-          vehicles={vehicles.filter(v => v.ownerId === selectedOwner?.id)}
-          onBack={handleBackToOwners}
-          onEdit={handleUpdateOwner}
-          onDelete={handleDeleteOwner}
-          onEditVehicle={handleOpenEditModal}  // ✅ CORRIGIDO
-          onDeleteVehicle={handleDeleteVehicle}
-        />
-      );
+      case 'ownerDetail':
+        return (
+          <OwnerDetail
+            owner={selectedOwner}
+            vehicles={vehicles.filter(v => v.ownerId === selectedOwner?.id)}
+            onBack={handleBackToOwners}
+            onEdit={handleUpdateOwner}
+            onDelete={handleDeleteOwner}
+            onEditVehicle={handleOpenEditModal}
+            onDeleteVehicle={handleDeleteVehicle}
+          />
+        );
 
       case 'thirdParty':
-    return (
-      <ThirdPartyVehicleList
-        vehicles={thirdPartyVehicles}
-        onAdd={handleAddThirdPartyVehicle}
-        onEdit={handleUpdateThirdPartyVehicle}
-        onDelete={handleDeleteThirdPartyVehicle}
-        onBackToVehicles={() => setCurrentView('vehicles')}
-      />
-    );
-
-    case 'staff':
-  if (showStaffForm) {
-    return (
-      <StaffForm
-        staff={selectedStaff}
-        teamType={staffTeamType}
-        onSubmit={async (data) => {
-          if (selectedStaff && !showStaffForm) {
-            await handleUpdateStaff(selectedStaff.id, data);
-          } else if (selectedStaff) {
-            await handleUpdateStaff(selectedStaff.id, data);
-          } else {
-            await handleAddStaff(data);
-          }
-          setShowStaffForm(false);
-          setSelectedStaff(null);
-        }}
-        onCancel={() => {
-          setShowStaffForm(false);
-          setSelectedStaff(null);
-        }}
-      />
-    );
-  }
-  if (selectedStaff && !showStaffForm) {
-    return (
-      <StaffDetail
-        staff={selectedStaff}
-        onBack={() => setSelectedStaff(null)}
-        onEdit={(s) => { setSelectedStaff(s); setShowStaffForm(true); }}
-        onDelete={async (id) => {
-          await handleDeleteStaff(id);
-          setSelectedStaff(null);
-        }}
-        onReload={loadData}
-      />
-    );
-  }
-  return (
-    <StaffList
-      staff={staff}
-      onAdd={(teamType) => {
-        setSelectedStaff(null);
-        setStaffTeamType(teamType);
-        setShowStaffForm(true);
-      }}
-      onViewDetail={(s) => setSelectedStaff(s)}
-      onEdit={(s) => { setSelectedStaff(s); setShowStaffForm(true); }}
-      onDelete={handleDeleteStaff}
-      onBackToVehicles={() => setCurrentView('vehicles')}
-    />
-  );
-
-   case 'loans': {
-      if (showLoanReports) {
         return (
-          <LoanReports
+          <ThirdPartyVehicleList
+            vehicles={thirdPartyVehicles}
+            onAdd={handleAddThirdPartyVehicle}
+            onEdit={handleUpdateThirdPartyVehicle}
+            onDelete={handleDeleteThirdPartyVehicle}
+            onBackToVehicles={() => setCurrentView('vehicles')}
+          />
+        );
+
+      case 'staff':
+        if (showStaffForm) {
+          return (
+            <StaffForm
+              staff={selectedStaff}
+              teamType={staffTeamType}
+              onSubmit={async (data) => {
+                if (selectedStaff && !showStaffForm) {
+                  await handleUpdateStaff(selectedStaff.id, data);
+                } else if (selectedStaff) {
+                  await handleUpdateStaff(selectedStaff.id, data);
+                } else {
+                  await handleAddStaff(data);
+                }
+                setShowStaffForm(false);
+                setSelectedStaff(null);
+              }}
+              onCancel={() => {
+                setShowStaffForm(false);
+                setSelectedStaff(null);
+              }}
+            />
+          );
+        }
+        if (selectedStaff && !showStaffForm) {
+          return (
+            <StaffDetail
+              staff={selectedStaff}
+              onBack={() => setSelectedStaff(null)}
+              onEdit={(s) => { setSelectedStaff(s); setShowStaffForm(true); }}
+              onDelete={async (id) => {
+                await handleDeleteStaff(id);
+                setSelectedStaff(null);
+              }}
+              onReload={loadData}
+            />
+          );
+        }
+        return (
+          <StaffList
+            staff={staff}
+            onAdd={(teamType) => {
+              setSelectedStaff(null);
+              setStaffTeamType(teamType);
+              setShowStaffForm(true);
+            }}
+            onViewDetail={(s) => setSelectedStaff(s)}
+            onEdit={(s) => { setSelectedStaff(s); setShowStaffForm(true); }}
+            onDelete={handleDeleteStaff}
+            onBackToVehicles={() => setCurrentView('vehicles')}
+          />
+        );
+
+      case 'loans': {
+        if (showLoanReports) {
+          return (
+            <LoanReports
+              loans={loans}
+              onBack={() => setShowLoanReports(false)}
+            />
+          );
+        }
+
+        if (showLoanInventory) {
+          return (
+            <LoanInventory
+              loanItems={loanItems}
+              onUpdateQuantity={async (itemId, total, available) => {
+                await storage.updateLoanItemQuantity(itemId, total, available);
+                await loadData();
+              }}
+              onBack={() => setShowLoanInventory(false)}
+            />
+          );
+        }
+
+        if (showLoanReturn && selectedLoan) {
+          return (
+            <LoanReturnForm
+              loan={selectedLoan}
+              onSubmit={handleReturnSubmit}
+              onCancel={() => {
+                setShowLoanReturn(false);
+                loadData().then(() => {
+                  const updatedLoan = loans.find(l => l.id === selectedLoan.id);
+                  if (updatedLoan) setSelectedLoan(updatedLoan);
+                });
+              }}
+            />
+          );
+        }
+
+        if (showLoanEdit && selectedLoan) {
+          return (
+            <LoanEditForm
+              loan={selectedLoan}
+              onSubmit={handleUpdateLoan}
+              onCancel={() => {
+                setShowLoanEdit(false);
+                loadData().then(() => {
+                  const updatedLoan = loans.find(l => l.id === selectedLoan.id);
+                  if (updatedLoan) setSelectedLoan(updatedLoan);
+                });
+              }}
+            />
+          );
+        }
+
+        if (selectedLoan) {
+          return (
+            <LoanDetail
+              loan={selectedLoan}
+              onBack={() => setSelectedLoan(null)}
+              onEdit={handleEditLoan}
+              onStartReturn={handleStartReturn}
+              onGeneratePDF={handleGeneratePDF}
+            />
+          );
+        }
+
+        if (showLoanForm) {
+          return (
+            <LoanForm
+              loanItems={loanItems}
+              onSubmit={handleAddLoan}
+              onCancel={() => setShowLoanForm(false)}
+            />
+          );
+        }
+
+        return (
+          <LoanList
             loans={loans}
-            onBack={() => setShowLoanReports(false)}
+            onAdd={() => setShowLoanForm(true)}
+            onViewDetail={handleViewLoanDetail}
+            onDelete={handleDeleteLoan}
+            onManageInventory={() => setShowLoanInventory(true)}
+            onBackToVehicles={() => setCurrentView('vehicles')}
+            onReports={() => setShowLoanReports(true)}
           />
         );
       }
 
-  if (showLoanInventory) {
-    return (
-      <LoanInventory
-        loanItems={loanItems}
-        onUpdateQuantity={async (itemId, total, available) => {
-          await storage.updateLoanItemQuantity(itemId, total, available);
-          await loadData();
-        }}
-        onBack={() => setShowLoanInventory(false)}
-      />
-    );
-  }
+      case 'events': {
+        if (showVacationList) {
+          return (
+            <VacationList
+              vacations={vacations}
+              onAdd={handleAddVacation}
+              onUpdate={handleUpdateVacation}
+              onDelete={handleDeleteVacation}
+              onBack={() => setShowVacationList(false)}
+            />
+          );
+        }
 
-  if (showLoanReturn && selectedLoan) {
-    return (
-      <LoanReturnForm
-        loan={selectedLoan}
-        onSubmit={handleReturnSubmit}
-        onCancel={() => {
-          setShowLoanReturn(false);
-          loadData().then(() => {
-            const updatedLoan = loans.find(l => l.id === selectedLoan.id);
-            if (updatedLoan) setSelectedLoan(updatedLoan);
-          });
-        }}
-      />
-    );
-  }
+        if (showEventReports) {
+          return (
+            <EventReports
+              events={events}
+              team={securityTeam}
+              hourBank={hourBank}
+              onBack={() => setShowEventReports(false)}
+            />
+          );
+        }
 
-  if (showLoanEdit && selectedLoan) {
-    return (
-      <LoanEditForm
-        loan={selectedLoan}
-        onSubmit={handleUpdateLoan}
-        onCancel={() => {
-          setShowLoanEdit(false);
-          loadData().then(() => {
-            const updatedLoan = loans.find(l => l.id === selectedLoan.id);
-            if (updatedLoan) setSelectedLoan(updatedLoan);
-          });
-        }}
-      />
-    );
-  }
+        if (showHourBank) {
+          return (
+            <HourBank
+              team={securityTeam}
+              events={events}
+              hourBank={hourBank}
+              onAdd={handleAddHourBank}
+              onUpdate={handleUpdateHourBank}
+              onDelete={handleDeleteHourBank}
+              onBack={() => setShowHourBank(false)}
+            />
+          );
+        }
 
-  if (selectedLoan) {
-    return (
-      <LoanDetail
-        loan={selectedLoan}
-        onBack={() => setSelectedLoan(null)}
-        onEdit={handleEditLoan}
-        onStartReturn={handleStartReturn}
-        onGeneratePDF={handleGeneratePDF}
-      />
-    );
-  }
+        if (showTeamManager) {
+          return (
+            <TeamManager
+              team={securityTeam}
+              onAdd={handleAddEmployee}
+              onUpdate={handleUpdateEmployee}
+              onDelete={handleDeleteEmployee}
+              onBack={() => setShowTeamManager(false)}
+            />
+          );
+        }
 
-  if (showLoanForm) {
-    return (
-      <LoanForm
-        loanItems={loanItems}
-        onSubmit={handleAddLoan}
-        onCancel={() => setShowLoanForm(false)}
-      />
-    );
-  }
+        if (showEventForm) {
+          return (
+            <EventForm
+              event={editingEvent}
+              onSubmit={editingEvent ? handleUpdateEvent : handleAddEvent}
+              onCancel={() => {
+                setShowEventForm(false);
+                setEditingEvent(null);
+              }}
+            />
+          );
+        }
 
-  return (
-    <LoanList
-      loans={loans}
-      onAdd={() => setShowLoanForm(true)}
-      onViewDetail={handleViewLoanDetail}
-      onDelete={handleDeleteLoan}
-      onManageInventory={() => setShowLoanInventory(true)}
-      onBackToVehicles={() => setCurrentView('vehicles')}
-      onReports={() => setShowLoanReports(true)}
-    />
-  );
-}
+        if (selectedEvent) {
+          return (
+            <EventDetail
+              event={selectedEvent}
+              onBack={() => setSelectedEvent(null)}
+              onEdit={(event) => {
+                setEditingEvent(event);
+                setShowEventForm(true);
+              }}
+              onAddExpense={handleAddExpense}
+              onUpdateExpense={handleUpdateExpense}
+              onDeleteExpense={handleDeleteExpense}
+            />
+          );
+        }
 
-case 'events': {
-  if (showVacationList) {
-    return (
-      <VacationList
-        vacations={vacations}
-        onAdd={handleAddVacation}
-        onUpdate={handleUpdateVacation}
-        onDelete={handleDeleteVacation}
-        onBack={() => setShowVacationList(false)}
-      />
-    );
-  }
+        return (
+          <EventList
+            events={events}
+            onAdd={() => setShowEventForm(true)}
+            onViewDetail={(event) => setSelectedEvent(event)}
+            onEdit={(event) => {
+              setEditingEvent(event);
+              setShowEventForm(true);
+            }}
+            onDelete={handleDeleteEvent}
+            onBack={() => setCurrentView('vehicles')}
+            onManageTeam={() => setShowTeamManager(true)}
+            onHourBank={() => setShowHourBank(true)}
+            onReports={() => setShowEventReports(true)}
+            onVacations={() => setShowVacationList(true)}
+          />
+        );
+      }
 
-  if (showEventReports) {
-    return (
-      <EventReports
-        events={events}
-        team={securityTeam}
-        hourBank={hourBank}
-        onBack={() => setShowEventReports(false)}
-      />
-    );
-  }
+      case 'reports':
+        return (
+          <Reports
+            vehicles={vehicles}
+            owners={owners}
+            thirdPartyVehicles={thirdPartyVehicles}
+            loans={loans}
+            events={events}
+            staff={staff}
+            onBack={() => setCurrentView('vehicles')}
+          />
+        );
 
-  if (showHourBank) {
-    return (
-      <HourBank
-        team={securityTeam}
-        events={events}
-        hourBank={hourBank}
-        onAdd={handleAddHourBank}
-        onUpdate={handleUpdateHourBank}
-        onDelete={handleDeleteHourBank}
-        onBack={() => setShowHourBank(false)}
-      />
-    );
-  }
+      case 'admin':
+        return (
+          <UserManagement
+            onBack={() => setCurrentView('vehicles')}
+          />
+        );
 
-  if (showTeamManager) {
-    return (
-      <TeamManager
-        team={securityTeam}
-        onAdd={handleAddEmployee}
-        onUpdate={handleUpdateEmployee}
-        onDelete={handleDeleteEmployee}
-        onBack={() => setShowTeamManager(false)}
-      />
-    );
-  }
-
-  if (showEventForm) {
-    return (
-      <EventForm
-        event={editingEvent}
-        onSubmit={editingEvent ? handleUpdateEvent : handleAddEvent}
-        onCancel={() => {
-          setShowEventForm(false);
-          setEditingEvent(null);
-        }}
-      />
-    );
-  }
-
-  if (selectedEvent) {
-    return (
-      <EventDetail
-        event={selectedEvent}
-        onBack={() => setSelectedEvent(null)}
-        onEdit={(event) => {
-          setEditingEvent(event);
-          setShowEventForm(true);
-        }}
-        onAddExpense={handleAddExpense}
-        onUpdateExpense={handleUpdateExpense}
-        onDeleteExpense={handleDeleteExpense}
-      />
-    );
-  }
-
-  return (
-    <EventList
-      events={events}
-      onAdd={() => setShowEventForm(true)}
-      onViewDetail={(event) => setSelectedEvent(event)}
-      onEdit={(event) => {
-        setEditingEvent(event);
-        setShowEventForm(true);
-      }}
-      onDelete={handleDeleteEvent}
-      onBack={() => setCurrentView('vehicles')}
-      onManageTeam={() => setShowTeamManager(true)}
-      onHourBank={() => setShowHourBank(true)}
-      onReports={() => setShowEventReports(true)}
-      onVacations={() => setShowVacationList(true)}
-    />
-  );
-}
-  case 'reports':
-  return (
-    <Reports
-      vehicles={vehicles}
-      owners={owners}
-      thirdPartyVehicles={thirdPartyVehicles}
-      loans={loans}
-      events={events}
-      staff={staff}
-      onBack={() => setCurrentView('vehicles')}
-    />
-  );
-
-  case 'vehicles':
-    default:
-      return (
-        <VehicleList
-          vehicles={vehicles}
-          owners={owners}
-          thirdPartyVehicles={thirdPartyVehicles}
-          loans={loans}
-          events={events}
-          staff={staff}
-          editingVehicleId={editingVehicleId}
-          onViewDetail={handleViewVehicleDetail}
-          onAdd={handleAddVehicle}
-          onEdit={handleUpdateVehicle}
-          onDelete={handleDeleteVehicle}
-          onNavigateToOwners={handleNavigateToOwners}
-          onNavigateToThirdParty={() => setCurrentView('thirdParty')}
-          onNavigateToLoans={() => setCurrentView('loans')}
-          onNavigateToReports={() => setCurrentView('reports')}
-          onNavigateToStaff={() => setCurrentView('staff')}
-          onNavigateToEvents={() => setCurrentView('events')}
-          onCancelEdit={() => setEditingVehicleId(null)}
-        />
-      );
+      case 'vehicles':
+      default:
+        return (
+          <VehicleList
+            vehicles={vehicles}
+            owners={owners}
+            thirdPartyVehicles={thirdPartyVehicles}
+            loans={loans}
+            events={events}
+            staff={staff}
+            userRole={userRole}
+            editingVehicleId={editingVehicleId}
+            onViewDetail={handleViewVehicleDetail}
+            onAdd={handleAddVehicle}
+            onEdit={handleUpdateVehicle}
+            onDelete={handleDeleteVehicle}
+            onNavigateToOwners={handleNavigateToOwners}
+            onNavigateToThirdParty={() => setCurrentView('thirdParty')}
+            onNavigateToLoans={() => setCurrentView('loans')}
+            onNavigateToReports={() => setCurrentView('reports')}
+            onNavigateToStaff={() => setCurrentView('staff')}
+            onNavigateToEvents={() => setCurrentView('events')}
+            onNavigateToAdmin={() => setCurrentView('admin')}
+            onCancelEdit={() => setEditingVehicleId(null)}
+          />
+        );
     }
   };
 
-/* ================================
-   CRUD - EMPRÉSTIMOS
-================================ */
+  /* ================================
+     CRUD - EMPRÉSTIMOS
+  ================================ */
 
-const handleAddLoan = async (loanData) => {
-  try {
-    await storage.addLoan(loanData);
-    await loadData();
-    setShowLoanForm(false);
-  } catch (err) {
-    console.error('❌ Erro ao adicionar empréstimo:', err);
-    throw err;
-  }
-};
+  const handleAddLoan = async (loanData) => {
+    try {
+      await storage.addLoan(loanData);
+      await loadData();
+      setShowLoanForm(false);
+    } catch (err) {
+      console.error('❌ Erro ao adicionar empréstimo:', err);
+      throw err;
+    }
+  };
 
-const handleDeleteLoan = async (loanId) => {
-  try {
-    await storage.deleteLoan(loanId);
-    await loadData();
-  } catch (err) {
-    console.error('❌ Erro ao deletar empréstimo:', err);
-    throw err;
-  }
-};
+  const handleDeleteLoan = async (loanId) => {
+    try {
+      await checkDeletePermission();
+      await storage.deleteLoan(loanId);
+      await loadData();
+    } catch (err) {
+      console.error('❌ Erro ao deletar empréstimo:', err);
+      throw err;
+    }
+  };
 
-const handleViewLoanDetail = (loan) => {
-  setSelectedLoan(loan);
-};
+  const handleViewLoanDetail = (loan) => {
+    setSelectedLoan(loan);
+  };
 
-const handleStartReturn = () => {
-  setShowLoanReturn(true);
-};
+  const handleStartReturn = () => {
+    setShowLoanReturn(true);
+  };
 
-const handleReturnSubmit = async (returnData) => {
-  try {
-    // 1. Atualizar cada item devolvido
-    for (const item of returnData.items) {
-      await storage.updateLoanItemReturn(item.id, {
-        quantityReturned: item.quantityReturned,
-        condition: item.condition,
-        damageFee: item.damageFee,
-        paymentMethod: item.paymentMethod,
-        paymentDate: item.paymentDate,
-        notes: item.notes
+  const handleReturnSubmit = async (returnData) => {
+    try {
+      for (const item of returnData.items) {
+        await storage.updateLoanItemReturn(item.id, {
+          quantityReturned: item.quantityReturned,
+          condition: item.condition,
+          damageFee: item.damageFee,
+          paymentMethod: item.paymentMethod,
+          paymentDate: item.paymentDate,
+          notes: item.notes
+        });
+      }
+
+      const allReturned = returnData.items.every(
+        item => item.quantityReturned === item.quantityBorrowed
+      );
+      const hasDamage = returnData.items.some(
+        item => item.condition === 'Danificado' || item.condition === 'Perdido'
+      );
+
+      let finalStatus = 'devolvido';
+      if (hasDamage) {
+        finalStatus = 'perdido_danificado';
+      } else if (!allReturned) {
+        finalStatus = 'emprestado';
+      }
+
+      await storage.updateLoanStatus(selectedLoan.id, finalStatus, {
+        actualReturnDate: returnData.actualReturnDate,
+        returnedBy: returnData.returnedBy
       });
+
+      await loadData();
+      setShowLoanReturn(false);
+      
+    } catch (err) {
+      console.error('❌ Erro ao registrar devolução:', err);
+      throw err;
     }
-
-    // 2. Determinar status final
-    const allReturned = returnData.items.every(
-      item => item.quantityReturned === item.quantityBorrowed
-    );
-    const hasDamage = returnData.items.some(
-      item => item.condition === 'Danificado' || item.condition === 'Perdido'
-    );
-
-    let finalStatus = 'devolvido';
-    if (hasDamage) {
-      finalStatus = 'perdido_danificado';
-    } else if (!allReturned) {
-      finalStatus = 'emprestado'; // Devolução parcial mantém emprestado
-    }
-
-    // 3. Atualizar status do empréstimo
-    await storage.updateLoanStatus(selectedLoan.id, finalStatus, {
-      actualReturnDate: returnData.actualReturnDate,
-      returnedBy: returnData.returnedBy
-    });
-
-    // 4. Recarregar dados
-    await loadData();
-    
-    // 5. Voltar para detalhes
-    setShowLoanReturn(false);
-    
-  } catch (err) {
-    console.error('❌ Erro ao registrar devolução:', err);
-    throw err;
-  }
-};
+  };
 
   const handleEditLoan = () => {
     setShowLoanEdit(true);
@@ -778,7 +804,6 @@ const handleReturnSubmit = async (returnData) => {
       await loadData();
       setShowLoanEdit(false);
       
-      // Atualizar o loan selecionado
       const updatedLoan = loans.find(l => l.id === loanId);
       if (updatedLoan) setSelectedLoan(updatedLoan);
     } catch (err) {
@@ -821,6 +846,7 @@ const handleReturnSubmit = async (returnData) => {
 
   const handleDeleteEvent = async (eventId) => {
     try {
+      await checkDeletePermission();
       await storage.deleteEvent(eventId);
       await loadData();
       if (selectedEvent?.id === eventId) setSelectedEvent(null);
@@ -858,6 +884,7 @@ const handleReturnSubmit = async (returnData) => {
 
   const handleDeleteExpense = async (expenseId) => {
     try {
+      await checkDeletePermission();
       await storage.deleteEventExpense(expenseId);
       const freshEvents = await storage.loadEvents();
       setEvents(freshEvents);
@@ -897,6 +924,7 @@ const handleReturnSubmit = async (returnData) => {
 
   const handleDeleteEmployee = async (employeeId) => {
     try {
+      await checkDeletePermission();
       await storage.deleteSecurityEmployee(employeeId);
       await loadData();
     } catch (err) {
@@ -905,39 +933,40 @@ const handleReturnSubmit = async (returnData) => {
     }
   };
 
-/* ================================
-   CRUD - FÉRIAS
-================================ */
+  /* ================================
+     CRUD - FÉRIAS
+  ================================ */
 
-const handleAddVacation = async (vacationData) => {
-  try {
-    await storage.addVacationExpense(vacationData);
-    await loadData();
-  } catch (err) {
-    console.error('❌ Erro ao adicionar férias:', err);
-    throw err;
-  }
-};
+  const handleAddVacation = async (vacationData) => {
+    try {
+      await storage.addVacationExpense(vacationData);
+      await loadData();
+    } catch (err) {
+      console.error('❌ Erro ao adicionar férias:', err);
+      throw err;
+    }
+  };
 
-const handleUpdateVacation = async (vacationId, vacationData) => {
-  try {
-    await storage.updateVacationExpense(vacationId, vacationData);
-    await loadData();
-  } catch (err) {
-    console.error('❌ Erro ao atualizar férias:', err);
-    throw err;
-  }
-};
+  const handleUpdateVacation = async (vacationId, vacationData) => {
+    try {
+      await storage.updateVacationExpense(vacationId, vacationData);
+      await loadData();
+    } catch (err) {
+      console.error('❌ Erro ao atualizar férias:', err);
+      throw err;
+    }
+  };
 
-const handleDeleteVacation = async (vacationId) => {
-  try {
-    await storage.deleteVacationExpense(vacationId);
-    await loadData();
-  } catch (err) {
-    console.error('❌ Erro ao deletar férias:', err);
-    throw err;
-  }
-};
+  const handleDeleteVacation = async (vacationId) => {
+    try {
+      await checkDeletePermission();
+      await storage.deleteVacationExpense(vacationId);
+      await loadData();
+    } catch (err) {
+      console.error('❌ Erro ao deletar férias:', err);
+      throw err;
+    }
+  };
 
   /* ================================
     CRUD - BANCO DE HORAS
@@ -965,6 +994,7 @@ const handleDeleteVacation = async (vacationId) => {
 
   const handleDeleteHourBank = async (hourId) => {
     try {
+      await checkDeletePermission();
       await storage.deleteHourBank(hourId);
       await loadData();
     } catch (err) {
@@ -989,15 +1019,15 @@ const handleDeleteVacation = async (vacationId) => {
   };
 
   return (
-  <ToastProvider>
-    {renderView()}
-    <VehicleEditModal
-      isOpen={editModalOpen}
-      vehicle={editingVehicle}
-      owners={owners}
-      onSave={handleSaveFromModal}
-      onClose={handleCloseEditModal}
-    />
-  </ToastProvider>
-);
+    <ToastProvider>
+      {renderView()}
+      <VehicleEditModal
+        isOpen={editModalOpen}
+        vehicle={editingVehicle}
+        owners={owners}
+        onSave={handleSaveFromModal}
+        onClose={handleCloseEditModal}
+      />
+    </ToastProvider>
+  );
 }

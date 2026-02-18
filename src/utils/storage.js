@@ -670,7 +670,6 @@ const deleteLoan = async (loanId) => {
 
 const getNextDocumentNumber = async (documentType) => {
   try {
-    // Busca o maior número
     const { data, error } = await supabase
       .from('document_control')
       .select('document_number')
@@ -685,7 +684,7 @@ const getNextDocumentNumber = async (documentType) => {
     return nextNumber;
   } catch (err) {
     console.error('Erro ao gerar número:', err);
-    return 1; // Fallback
+    return 1;
   }
 };
 
@@ -992,7 +991,6 @@ const updateSecurityEmployee = async (employeeId, employeeData) => {
 
 const deleteSecurityEmployee = async (employeeId) => {
   try {
-    // Soft delete
     const { error } = await supabase
       .from('security_team')
       .update({ 
@@ -1409,6 +1407,94 @@ const deleteVacationExpense = async (vacationId) => {
 };
 
 /* ================================
+   ROLES E PERMISSÕES
+================================ */
+
+// Cache do role pra não ficar consultando o banco toda hora
+let _cachedRole = null;
+let _cachedRoleTimestamp = 0;
+const ROLE_CACHE_TTL = 60000; // 1 minuto
+
+const getUserRole = async () => {
+  try {
+    // Retorna cache se ainda válido
+    const now = Date.now();
+    if (_cachedRole && (now - _cachedRoleTimestamp) < ROLE_CACHE_TTL) {
+      return _cachedRole;
+    }
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+
+    const { data, error } = await supabase
+      .from('user_roles')
+      .select('role, active')
+      .eq('user_id', user.id)
+      .single();
+    
+    if (error || !data?.active) {
+      _cachedRole = 'operador';
+      _cachedRoleTimestamp = now;
+      return 'operador'; // fallback seguro
+    }
+
+    _cachedRole = data.role;
+    _cachedRoleTimestamp = now;
+    return data.role;
+  } catch {
+    return 'operador';
+  }
+};
+
+const getUserEmail = async () => {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    return user?.email || '';
+  } catch {
+    return '';
+  }
+};
+
+const isAdmin = async () => {
+  const role = await getUserRole();
+  return role === 'admin';
+};
+
+// Limpa cache quando faz logout ou troca de usuário
+const clearRoleCache = () => {
+  _cachedRole = null;
+  _cachedRoleTimestamp = 0;
+};
+
+// Gerenciamento de usuários (só admin pode usar via RLS)
+const loadUsers = async () => {
+  const { data, error } = await supabase
+    .from('user_roles')
+    .select('*')
+    .order('email');
+  if (error) throw error;
+  return data || [];
+};
+
+const updateUserRole = async (userId, role) => {
+  const { error } = await supabase
+    .from('user_roles')
+    .update({ role, updated_at: new Date().toISOString() })
+    .eq('user_id', userId);
+  if (error) throw error;
+  return true;
+};
+
+const toggleUserActive = async (userId, active) => {
+  const { error } = await supabase
+    .from('user_roles')
+    .update({ active, updated_at: new Date().toISOString() })
+    .eq('user_id', userId);
+  if (error) throw error;
+  return true;
+};
+
+/* ================================
    EXPORT
 ================================ */
 
@@ -1472,4 +1558,12 @@ export const storage = {
   addStaffAbsence,
   updateStaffAbsence,
   deleteStaffAbsence,
+  // Roles e permissões
+  getUserRole,
+  getUserEmail,
+  isAdmin,
+  clearRoleCache,
+  loadUsers,
+  updateUserRole,
+  toggleUserActive,
 };
