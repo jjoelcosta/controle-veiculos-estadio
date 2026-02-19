@@ -3,7 +3,7 @@ import { ArrowLeft, Plus, Edit, Trash2, Calendar, Users, Package, Save, X, Clock
 import { useToast } from '../ui/Toast';
 import LoadingButton from '../ui/LoadingButton';
 
-const EXPENSE_TYPES_PESSOAL = ['Carregador', 'Segurança', 'Ascensorista', 'Segurança Motorizado'];
+const EXPENSE_TYPES_PESSOAL = ['Carregador', 'Coordenador', 'Segurança', 'Ascensorista', 'Segurança Motorizado'];
 const EXPENSE_TYPES_ALUGUEL = ['Fechamento Cego', 'Gradis'];
 
 const STATUS_COLORS = {
