@@ -66,6 +66,9 @@ export default function EventDetail({
     setExpenseData({ ...emptyExpense, expenseDate: event.startDate || '' });
     setEditingExpense(null);
     setShowExpenseForm(true);
+    setTimeout(() => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, 100);
   };
 
   const handleOpenEdit = (expense) => {
@@ -80,6 +83,9 @@ export default function EventDetail({
     });
     setEditingExpense(expense);
     setShowExpenseForm(true);
+    setTimeout(() => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, 100);
   };
 
   const handleSaveExpense = async () => {
