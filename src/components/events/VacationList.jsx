@@ -15,7 +15,7 @@ const SCHEDULES = [
 ];
 
 const emptyForm = {
-  position: 'Segurança',
+  position: 'Agente de Portaria',
   postLocation: '',
   startDate: new Date().toISOString().split('T')[0],
   endDate: new Date().toISOString().split('T')[0],
@@ -46,8 +46,8 @@ export default function VacationList({ vacations, onAdd, onUpdate, onDelete, onB
   // Calcular total de dias automaticamente
  const calcDays = (start, end) => {
   if (!start || !end) return 0;
-  const s = new Date(start);
-  const e = new Date(end);
+  const s = new Date(start + 'T00:00:00');
+  const e = new Date(end   + 'T00:00:00');
   const diff = Math.round((e - s) / (1000 * 60 * 60 * 24)) + 1;
   return diff > 0 ? diff : 0;
 };

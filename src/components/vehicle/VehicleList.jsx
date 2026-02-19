@@ -15,7 +15,7 @@ export default function VehicleList({
   loans,
   events,
   staff,
-  userRole,
+  userRole = 'operador',
   editingVehicleId,
   onViewDetail, 
   onAdd, 

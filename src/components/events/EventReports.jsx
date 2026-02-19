@@ -1,308 +1,333 @@
-import React, { useState } from 'react';
-import { ArrowLeft, FileText, Download, TrendingUp, Calendar, Users, Package, BarChart2 } from 'lucide-react';
+import React, { useState, useMemo, useCallback } from 'react';
+import {
+  ArrowLeft, FileText, Download, TrendingUp,
+  Calendar, Users, Package, BarChart2
+} from 'lucide-react';
 import { useToast } from '../ui/Toast';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 
+// ─────────────────────────────────────────────
+// Helpers puros (fora do componente = não recriam a cada render)
+// ─────────────────────────────────────────────
+const MONTH_NAMES = [
+  'Janeiro','Fevereiro','Março','Abril','Maio','Junho',
+  'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'
+];
+
+function parseDate(str) {
+  return new Date(str + 'T00:00:00');
+}
+
+function formatCurrency(value) {
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
+    .format(value || 0);
+}
+
+function formatHours(decimal) {
+  const rounded = Math.round(decimal * 100) / 100;
+  const hours   = Math.floor(rounded);
+  const minutes = Math.round((rounded - hours) * 60);
+  return minutes === 0 ? `${hours}h` : `${hours}h${String(minutes).padStart(2, '0')}`;
+}
+
+function formatDate(date) {
+  if (!date) return '-';
+  return parseDate(date).toLocaleDateString('pt-BR');
+}
+
+function formatMonth(monthStr) {
+  if (!monthStr) return '';
+  const [year, month] = monthStr.split('-');
+  return `${MONTH_NAMES[parseInt(month) - 1]}/${year}`;
+}
+
+function getExpenseMonth(expense, eventStartDate) {
+  const date = expense.expenseDate || eventStartDate;
+  return date ? date.substring(0, 7) : null;
+}
+
+// ─────────────────────────────────────────────
+// Componente
+// ─────────────────────────────────────────────
 export default function EventReports({ events, team, hourBank, onBack }) {
   const { success, error: showError } = useToast();
-  const [filters, setFilters] = useState({
-    startDate: `${new Date().getFullYear()}-01-01`,
-    endDate: `${new Date().getFullYear()}-12-31`,
-    year: new Date().getFullYear()
+
+  const [filters, setFilters] = useState(() => {
+    const year = new Date().getFullYear();
+    return { startDate: `${year}-01-01`, endDate: `${year}-12-31`, year };
   });
-  const [activeTab, setActiveTab] = useState('resumo');
 
-  const formatCurrency = (value) =>
-    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0);
+  const [activeTab,    setActiveTab]    = useState('resumo');
+  const [isGenerating, setIsGenerating] = useState(null); // 'pdf' | 'excel' | null
 
-  const fromDecimal = (decimal) => {
-  const hours = Math.floor(decimal);
-  const minutes = Math.round((decimal - hours) * 60);
-  return { hours, minutes };
-  };
+  // ─── Validação de filtro ──────────────────────
+  const filtersAreValid = useMemo(
+    () => filters.startDate <= filters.endDate,
+    [filters.startDate, filters.endDate]
+  );
 
-  const formatHours = (decimal) => {
-    // Arredonda para evitar erro de ponto flutuante (118.4999999...)
-    const rounded = Math.round(decimal * 100) / 100;
-    const hours = Math.floor(rounded);
-    const minutes = Math.round((rounded - hours) * 60);
-    if (minutes === 0) return `${hours}h`;
-    return `${hours}h${String(minutes).padStart(2, '0')}`;
-  };
-
-  const formatDate = (date) => {
-    if (!date) return '-';
-    return new Date(date + 'T12:00:00').toLocaleDateString('pt-BR');
-  };
-
-  const formatMonth = (monthStr) => {
-    if (!monthStr) return '';
-    const [year, month] = monthStr.split('-');
-    const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-                    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
-    return `${months[parseInt(month) - 1]}/${year}`;
-  };
-
-  // ============================================
-  // FILTRAR EVENTOS
-  // ============================================
-  const getFilteredEvents = () => {
-    const start = new Date(filters.startDate);
-    const end = new Date(filters.endDate);
+  // ─────────────────────────────────────────────
+  // 1. EVENTOS FILTRADOS
+  // ─────────────────────────────────────────────
+  const filteredEvents = useMemo(() => {
+    const start = parseDate(filters.startDate);
+    const end   = parseDate(filters.endDate);
     end.setHours(23, 59, 59);
     return events.filter(e => {
-      const d = new Date(e.startDate);
+      if (!e.startDate) return false;
+      const d = parseDate(e.startDate);
       return d >= start && d <= end;
     });
-  };
+  }, [events, filters.startDate, filters.endDate]);
 
-  // ============================================
-  // ESTATÍSTICAS GERAIS
-  // ============================================
-  const getStats = () => {
-    const filtered = getFilteredEvents();
-    const totalExpenses = filtered.reduce((sum, e) => sum + (e.totalExpenses || 0), 0);
-    const totalPessoal = filtered.reduce((sum, e) =>
-      sum + (e.expenses?.filter(ex => ex.expenseCategory === 'pessoal')
-        .reduce((s, ex) => s + (ex.totalValue || 0), 0) || 0), 0);
-    const totalAluguel = filtered.reduce((sum, e) =>
-      sum + (e.expenses?.filter(ex => ex.expenseCategory === 'aluguel')
-        .reduce((s, ex) => s + (ex.totalValue || 0), 0) || 0), 0);
-    const realizados = filtered.filter(e => e.status === 'realizado').length;
-    const empresas = [...new Set(filtered.map(e => e.category))];
-
-    return {
-      totalEvents: filtered.length,
-      realizados,
-      totalExpenses,
-      totalPessoal,
-      totalAluguel,
-      categorias: empresas.length
-    };
-  };
-
-  // ============================================
-  // GASTOS POR MÊS
-  // ============================================
-  const getMonthlyExpenses = () => {
-    const filtered = getFilteredEvents();
-    const monthly = {};
-    filtered.forEach(event => {
-      const month = event.startDate?.substring(0, 7);
-      if (!month) return;
-      if (!monthly[month]) {
-        monthly[month] = { month, events: 0, totalExpenses: 0, totalPessoal: 0, totalAluguel: 0 };
-      }
-      monthly[month].events++;
-      monthly[month].totalExpenses += event.totalExpenses || 0;
-      monthly[month].totalPessoal += event.expenses?.filter(ex => ex.expenseCategory === 'pessoal')
-        .reduce((s, ex) => s + (ex.totalValue || 0), 0) || 0;
-      monthly[month].totalAluguel += event.expenses?.filter(ex => ex.expenseCategory === 'aluguel')
-        .reduce((s, ex) => s + (ex.totalValue || 0), 0) || 0;
+  // ─────────────────────────────────────────────
+  // 2. VIEW-MODEL: totais pré-calculados por evento
+  // ─────────────────────────────────────────────
+  const eventTotals = useMemo(() => {
+    const map = {};
+    filteredEvents.forEach(e => {
+      let pessoal = 0, aluguel = 0;
+      (e.expenses || []).forEach(ex => {
+        const v = ex.totalValue || 0;
+        if      (ex.expenseCategory === 'pessoal') pessoal += v;
+        else if (ex.expenseCategory === 'aluguel') aluguel += v;
+      });
+      map[e.id] = { pessoal, aluguel };
     });
-    return Object.values(monthly).sort((a, b) => a.month.localeCompare(b.month));
-  };
+    return map;
+  }, [filteredEvents]);
 
-  // ============================================
-  // GASTOS POR TIPO DE PESSOAL
-  // ============================================
-  const getExpensesByType = () => {
-    const filtered = getFilteredEvents();
-    const byType = {};
-    filtered.forEach(event => {
-      event.expenses?.forEach(ex => {
-        if (!byType[ex.expenseType]) {
-          byType[ex.expenseType] = {
-            type: ex.expenseType,
-            category: ex.expenseCategory,
-            totalValue: 0,
-            count: 0,
-            totalShifts: 0,
-            totalPeople: 0
-          };
+  // ─────────────────────────────────────────────
+  // 3. ESTATÍSTICAS GERAIS
+  // ─────────────────────────────────────────────
+  const stats = useMemo(() => {
+    const totalPessoal  = filteredEvents.reduce((s, e) => s + (eventTotals[e.id]?.pessoal || 0), 0);
+    const totalAluguel  = filteredEvents.reduce((s, e) => s + (eventTotals[e.id]?.aluguel || 0), 0);
+    const totalExpenses = filteredEvents.reduce((s, e) => s + (e.totalExpenses || 0), 0);
+    const realizados    = filteredEvents.filter(e => e.status === 'realizado').length;
+    return { totalEvents: filteredEvents.length, realizados, totalExpenses, totalPessoal, totalAluguel };
+  }, [filteredEvents, eventTotals]);
+
+  // ─────────────────────────────────────────────
+  // 4. GASTOS POR MÊS
+  // ─────────────────────────────────────────────
+  const monthlyExpenses = useMemo(() => {
+    const monthly = {};
+
+    filteredEvents.forEach(event => {
+      const expenses = event.expenses || [];
+
+      if (expenses.length === 0) {
+        const month = event.startDate?.substring(0, 7);
+        if (!month) return;
+        if (!monthly[month]) {
+          monthly[month] = { month, events: new Set(), totalExpenses: 0, totalPessoal: 0, totalAluguel: 0 };
         }
-        byType[ex.expenseType].totalValue += ex.totalValue || 0;
-        byType[ex.expenseType].count++;
-        byType[ex.expenseType].totalShifts += ex.shifts || 0;
-        byType[ex.expenseType].totalPeople += ex.quantity || 0;
+        monthly[month].events.add(event.id);
+        return;
+      }
+
+      expenses.forEach(ex => {
+        const month = getExpenseMonth(ex, event.startDate);
+        if (!month) return;
+
+        if (!monthly[month]) {
+          monthly[month] = { month, events: new Set(), totalExpenses: 0, totalPessoal: 0, totalAluguel: 0 };
+        }
+        monthly[month].events.add(event.id);
+        monthly[month].totalExpenses += ex.totalValue || 0;
+
+        if      (ex.expenseCategory === 'pessoal') monthly[month].totalPessoal += ex.totalValue || 0;
+        else if (ex.expenseCategory === 'aluguel') monthly[month].totalAluguel += ex.totalValue || 0;
+      });
+    });
+
+    return Object.values(monthly)
+      .map(m => ({ ...m, eventCount: m.events.size }))
+      .sort((a, b) => a.month.localeCompare(b.month));
+  }, [filteredEvents]);
+
+  // ─────────────────────────────────────────────
+  // 5. GASTOS POR TIPO
+  // ─────────────────────────────────────────────
+  const expensesByType = useMemo(() => {
+    const byType = {};
+    filteredEvents.forEach(event => {
+      (event.expenses || []).forEach(ex => {
+        const key = ex.expenseType?.trim() || '(sem tipo)';
+        if (!byType[key]) {
+          byType[key] = { type: key, category: ex.expenseCategory, totalValue: 0, count: 0, totalShifts: 0, totalPeople: 0 };
+        }
+        byType[key].totalValue += ex.totalValue || 0;
+        byType[key].count++;
+        if (ex.expenseCategory === 'pessoal') {
+          byType[key].totalShifts += ex.shifts   || 0;
+          byType[key].totalPeople += ex.quantity || 0;
+        }
       });
     });
     return Object.values(byType).sort((a, b) => b.totalValue - a.totalValue);
-  };
+  }, [filteredEvents]);
 
-  // ============================================
-  // BANCO DE HORAS MENSAL
-  // ============================================
-  const getHourBankMonthly = () => {
-    const start = new Date(filters.startDate);
-    const end = new Date(filters.endDate);
+  // ─────────────────────────────────────────────
+  // 6. GASTOS POR TIPO POR MÊS
+  // ─────────────────────────────────────────────
+  const expensesByTypeByMonth = useMemo(() => {
+    const data = {};
+    filteredEvents.forEach(event => {
+      (event.expenses || []).forEach(ex => {
+        const month = getExpenseMonth(ex, event.startDate);
+        if (!month) return;
+
+        const key = ex.expenseType?.trim() || '(sem tipo)';
+        if (!data[key]) data[key] = {};
+        if (!data[key][month]) {
+          data[key][month] = { totalValue: 0, shifts: 0, people: 0, count: 0, category: ex.expenseCategory };
+        }
+        data[key][month].totalValue += ex.totalValue || 0;
+        data[key][month].count++;
+        if (ex.expenseCategory === 'pessoal') {
+          data[key][month].shifts  += ex.shifts   || 0;
+          data[key][month].people  += ex.quantity || 0;
+        }
+      });
+    });
+    return data;
+  }, [filteredEvents]);
+
+  // ─────────────────────────────────────────────
+  // 7. BANCO DE HORAS MENSAL
+  // ─────────────────────────────────────────────
+  const hourBankMonthly = useMemo(() => {
+    const start = parseDate(filters.startDate);
+    const end   = parseDate(filters.endDate);
+    end.setHours(23, 59, 59);
+
     const filtered = hourBank.filter(h => {
-      const d = new Date(h.eventDate);
+      if (!h.eventDate) return false;
+      const d = parseDate(h.eventDate);
       return d >= start && d <= end;
     });
 
     const byEmployee = {};
     team.forEach(emp => {
-      byEmployee[emp.id] = {
-        name: emp.name,
-        position: emp.position,
-        totalHours: 0,
-        months: {}
-      };
+      byEmployee[emp.id] = { name: emp.name, position: emp.position, totalHours: 0, months: {} };
     });
 
     filtered.forEach(h => {
       if (!byEmployee[h.employeeId]) return;
       const month = h.eventDate?.substring(0, 7);
-      byEmployee[h.employeeId].totalHours += parseFloat(h.hoursWorked) || 0;
-      if (!byEmployee[h.employeeId].months[month]) {
-        byEmployee[h.employeeId].months[month] = 0;
-      }
-      byEmployee[h.employeeId].months[month] += parseFloat(h.hoursWorked) || 0;
+      if (!month) return;
+
+      const hrs = parseFloat(h.hoursWorked) || 0;
+      byEmployee[h.employeeId].totalHours += hrs;
+      byEmployee[h.employeeId].months[month] = (byEmployee[h.employeeId].months[month] || 0) + hrs;
     });
 
-    return Object.values(byEmployee).filter(e => e.totalHours > 0)
+    return Object.values(byEmployee)
+      .filter(e => e.totalHours > 0)
       .sort((a, b) => b.totalHours - a.totalHours);
-  };
+  }, [hourBank, team, filters.startDate, filters.endDate]);
 
-  const stats = getStats();
-  const monthlyExpenses = getMonthlyExpenses();
-  const expensesByType = getExpensesByType();
-  const hourBankMonthly = getHourBankMonthly();
-
-  // ============================================
-  // GERAR PDF
-  // ============================================
-  const generatePDF = () => {
+  // ─────────────────────────────────────────────
+  // 8. GERAR PDF
+  // ─────────────────────────────────────────────
+  const generatePDF = useCallback(async () => {
+    if (!filtersAreValid) { showError('❌ Data inicial maior que a final'); return; }
+    setIsGenerating('pdf');
     try {
-      const doc = new jsPDF();
+      const doc       = new jsPDF();
       const pageWidth = doc.internal.pageSize.width;
-      const margin = 20;
-      let yPos = 20;
+      const margin    = 20;
+      let yPos        = 20;
 
       const addHeader = (title, color = [0, 153, 76]) => {
-        doc.setFontSize(20);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(...color);
-        doc.text('ARENA BRB', pageWidth / 2, yPos, { align: 'center' });
-        yPos += 8;
-        doc.setFontSize(14);
-        doc.setTextColor(80, 80, 80);
-        doc.text(title, pageWidth / 2, yPos, { align: 'center' });
-        yPos += 6;
+        doc.setFontSize(20); doc.setFont('helvetica', 'bold'); doc.setTextColor(...color);
+        doc.text('ARENA BRB 360', pageWidth / 2, yPos, { align: 'center' }); yPos += 8;
+        doc.setFontSize(14); doc.setTextColor(80, 80, 80);
+        doc.text(title, pageWidth / 2, yPos, { align: 'center' }); yPos += 6;
         doc.setFontSize(10);
         doc.text(
           `Período: ${formatDate(filters.startDate)} a ${formatDate(filters.endDate)}`,
           pageWidth / 2, yPos, { align: 'center' }
         );
         yPos += 10;
-        doc.setDrawColor(...color);
-        doc.setLineWidth(1);
-        doc.line(margin, yPos, pageWidth - margin, yPos);
-        yPos += 12;
+        doc.setDrawColor(...color); doc.setLineWidth(1);
+        doc.line(margin, yPos, pageWidth - margin, yPos); yPos += 12;
       };
 
-      // PÁGINA 1: RESUMO EXECUTIVO
+      // Página 1 – Resumo
       addHeader('RELATÓRIO DE GASTOS COM PESSOAL');
-
       autoTable(doc, {
         startY: yPos,
         head: [['Indicador', 'Valor']],
         body: [
-          ['Total de Eventos', stats.totalEvents.toString()],
-          ['Eventos Realizados', stats.realizados.toString()],
-          ['Total Gasto com Pessoal', formatCurrency(stats.totalPessoal)],
+          ['Total de Eventos',        stats.totalEvents.toString()],
+          ['Eventos Realizados',       stats.realizados.toString()],
+          ['Total Gasto com Pessoal',  formatCurrency(stats.totalPessoal)],
           ['Total Gasto com Aluguéis', formatCurrency(stats.totalAluguel)],
-          ['TOTAL GERAL', formatCurrency(stats.totalExpenses)],
+          ['TOTAL GERAL',              formatCurrency(stats.totalExpenses)],
         ],
-        theme: 'grid',
-        headStyles: { fillColor: [0, 153, 76] },
-        bodyStyles: { fontSize: 10 },
-        margin: { left: margin, right: margin }
+        theme: 'grid', headStyles: { fillColor: [0, 153, 76] },
+        bodyStyles: { fontSize: 10 }, margin: { left: margin, right: margin },
       });
 
-      // PÁGINA 2: GASTOS MENSAIS
-      doc.addPage();
-      yPos = 20;
-      addHeader('GASTOS MENSAIS');
-
+      // Página 2 – Gastos mensais
+      doc.addPage(); yPos = 20; addHeader('GASTOS MENSAIS');
       autoTable(doc, {
         startY: yPos,
         head: [['Mês', 'Eventos', 'Pessoal', 'Aluguel', 'Total']],
         body: monthlyExpenses.map(m => [
-          formatMonth(m.month),
-          m.events.toString(),
-          formatCurrency(m.totalPessoal),
-          formatCurrency(m.totalAluguel),
-          formatCurrency(m.totalExpenses)
+          formatMonth(m.month), m.eventCount.toString(),
+          formatCurrency(m.totalPessoal), formatCurrency(m.totalAluguel), formatCurrency(m.totalExpenses),
         ]),
-        theme: 'striped',
-        headStyles: { fillColor: [0, 153, 76] },
-        styles: { fontSize: 9 },
-        margin: { left: margin, right: margin }
+        theme: 'striped', headStyles: { fillColor: [0, 153, 76] },
+        styles: { fontSize: 9 }, margin: { left: margin, right: margin },
       });
 
-      // PÁGINA 3: GASTOS POR TIPO
-      doc.addPage();
-      yPos = 20;
-      addHeader('GASTOS POR TIPO DE PESSOAL/ALUGUEL');
-
+      // Página 3 – Por tipo
+      doc.addPage(); yPos = 20; addHeader('GASTOS POR TIPO');
       autoTable(doc, {
         startY: yPos,
-        head: [['Tipo', 'Categoria', 'Ocorrências', 'Total']],
+        head: [['Tipo', 'Categoria', 'Registros', 'Plantões', 'Pessoas', 'Total']],
         body: expensesByType.map(t => [
           t.type,
           t.category === 'pessoal' ? 'Pessoal' : 'Aluguel',
           t.count.toString(),
-          formatCurrency(t.totalValue)
+          t.category === 'pessoal' ? t.totalShifts.toString() : '-',
+          t.category === 'pessoal' ? t.totalPeople.toString() : '-',
+          formatCurrency(t.totalValue),
         ]),
-        theme: 'striped',
-        headStyles: { fillColor: [0, 153, 76] },
-        styles: { fontSize: 9 },
-        margin: { left: margin, right: margin }
+        theme: 'striped', headStyles: { fillColor: [0, 153, 76] },
+        styles: { fontSize: 9 }, margin: { left: margin, right: margin },
       });
 
-      // PÁGINA 4: DETALHAMENTO POR EVENTO
-      doc.addPage();
-      yPos = 20;
-      addHeader('DETALHAMENTO POR EVENTO');
-
+      // Página 4 – Por evento
+      doc.addPage(); yPos = 20; addHeader('DETALHAMENTO POR EVENTO');
       autoTable(doc, {
         startY: yPos,
-        head: [['Evento', 'Categoria', 'Data', 'Status', 'Total']],
-        body: getFilteredEvents().map(e => [
-          e.name,
-          e.category,
-          formatDate(e.startDate),
-          e.status,
-          formatCurrency(e.totalExpenses)
+        head: [['Evento', 'Categoria', 'Data', 'Status', 'Pessoal', 'Aluguel', 'Total']],
+        body: filteredEvents.map(e => [
+          e.name, e.category, formatDate(e.startDate), e.status,
+          formatCurrency(eventTotals[e.id]?.pessoal || 0),
+          formatCurrency(eventTotals[e.id]?.aluguel || 0),
+          formatCurrency(e.totalExpenses),
         ]),
-        theme: 'striped',
-        headStyles: { fillColor: [0, 153, 76] },
-        styles: { fontSize: 8 },
-        margin: { left: margin, right: margin }
+        theme: 'striped', headStyles: { fillColor: [0, 153, 76] },
+        styles: { fontSize: 8 }, margin: { left: margin, right: margin },
       });
 
-      // PÁGINA 5: BANCO DE HORAS
+      // Página 5 – Banco de horas
       if (hourBankMonthly.length > 0) {
-        doc.addPage();
-        yPos = 20;
-        addHeader('BANCO DE HORAS - EQUIPE', [37, 99, 235]);
-
+        doc.addPage(); yPos = 20; addHeader('BANCO DE HORAS - EQUIPE', [37, 99, 235]);
         autoTable(doc, {
           startY: yPos,
           head: [['Funcionário', 'Cargo', 'Total de Horas']],
-          body: hourBankMonthly.map(e => [
-            e.name,
-            e.position,
-            formatHours(e.totalHours)
-          ]),
-          theme: 'striped',
-          headStyles: { fillColor: [37, 99, 235] },
-          styles: { fontSize: 9 },
-          margin: { left: margin, right: margin }
+          body: hourBankMonthly.map(e => [e.name, e.position, formatHours(e.totalHours)]),
+          theme: 'striped', headStyles: { fillColor: [37, 99, 235] },
+          styles: { fontSize: 9 }, margin: { left: margin, right: margin },
         });
       }
 
@@ -310,13 +335,10 @@ export default function EventReports({ events, team, hourBank, onBack }) {
       const totalPages = doc.internal.pages.length - 1;
       for (let i = 1; i <= totalPages; i++) {
         doc.setPage(i);
-        doc.setFontSize(8);
-        doc.setTextColor(150, 150, 150);
+        doc.setFontSize(8); doc.setTextColor(150, 150, 150);
         doc.text(
           `Página ${i} de ${totalPages} | Gerado em ${new Date().toLocaleString('pt-BR')}`,
-          pageWidth / 2,
-          doc.internal.pageSize.height - 10,
-          { align: 'center' }
+          pageWidth / 2, doc.internal.pageSize.height - 10, { align: 'center' }
         );
       }
 
@@ -325,115 +347,107 @@ export default function EventReports({ events, team, hourBank, onBack }) {
     } catch (err) {
       console.error(err);
       showError('❌ Erro ao gerar PDF');
+    } finally {
+      setIsGenerating(null);
     }
-  };
+  }, [filteredEvents, eventTotals, stats, monthlyExpenses, expensesByType, hourBankMonthly, filters, filtersAreValid, success, showError]);
 
-  // ============================================
-  // GERAR EXCEL
-  // ============================================
-  const generateExcel = () => {
+  // ─────────────────────────────────────────────
+  // 9. GERAR EXCEL
+  // ─────────────────────────────────────────────
+  const generateExcel = useCallback(async () => {
+    if (!filtersAreValid) { showError('❌ Data inicial maior que a final'); return; }
+    setIsGenerating('excel');
     try {
       const wb = XLSX.utils.book_new();
 
-      // ABA 1: RESUMO
-      const wsResumo = XLSX.utils.aoa_to_sheet([
-        ['RELATÓRIO DE GASTOS - ARENA BRB'],
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+        ['RELATÓRIO DE GASTOS - ARENA BRB 360'],
         [`Período: ${formatDate(filters.startDate)} a ${formatDate(filters.endDate)}`],
         [],
         ['RESUMO EXECUTIVO'],
-        ['Indicador', 'Valor'],
-        ['Total de Eventos', stats.totalEvents],
+        ['Indicador',          'Valor'],
+        ['Total de Eventos',   stats.totalEvents],
         ['Eventos Realizados', stats.realizados],
-        ['Total Pessoal', stats.totalPessoal],
-        ['Total Aluguel', stats.totalAluguel],
-        ['TOTAL GERAL', stats.totalExpenses]
-      ]);
-      XLSX.utils.book_append_sheet(wb, wsResumo, 'Resumo');
+        ['Total Pessoal',      stats.totalPessoal],
+        ['Total Aluguel',      stats.totalAluguel],
+        ['TOTAL GERAL',        stats.totalExpenses],
+      ]), 'Resumo');
 
-      // ABA 2: GASTOS MENSAIS
-      const wsMonthly = XLSX.utils.aoa_to_sheet([
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
         ['Mês', 'Eventos', 'Pessoal (R$)', 'Aluguel (R$)', 'Total (R$)'],
-        ...monthlyExpenses.map(m => [
-          formatMonth(m.month),
-          m.events,
-          m.totalPessoal,
-          m.totalAluguel,
-          m.totalExpenses
-        ])
-      ]);
-      XLSX.utils.book_append_sheet(wb, wsMonthly, 'Gastos Mensais');
+        ...monthlyExpenses.map(m => [formatMonth(m.month), m.eventCount, m.totalPessoal, m.totalAluguel, m.totalExpenses]),
+      ]), 'Gastos Mensais');
 
-      // ABA 3: POR TIPO
-      const wsByType = XLSX.utils.aoa_to_sheet([
-        ['Tipo', 'Categoria', 'Ocorrências', 'Total Plantões', 'Total Pessoas', 'Total (R$)'],
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+        ['Tipo', 'Categoria', 'Registros', 'Total Plantões', 'Total Pessoas', 'Total (R$)'],
         ...expensesByType.map(t => [
           t.type,
           t.category === 'pessoal' ? 'Pessoal' : 'Aluguel',
           t.count,
-          t.totalShifts,
-          t.totalPeople,
-          t.totalValue
-        ])
-      ]);
-      XLSX.utils.book_append_sheet(wb, wsByType, 'Por Tipo');
+          t.category === 'pessoal' ? t.totalShifts : '-',
+          t.category === 'pessoal' ? t.totalPeople : '-',
+          t.totalValue,
+        ]),
+      ]), 'Por Tipo');
 
-      // ABA 4: EVENTOS
-      const wsEvents = XLSX.utils.aoa_to_sheet([
+      const typeMonthRows = [['Tipo', 'Mês', 'Registros', 'Plantões', 'Pessoas', 'Total (R$)']];
+      Object.entries(expensesByTypeByMonth).forEach(([type, months]) => {
+        Object.entries(months).sort(([a], [b]) => a.localeCompare(b)).forEach(([month, data]) => {
+          typeMonthRows.push([
+            type, formatMonth(month), data.count,
+            data.category === 'pessoal' ? data.shifts  : '-',
+            data.category === 'pessoal' ? data.people  : '-',
+            data.totalValue,
+          ]);
+        });
+      });
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(typeMonthRows), 'Tipo por Mês');
+
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
         ['Evento', 'Categoria', 'Data Início', 'Data Fim', 'Status', 'Pessoal (R$)', 'Aluguel (R$)', 'Total (R$)'],
-        ...getFilteredEvents().map(e => [
-          e.name,
-          e.category,
-          formatDate(e.startDate),
-          formatDate(e.endDate),
-          e.status,
-          e.expenses?.filter(ex => ex.expenseCategory === 'pessoal')
-            .reduce((s, ex) => s + (ex.totalValue || 0), 0) || 0,
-          e.expenses?.filter(ex => ex.expenseCategory === 'aluguel')
-            .reduce((s, ex) => s + (ex.totalValue || 0), 0) || 0,
-          e.totalExpenses || 0
-        ])
-      ]);
-      XLSX.utils.book_append_sheet(wb, wsEvents, 'Eventos');
+        ...filteredEvents.map(e => [
+          e.name, e.category, formatDate(e.startDate), formatDate(e.endDate), e.status,
+          eventTotals[e.id]?.pessoal || 0,
+          eventTotals[e.id]?.aluguel || 0,
+          e.totalExpenses || 0,
+        ]),
+      ]), 'Eventos');
 
-      // ABA 5: BANCO DE HORAS
-      const wsHours = XLSX.utils.aoa_to_sheet([
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
         ['Funcionário', 'Cargo', 'Total de Horas'],
-        ...hourBankMonthly.map(e => [e.name, e.position, formatHours(e.totalHours)])
-      ]);
-      XLSX.utils.book_append_sheet(wb, wsHours, 'Banco de Horas');
+        ...hourBankMonthly.map(e => [e.name, e.position, formatHours(e.totalHours)]),
+      ]), 'Banco de Horas');
 
-      // ABA 6: DETALHAMENTO BANCO DE HORAS
-      const start = new Date(filters.startDate);
-      const end = new Date(filters.endDate);
+      const start = parseDate(filters.startDate);
+      const end   = parseDate(filters.endDate);
+      end.setHours(23, 59, 59);
       const filteredHours = hourBank.filter(h => {
-        const d = new Date(h.eventDate);
+        if (!h.eventDate) return false;
+        const d = parseDate(h.eventDate);
         return d >= start && d <= end;
       });
-
-      const wsHoursDetail = XLSX.utils.aoa_to_sheet([
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
         ['Funcionário', 'Cargo', 'Data', 'Evento', 'Horas', 'Observações'],
         ...filteredHours.map(h => [
-          h.employeeName,
-          h.employeePosition,
-          formatDate(h.eventDate),
-          h.eventName || '-',
-          formatHours(parseFloat(h.hoursWorked) || 0),
-          h.notes || '-'
-        ])
-      ]);
-      XLSX.utils.book_append_sheet(wb, wsHoursDetail, 'Horas Detalhado');
+          h.employeeName, h.employeePosition, formatDate(h.eventDate),
+          h.eventName || '-', formatHours(parseFloat(h.hoursWorked) || 0), h.notes || '-',
+        ]),
+      ]), 'Horas Detalhado');
 
       XLSX.writeFile(wb, `Gastos_Arena_BRB_${filters.year}.xlsx`);
       success('✅ Excel gerado!');
     } catch (err) {
       console.error(err);
       showError('❌ Erro ao gerar Excel');
+    } finally {
+      setIsGenerating(null);
     }
-  };
+  }, [filteredEvents, eventTotals, stats, monthlyExpenses, expensesByType, expensesByTypeByMonth, hourBankMonthly, hourBank, filters, filtersAreValid, success, showError]);
 
-  // ============================================
+  // ─────────────────────────────────────────────
   // RENDER
-  // ============================================
+  // ─────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-green-100 p-4 md:p-6">
       <div className="max-w-6xl mx-auto space-y-6">
@@ -454,55 +468,60 @@ export default function EventReports({ events, team, hourBank, onBack }) {
               <div className="flex gap-3">
                 <button
                   onClick={generatePDF}
-                  className="bg-red-500 hover:bg-red-600 text-white px-5 py-2.5 rounded-xl flex items-center gap-2 font-medium transition-all shadow-md"
+                  disabled={!!isGenerating}
+                  className="bg-red-500 hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed text-white px-5 py-2.5 rounded-xl flex items-center gap-2 font-medium transition-all shadow-md"
                 >
-                  <FileText size={18} /> PDF
+                  <FileText size={18} />
+                  {isGenerating === 'pdf' ? 'Gerando...' : 'PDF'}
                 </button>
                 <button
                   onClick={generateExcel}
-                  className="bg-green-500 hover:bg-green-600 text-white px-5 py-2.5 rounded-xl flex items-center gap-2 font-medium transition-all shadow-md"
+                  disabled={!!isGenerating}
+                  className="bg-green-500 hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed text-white px-5 py-2.5 rounded-xl flex items-center gap-2 font-medium transition-all shadow-md"
                 >
-                  <Download size={18} /> Excel
+                  <Download size={18} />
+                  {isGenerating === 'excel' ? 'Gerando...' : 'Excel'}
                 </button>
               </div>
             </div>
           </div>
 
-           {/* Filtros */}
-          <div className="p-3 sm:p-4 border-b border-gray-100 overflow-hidden">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3 min-w-0">
-              <div className="min-w-0">
+          {/* Filtros */}
+          <div className="p-3 sm:p-4 border-b border-gray-100">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
+              <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1">Data Inicial</label>
                 <input
                   type="date"
                   value={filters.startDate}
-                  onChange={(e) => setFilters(prev => ({ ...prev, startDate: e.target.value }))}
-                  className="w-full min-w-0 px-2 py-1.5 border-2 border-gray-200 rounded-lg focus:border-emerald-500 focus:outline-none text-xs sm:text-sm"
+                  onChange={e => setFilters(prev => ({ ...prev, startDate: e.target.value }))}
+                  className="w-full px-2 py-1.5 border-2 border-gray-200 rounded-lg focus:border-emerald-500 focus:outline-none text-xs sm:text-sm"
                 />
               </div>
-              <div className="min-w-0">
+              <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1">Data Final</label>
                 <input
                   type="date"
                   value={filters.endDate}
-                  onChange={(e) => setFilters(prev => ({ ...prev, endDate: e.target.value }))}
-                  className="w-full min-w-0 px-2 py-1.5 border-2 border-gray-200 rounded-lg focus:border-emerald-500 focus:outline-none text-xs sm:text-sm"
+                  onChange={e => setFilters(prev => ({ ...prev, endDate: e.target.value }))}
+                  className={`w-full px-2 py-1.5 border-2 rounded-lg focus:outline-none text-xs sm:text-sm ${
+                    !filtersAreValid ? 'border-red-400' : 'border-gray-200 focus:border-emerald-500'
+                  }`}
                 />
+                {!filtersAreValid && (
+                  <p className="text-xs text-red-500 mt-1">Data final menor que a inicial</p>
+                )}
               </div>
-              <div className="min-w-0">
+              <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1">Ano de Referência</label>
                 <input
                   type="number"
                   value={filters.year}
-                  onChange={(e) => {
+                  onChange={e => {
                     const year = parseInt(e.target.value);
-                    setFilters({
-                      year,
-                      startDate: `${year}-01-01`,
-                      endDate: `${year}-12-31`
-                    });
+                    if (!isNaN(year)) setFilters({ year, startDate: `${year}-01-01`, endDate: `${year}-12-31` });
                   }}
-                  className="w-full min-w-0 px-2 py-1.5 border-2 border-gray-200 rounded-lg focus:border-emerald-500 focus:outline-none text-xs sm:text-sm"
+                  className="w-full px-2 py-1.5 border-2 border-gray-200 rounded-lg focus:border-emerald-500 focus:outline-none text-xs sm:text-sm"
                   min="2020" max="2030"
                 />
               </div>
@@ -511,33 +530,34 @@ export default function EventReports({ events, team, hourBank, onBack }) {
 
           {/* Stats Cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 p-4">
-              <div className="bg-emerald-50 rounded-xl p-3 text-center border border-emerald-200">
-                <div className="text-xl sm:text-2xl font-bold text-emerald-700">{stats.totalEvents}</div>
-                <div className="text-xs text-gray-600">Eventos</div>
-              </div>
-              <div className="bg-blue-50 rounded-xl p-3 text-center border border-blue-200">
-                <div className="text-sm sm:text-lg font-bold text-blue-700 truncate">{formatCurrency(stats.totalPessoal)}</div>
-                <div className="text-xs text-gray-600">Pessoal</div>
-              </div>
-              <div className="bg-orange-50 rounded-xl p-3 text-center border border-orange-200">
-                <div className="text-sm sm:text-lg font-bold text-orange-600 truncate">{formatCurrency(stats.totalAluguel)}</div>
-                <div className="text-xs text-gray-600">Aluguéis</div>
-              </div>
-              <div className="bg-red-50 rounded-xl p-3 text-center border border-red-200 col-span-2 lg:col-span-1">
-                <div className="text-sm sm:text-lg font-bold text-red-700 truncate">{formatCurrency(stats.totalExpenses)}</div>
-                <div className="text-xs text-gray-600">Total Geral</div>
-              </div>
+            <div className="bg-emerald-50 rounded-xl p-3 text-center border border-emerald-200">
+              <div className="text-xl sm:text-2xl font-bold text-emerald-700">{stats.totalEvents}</div>
+              <div className="text-xs text-gray-600">Eventos</div>
+            </div>
+            <div className="bg-blue-50 rounded-xl p-3 text-center border border-blue-200">
+              <div className="text-sm sm:text-lg font-bold text-blue-700 truncate">{formatCurrency(stats.totalPessoal)}</div>
+              <div className="text-xs text-gray-600">Pessoal</div>
+            </div>
+            <div className="bg-orange-50 rounded-xl p-3 text-center border border-orange-200">
+              <div className="text-sm sm:text-lg font-bold text-orange-600 truncate">{formatCurrency(stats.totalAluguel)}</div>
+              <div className="text-xs text-gray-600">Aluguéis</div>
+            </div>
+            <div className="bg-red-50 rounded-xl p-3 text-center border border-red-200 col-span-2 lg:col-span-1">
+              <div className="text-sm sm:text-lg font-bold text-red-700 truncate">{formatCurrency(stats.totalExpenses)}</div>
+              <div className="text-xs text-gray-600">Total Geral</div>
             </div>
           </div>
+        </div>
 
         {/* TABS */}
         <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
           <div className="flex border-b border-gray-200 overflow-x-auto">
             {[
-              { id: 'resumo', label: 'Por Evento', icon: Calendar },
-              { id: 'mensal', label: 'Por Mês', icon: TrendingUp },
-              { id: 'tipo', label: 'Por Tipo', icon: Package },
-              { id: 'horas', label: 'Banco de Horas', icon: Users }
+              { id: 'resumo',  label: 'Por Evento',     icon: Calendar   },
+              { id: 'mensal',  label: 'Por Mês',        icon: TrendingUp },
+              { id: 'tipo',    label: 'Por Tipo',       icon: Package    },
+              { id: 'tipoMes', label: 'Tipo/Mês',       icon: Users      },
+              { id: 'horas',   label: 'Banco de Horas', icon: Users      },
             ].map(tab => {
               const Icon = tab.icon;
               return (
@@ -550,8 +570,7 @@ export default function EventReports({ events, team, hourBank, onBack }) {
                       : 'border-transparent text-gray-500 hover:text-gray-700'
                   }`}
                 >
-                  <Icon size={16} />
-                  {tab.label}
+                  <Icon size={16} />{tab.label}
                 </button>
               );
             })}
@@ -574,22 +593,14 @@ export default function EventReports({ events, team, hourBank, onBack }) {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {getFilteredEvents().map(e => (
+                    {filteredEvents.map(e => (
                       <tr key={e.id} className="hover:bg-gray-50">
                         <td className="px-4 py-3 font-medium text-gray-800">{e.name}</td>
                         <td className="px-4 py-3 text-sm text-gray-600">{e.category}</td>
                         <td className="px-4 py-3 text-sm text-gray-600">{formatDate(e.startDate)}</td>
-                        <td className="px-4 py-3 text-right text-sm text-emerald-700">
-                          {formatCurrency(e.expenses?.filter(ex => ex.expenseCategory === 'pessoal')
-                            .reduce((s, ex) => s + (ex.totalValue || 0), 0) || 0)}
-                        </td>
-                        <td className="px-4 py-3 text-right text-sm text-orange-600">
-                          {formatCurrency(e.expenses?.filter(ex => ex.expenseCategory === 'aluguel')
-                            .reduce((s, ex) => s + (ex.totalValue || 0), 0) || 0)}
-                        </td>
-                        <td className="px-4 py-3 text-right font-bold text-gray-800">
-                          {formatCurrency(e.totalExpenses)}
-                        </td>
+                        <td className="px-4 py-3 text-right text-sm text-emerald-700">{formatCurrency(eventTotals[e.id]?.pessoal || 0)}</td>
+                        <td className="px-4 py-3 text-right text-sm text-orange-600">{formatCurrency(eventTotals[e.id]?.aluguel || 0)}</td>
+                        <td className="px-4 py-3 text-right font-bold text-gray-800">{formatCurrency(e.totalExpenses)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -622,7 +633,7 @@ export default function EventReports({ events, team, hourBank, onBack }) {
                     {monthlyExpenses.map(m => (
                       <tr key={m.month} className="hover:bg-gray-50">
                         <td className="px-4 py-3 font-medium text-gray-800">{formatMonth(m.month)}</td>
-                        <td className="px-4 py-3 text-center text-gray-600">{m.events}</td>
+                        <td className="px-4 py-3 text-center text-gray-600">{m.eventCount}</td>
                         <td className="px-4 py-3 text-right text-emerald-700">{formatCurrency(m.totalPessoal)}</td>
                         <td className="px-4 py-3 text-right text-orange-600">{formatCurrency(m.totalAluguel)}</td>
                         <td className="px-4 py-3 text-right font-bold text-gray-800">{formatCurrency(m.totalExpenses)}</td>
@@ -631,7 +642,7 @@ export default function EventReports({ events, team, hourBank, onBack }) {
                   </tbody>
                   <tfoot className="bg-emerald-50">
                     <tr>
-                      <td colSpan={2} className="px-4 py-3 font-bold text-emerald-800">TOTAL ANUAL</td>
+                      <td colSpan={2} className="px-4 py-3 font-bold text-emerald-800">TOTAL</td>
                       <td className="px-4 py-3 text-right font-bold text-emerald-800">{formatCurrency(stats.totalPessoal)}</td>
                       <td className="px-4 py-3 text-right font-bold text-orange-700">{formatCurrency(stats.totalAluguel)}</td>
                       <td className="px-4 py-3 text-right font-bold text-gray-900">{formatCurrency(stats.totalExpenses)}</td>
@@ -649,10 +660,10 @@ export default function EventReports({ events, team, hourBank, onBack }) {
                     <tr>
                       <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600">Tipo</th>
                       <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600">Categoria</th>
-                      <th className="text-center px-4 py-3 text-xs font-semibold text-gray-600">Ocorrências</th>
-                      <th className="text-center px-4 py-3 text-xs font-semibold text-gray-600">Total Plantões</th>
-                      <th className="text-center px-4 py-3 text-xs font-semibold text-gray-600">Total Pessoas</th>
-                      <th className="text-right px-4 py-3 text-xs font-semibold text-gray-600">Total Gasto</th>
+                      <th className="text-center px-4 py-3 text-xs font-semibold text-gray-600">Registros</th>
+                      <th className="text-center px-4 py-3 text-xs font-semibold text-gray-600">Plantões</th>
+                      <th className="text-center px-4 py-3 text-xs font-semibold text-gray-600">Pessoas</th>
+                      <th className="text-right px-4 py-3 text-xs font-semibold text-gray-600">Total</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
@@ -661,27 +672,99 @@ export default function EventReports({ events, team, hourBank, onBack }) {
                         <td className="px-4 py-3 font-medium text-gray-800">{t.type}</td>
                         <td className="px-4 py-3">
                           <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                            t.category === 'pessoal'
-                              ? 'bg-emerald-100 text-emerald-800'
-                              : 'bg-orange-100 text-orange-800'
+                            t.category === 'pessoal' ? 'bg-emerald-100 text-emerald-800' : 'bg-orange-100 text-orange-800'
                           }`}>
                             {t.category === 'pessoal' ? 'Pessoal' : 'Aluguel'}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-center text-gray-600">{t.count}</td>
-                        <td className="px-4 py-3 text-center text-gray-600">
-                          {t.category === 'pessoal' ? t.totalShifts : '-'}
-                        </td>
-                        <td className="px-4 py-3 text-center text-gray-600">
-                          {t.category === 'pessoal' ? t.totalPeople : '-'}
-                        </td>
-                        <td className="px-4 py-3 text-right font-bold text-gray-800">
-                          {formatCurrency(t.totalValue)}
-                        </td>
+                        <td className="px-4 py-3 text-center text-gray-600">{t.category === 'pessoal' ? t.totalShifts : '-'}</td>
+                        <td className="px-4 py-3 text-center text-gray-600">{t.category === 'pessoal' ? t.totalPeople : '-'}</td>
+                        <td className="px-4 py-3 text-right font-bold text-gray-800">{formatCurrency(t.totalValue)}</td>
                       </tr>
                     ))}
                   </tbody>
+                  <tfoot className="bg-emerald-50">
+                    <tr>
+                      <td colSpan={5} className="px-4 py-3 font-bold text-emerald-800">TOTAL</td>
+                      <td className="px-4 py-3 text-right font-bold text-gray-900">
+                        {formatCurrency(expensesByType.reduce((s, t) => s + t.totalValue, 0))}
+                      </td>
+                    </tr>
+                  </tfoot>
                 </table>
+              </div>
+            )}
+
+            {/* TAB: TIPO POR MÊS */}
+            {activeTab === 'tipoMes' && (
+              <div className="space-y-6">
+                {Object.entries(expensesByTypeByMonth).length === 0 ? (
+                  <div className="text-center py-12 text-gray-400">
+                    <Package size={40} className="mx-auto mb-2 opacity-30" />
+                    <p>Nenhum gasto no período</p>
+                  </div>
+                ) : (
+                  Object.entries(expensesByTypeByMonth)
+                    .sort(([, a], [, b]) => {
+                      const tA = Object.values(a).reduce((s, m) => s + m.totalValue, 0);
+                      const tB = Object.values(b).reduce((s, m) => s + m.totalValue, 0);
+                      return tB - tA;
+                    })
+                    .map(([type, months]) => {
+                      const monthEntries = Object.entries(months).sort(([a], [b]) => a.localeCompare(b));
+                      const grandTotal   = monthEntries.reduce((s, [, d]) => s + d.totalValue, 0);
+                      const totalPeople  = monthEntries.reduce((s, [, d]) => s + d.people,     0);
+                      const totalShifts  = monthEntries.reduce((s, [, d]) => s + d.shifts,     0);
+                      const isPessoal    = monthEntries[0]?.[1]?.category === 'pessoal';
+
+                      return (
+                        <div key={type} className="border border-gray-200 rounded-xl overflow-hidden">
+                          <div className={`flex items-center justify-between px-4 py-3 ${isPessoal ? 'bg-emerald-50' : 'bg-orange-50'}`}>
+                            <div className="font-bold text-gray-800">{type}</div>
+                            <div className="text-lg font-bold text-gray-800">{formatCurrency(grandTotal)}</div>
+                          </div>
+                          <table className="w-full">
+                            <thead className="bg-gray-50">
+                              <tr>
+                                <th className="text-left px-4 py-2 text-xs font-semibold text-gray-600">Mês</th>
+                                <th className="text-center px-4 py-2 text-xs font-semibold text-gray-600">Registros</th>
+                                {isPessoal && <>
+                                  <th className="text-center px-4 py-2 text-xs font-semibold text-gray-600">Plantões</th>
+                                  <th className="text-center px-4 py-2 text-xs font-semibold text-gray-600">Pessoas</th>
+                                </>}
+                                <th className="text-right px-4 py-2 text-xs font-semibold text-gray-600">Valor</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100">
+                              {monthEntries.map(([month, data]) => (
+                                <tr key={month} className="hover:bg-gray-50">
+                                  <td className="px-4 py-2 text-sm font-medium text-gray-700">{formatMonth(month)}</td>
+                                  <td className="px-4 py-2 text-sm text-center text-gray-600">{data.count}</td>
+                                  {isPessoal && <>
+                                    <td className="px-4 py-2 text-sm text-center text-gray-600">{data.shifts}</td>
+                                    <td className="px-4 py-2 text-sm text-center text-gray-600">{data.people}</td>
+                                  </>}
+                                  <td className="px-4 py-2 text-sm text-right font-bold text-gray-800">{formatCurrency(data.totalValue)}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                            <tfoot className="bg-gray-50">
+                              <tr>
+                                <td className="px-4 py-2 text-xs font-bold text-gray-700">TOTAL</td>
+                                <td className="px-4 py-2 text-xs text-center font-bold text-gray-700">{monthEntries.reduce((s, [, d]) => s + d.count, 0)}</td>
+                                {isPessoal && <>
+                                  <td className="px-4 py-2 text-xs text-center font-bold text-gray-700">{totalShifts}</td>
+                                  <td className="px-4 py-2 text-xs text-center font-bold text-gray-700">{totalPeople}</td>
+                                </>}
+                                <td className="px-4 py-2 text-xs text-right font-bold text-gray-900">{formatCurrency(grandTotal)}</td>
+                              </tr>
+                            </tfoot>
+                          </table>
+                        </div>
+                      );
+                    })
+                )}
               </div>
             )}
 
@@ -695,8 +778,7 @@ export default function EventReports({ events, team, hourBank, onBack }) {
                   </div>
                 ) : (
                   hourBankMonthly.map(emp => {
-                    const months = Object.entries(emp.months)
-                      .sort((a, b) => a[0].localeCompare(b[0]));
+                    const months = Object.entries(emp.months).sort(([a], [b]) => a.localeCompare(b));
                     return (
                       <div key={emp.name} className="border border-gray-200 rounded-xl overflow-hidden">
                         <div className="flex items-center justify-between bg-blue-50 px-4 py-3">

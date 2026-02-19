@@ -799,18 +799,18 @@ export default function VehicleRegistry() {
   };
 
   const handleUpdateLoan = async (loanId, loanData) => {
-    try {
-      await storage.updateLoan(loanId, loanData);
-      await loadData();
-      setShowLoanEdit(false);
-      
-      const updatedLoan = loans.find(l => l.id === loanId);
-      if (updatedLoan) setSelectedLoan(updatedLoan);
-    } catch (err) {
-      console.error('❌ Erro ao atualizar empréstimo:', err);
-      throw err;
-    }
-  };
+  try {
+    await storage.updateLoan(loanId, loanData);
+    const freshLoans = await storage.loadLoans(); // ← trocar loadData() por isso
+    setLoans(freshLoans);
+    setShowLoanEdit(false);
+    const updatedLoan = freshLoans.find(l => l.id === loanId); // ← freshLoans
+    if (updatedLoan) setSelectedLoan(updatedLoan);
+  } catch (err) {
+    console.error('❌ Erro ao atualizar empréstimo:', err);
+    throw err;
+  }
+};
 
   /* ================================
     CRUD - EVENTOS
@@ -829,20 +829,21 @@ export default function VehicleRegistry() {
   };
 
   const handleUpdateEvent = async (eventData) => {
-    try {
-      await storage.updateEvent(editingEvent.id, eventData);
-      await loadData();
-      setShowEventForm(false);
-      setEditingEvent(null);
-      if (selectedEvent?.id === editingEvent.id) {
-        const updated = events.find(e => e.id === editingEvent.id);
-        if (updated) setSelectedEvent(updated);
-      }
-    } catch (err) {
-      console.error('❌ Erro ao atualizar evento:', err);
-      throw err;
+  try {
+    await storage.updateEvent(editingEvent.id, eventData);
+    const freshEvents = await storage.loadEvents(); // ← trocar loadData() por isso
+    setEvents(freshEvents);
+    setShowEventForm(false);
+    setEditingEvent(null);
+    if (selectedEvent?.id === editingEvent.id) {
+      const updated = freshEvents.find(e => e.id === editingEvent.id); // ← freshEvents
+      if (updated) setSelectedEvent(updated);
     }
-  };
+  } catch (err) {
+    console.error('❌ Erro ao atualizar evento:', err);
+    throw err;
+  }
+};
 
   const handleDeleteEvent = async (eventId) => {
     try {

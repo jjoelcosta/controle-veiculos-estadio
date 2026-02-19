@@ -1,9 +1,9 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import {
-  Car, Package, Calendar, UserCheck, Truck, Users,
-  AlertCircle, AlertTriangle, CheckCircle, Clock,
-  TrendingUp, ArrowRight, Sun, FileText, BarChart2,
-  Activity, Shield
+  Car, Package, Calendar, UserCheck, Truck,
+  AlertCircle, AlertTriangle, CheckCircle,
+  TrendingUp, ArrowRight, Sun, BarChart2,
+  Activity
 } from 'lucide-react';
 
 export default function Dashboard({
@@ -16,54 +16,71 @@ export default function Dashboard({
   onNavigate
 }) {
 
+  // ─────────────────────────────────────────
+  // Helpers puros
+  // ─────────────────────────────────────────
   const formatCurrency = (v) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
 
-  const formatDate = (date) => {
-    if (!date) return '-';
-    return new Date(date + 'T12:00:00').toLocaleDateString('pt-BR');
-  };
+  // Data formatada para exibição (só precisa uma vez, fora do useMemo)
+  const todayDisplay = (() => {
+    const str = new Date().toLocaleDateString('pt-BR', {
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+    });
+    return str.charAt(0).toUpperCase() + str.slice(1);
+  })();
 
-  const today = new Date();
-  const todayStr = today.toLocaleDateString('pt-BR', {
-    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-  });
-  // Capitaliza primeira letra
-  const todayFormatted = todayStr.charAt(0).toUpperCase() + todayStr.slice(1);
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Bom dia! ☀️' : hour < 18 ? 'Boa tarde! 🌤️' : 'Boa noite! 🌙';
 
   // ─────────────────────────────────────────
-  // CÁLCULOS
+  // CÁLCULOS — today DENTRO do useMemo
   // ─────────────────────────────────────────
-
   const stats = useMemo(() => {
+    const today = new Date(); // ← dentro do useMemo
+
     // Empréstimos
     const activeLoans = loans.filter(l => l.status === 'emprestado');
-    const lateLoans = loans.filter(l => l.status === 'atrasado');
+    const lateLoans   = loans.filter(l => l.status === 'atrasado');
 
     // Eventos próximos 15 dias
     const in15 = new Date(today);
     in15.setDate(in15.getDate() + 15);
     const upcomingEvents = events
       .filter(e => {
-        const d = new Date(e.startDate + 'T12:00:00');
+        if (!e.startDate) return false;
+        const d = new Date(e.startDate + 'T00:00:00');
         return d >= today && d <= in15;
       })
-      .sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+      .sort((a, b) => new Date(a.startDate + 'T00:00:00') - new Date(b.startDate + 'T00:00:00'));
 
     // Gastos do mês atual
-    const thisMonth = today.toISOString().substring(0, 7);
+    const thisMonth  = today.toISOString().substring(0, 7);
     const monthEvents = events.filter(e => e.startDate?.substring(0, 7) === thisMonth);
+
     const monthExpenses = monthEvents.reduce((sum, e) => sum + (e.totalExpenses || 0), 0);
 
+    // Pessoal e aluguel do mês — calculados aqui, evitando IIFE no JSX
+    const monthPessoal = monthEvents.reduce((sum, e) =>
+      sum + ((e.expenses || [])
+        .filter(ex => ex.expenseCategory === 'pessoal')
+        .reduce((s, ex) => s + (ex.totalValue || 0), 0)), 0);
+
+    const monthAluguel = monthEvents.reduce((sum, e) =>
+      sum + ((e.expenses || [])
+        .filter(ex => ex.expenseCategory === 'aluguel')
+        .reduce((s, ex) => s + (ex.totalValue || 0), 0)), 0);
+
     // Pessoal
-    const activeStaff = (staff || []).filter(s => s.status === 'ativo');
-    const absentStaff = (staff || []).filter(s => s.status === 'afastado');
-    const vacationStaff = (staff || []).filter(s => s.status === 'férias');
+    const teamList      = staff || [];
+    const activeStaff   = teamList.filter(s => s.status === 'ativo');
+    const absentStaff   = teamList.filter(s => s.status === 'afastado');
+    const vacationStaff = teamList.filter(s => s.status === 'férias');
 
     // Alertas de férias — vencendo em até 90 dias ou vencidas
-    const vacationAlerts = (staff || []).filter(s => {
+    const vacationAlerts = teamList.filter(s => {
       if (!s.hire_date || s.status === 'desligado') return false;
-      const hire = new Date(s.hire_date + 'T12:00:00');
+      const hire = new Date(s.hire_date + 'T00:00:00');
       const totalMonths =
         (today.getFullYear() - hire.getFullYear()) * 12 +
         (today.getMonth() - hire.getMonth());
@@ -79,8 +96,8 @@ export default function Dashboard({
 
     return {
       // Veículos
-      totalVehicles: vehicles.length,
-      totalOwners: owners.length,
+      totalVehicles:  vehicles.length,
+      totalOwners:    owners.length,
       totalThirdParty: thirdPartyVehicles.length,
       // Empréstimos
       activeLoans,
@@ -90,12 +107,15 @@ export default function Dashboard({
       upcomingEvents,
       totalEvents: events.length,
       monthExpenses,
+      monthPessoal,
+      monthAluguel,
+      monthEventsCount: monthEvents.length,
       // Pessoal
       activeStaff,
       absentStaff,
       vacationStaff,
       vacationAlerts,
-      totalStaff: (staff || []).length,
+      totalStaff: teamList.length,
     };
   }, [vehicles, owners, thirdPartyVehicles, loans, events, staff]);
 
@@ -112,21 +132,15 @@ export default function Dashboard({
     <div className="space-y-6">
 
       {/* ── BOAS-VINDAS ── */}
-        <div className="bg-gradient-to-r from-gray-500 via-blue-400 to-indigo-700 rounded-2xl shadow-xl p-6 text-white">
+      <div className="bg-gradient-to-r from-gray-500 via-blue-400 to-indigo-700 rounded-2xl shadow-xl p-6 text-white">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
+          <div>
             <div className="flex items-center gap-3 mb-1">
-            <h2 className="text-2xl font-bold">
-                {new Date().getHours() < 12
-                    ? 'Bom dia! ☀️'
-                    : new Date().getHours() < 18
-                    ? 'Boa tarde! 🌤️'
-                    : 'Boa noite! 🌙'}
-                </h2>
+              <h2 className="text-2xl font-bold">{greeting}</h2>
             </div>
-            <p className="text-blue-200 text-sm">{todayFormatted}</p>
-            </div>
-          {totalAlerts > 0 && (
+            <p className="text-blue-200 text-sm">{todayDisplay}</p>
+          </div>
+          {totalAlerts > 0 ? (
             <div className="bg-red-500/30 border border-red-400/50 rounded-xl px-4 py-3 flex items-center gap-3">
               <AlertTriangle size={24} className="text-red-300 flex-shrink-0" />
               <div>
@@ -134,8 +148,7 @@ export default function Dashboard({
                 <div className="text-red-200 text-xs">alerta(s) crítico(s)</div>
               </div>
             </div>
-          )}
-          {totalAlerts === 0 && (
+          ) : (
             <div className="bg-green-500/30 border border-green-400/50 rounded-xl px-4 py-3 flex items-center gap-3">
               <CheckCircle size={24} className="text-green-300 flex-shrink-0" />
               <div className="text-green-200 text-sm font-medium">Tudo em ordem</div>
@@ -150,7 +163,7 @@ export default function Dashboard({
         {/* Veículos */}
         <button
           onClick={() => onNavigate('vehicles')}
-          className="bg-white rounded-xl border-2 border-blue-200 p-4 text-left hover:shadow-lg hover:border-blue-400 transition-all group"
+          className="bg-white rounded-xl border-2 border-blue-200 p-4 text-left hover:shadow-lg hover:border-blue-400 transition-all"
         >
           <Car size={22} className="text-blue-600 mb-2" />
           <div className="text-2xl font-bold text-gray-800">{stats.totalVehicles}</div>
@@ -161,7 +174,7 @@ export default function Dashboard({
         {/* Terceiros */}
         <button
           onClick={() => onNavigate('thirdparty')}
-          className="bg-white rounded-xl border-2 border-orange-200 p-4 text-left hover:shadow-lg hover:border-orange-400 transition-all group"
+          className="bg-white rounded-xl border-2 border-orange-200 p-4 text-left hover:shadow-lg hover:border-orange-400 transition-all"
         >
           <Truck size={22} className="text-orange-600 mb-2" />
           <div className="text-2xl font-bold text-gray-800">{stats.totalThirdParty}</div>
@@ -178,7 +191,7 @@ export default function Dashboard({
               : 'border-yellow-200 hover:border-yellow-400'
           }`}
         >
-          <Package size={22} className={stats.lateLoans.length > 0 ? 'text-red-600 mb-2' : 'text-yellow-600 mb-2'} />
+          <Package size={22} className={`mb-2 ${stats.lateLoans.length > 0 ? 'text-red-600' : 'text-yellow-600'}`} />
           <div className="text-2xl font-bold text-gray-800">{stats.activeLoans.length}</div>
           <div className="text-xs text-gray-500">Empréstimos ativos</div>
           {stats.lateLoans.length > 0 ? (
@@ -238,7 +251,7 @@ export default function Dashboard({
 
       </div>
 
-      {/* ── LINHA 3: ALERTAS + PRÓXIMOS EVENTOS ── */}
+      {/* ── ALERTAS + PRÓXIMOS EVENTOS ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
         {/* ALERTAS CRÍTICOS */}
@@ -352,8 +365,10 @@ export default function Dashboard({
             ) : (
               <div className="space-y-2">
                 {stats.upcomingEvents.slice(0, 6).map(e => {
-                  const eventDate = new Date(e.startDate + 'T12:00:00');
-                  const daysUntil = Math.round((eventDate - today) / (1000 * 60 * 60 * 24));
+                  const eventDate  = new Date(e.startDate + 'T00:00:00');
+                  const todayRef   = new Date();
+                  todayRef.setHours(0, 0, 0, 0);
+                  const daysUntil  = Math.round((eventDate - todayRef) / (1000 * 60 * 60 * 24));
                   return (
                     <button
                       key={e.id}
@@ -376,14 +391,12 @@ export default function Dashboard({
                         <div className="font-medium text-gray-800 text-sm truncate">{e.name}</div>
                         <div className="text-xs text-gray-500">{e.category}</div>
                       </div>
-                      <div className="flex-shrink-0 text-right">
-                        <div className={`text-xs font-bold ${
-                          daysUntil === 0 ? 'text-red-600'
-                          : daysUntil <= 3 ? 'text-orange-600'
-                          : 'text-emerald-600'
-                        }`}>
-                          {daysUntil === 0 ? 'HOJE' : `em ${daysUntil}d`}
-                        </div>
+                      <div className={`flex-shrink-0 text-xs font-bold ${
+                        daysUntil === 0 ? 'text-red-600'
+                        : daysUntil <= 3 ? 'text-orange-600'
+                        : 'text-emerald-600'
+                      }`}>
+                        {daysUntil === 0 ? 'HOJE' : `em ${daysUntil}d`}
                       </div>
                     </button>
                   );
@@ -402,7 +415,7 @@ export default function Dashboard({
         </div>
       </div>
 
-      {/* ── LINHA 4: PESSOAL + GASTOS DO MÊS ── */}
+      {/* ── PESSOAL + GASTOS DO MÊS ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
         {/* STATUS DO PESSOAL */}
@@ -435,9 +448,9 @@ export default function Dashboard({
               <>
                 <div className="grid grid-cols-3 gap-3 mb-4">
                   {[
-                    { label: 'Ativos', value: stats.activeStaff.length, color: 'bg-green-50 text-green-700 border-green-200' },
-                    { label: 'Férias', value: stats.vacationStaff.length, color: 'bg-blue-50 text-blue-700 border-blue-200' },
-                    { label: 'Afastados', value: stats.absentStaff.length, color: 'bg-orange-50 text-orange-700 border-orange-200' },
+                    { label: 'Ativos',    value: stats.activeStaff.length,   color: 'bg-green-50 text-green-700 border-green-200'   },
+                    { label: 'Férias',    value: stats.vacationStaff.length,  color: 'bg-blue-50 text-blue-700 border-blue-200'     },
+                    { label: 'Afastados', value: stats.absentStaff.length,    color: 'bg-orange-50 text-orange-700 border-orange-200' },
                   ].map(s => (
                     <div key={s.label} className={`rounded-xl p-3 text-center border ${s.color}`}>
                       <div className="text-xl font-bold">{s.value}</div>
@@ -473,7 +486,7 @@ export default function Dashboard({
           </div>
         </div>
 
-        {/* GASTOS DO MÊS */}
+        {/* GASTOS DO MÊS — sem IIFE, usa stats diretamente */}
         <div className="bg-white rounded-2xl shadow-md border border-gray-200 overflow-hidden">
           <div className="bg-gradient-to-r from-indigo-600 to-purple-700 px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -501,56 +514,44 @@ export default function Dashboard({
                   {formatCurrency(stats.monthExpenses)}
                 </div>
                 <div className="space-y-2">
-                  {(() => {
-                    const thisMonth = today.toISOString().substring(0, 7);
-                    const monthEvents = events.filter(e => e.startDate?.substring(0, 7) === thisMonth);
-                    const pessoal = monthEvents.reduce((sum, e) =>
-                      sum + (e.expenses?.filter(ex => ex.expenseCategory === 'pessoal')
-                        .reduce((s, ex) => s + (ex.totalValue || 0), 0) || 0), 0);
-                    const aluguel = monthEvents.reduce((sum, e) =>
-                      sum + (e.expenses?.filter(ex => ex.expenseCategory === 'aluguel')
-                        .reduce((s, ex) => s + (ex.totalValue || 0), 0) || 0), 0);
-                    const total = pessoal + aluguel;
-                    return (
-                      <>
-                        <div className="flex justify-between items-center text-sm">
-                          <span className="text-gray-600">Pessoal</span>
-                          <span className="font-medium text-emerald-700">{formatCurrency(pessoal)}</span>
-                        </div>
-                        {total > 0 && (
-                          <div className="w-full bg-gray-100 rounded-full h-2">
-                            <div
-                              className="bg-emerald-500 h-2 rounded-full"
-                              style={{ width: `${(pessoal / total) * 100}%` }}
-                            />
-                          </div>
-                        )}
-                        <div className="flex justify-between items-center text-sm">
-                          <span className="text-gray-600">Aluguel</span>
-                          <span className="font-medium text-orange-600">{formatCurrency(aluguel)}</span>
-                        </div>
-                        {total > 0 && (
-                          <div className="w-full bg-gray-100 rounded-full h-2">
-                            <div
-                              className="bg-orange-400 h-2 rounded-full"
-                              style={{ width: `${(aluguel / total) * 100}%` }}
-                            />
-                          </div>
-                        )}
-                        <div className="flex justify-between items-center text-sm border-t border-gray-100 pt-2 mt-2">
-                          <span className="font-bold text-gray-700">
-                            {monthEvents.length} evento(s) este mês
-                          </span>
-                          <button
-                            onClick={() => onNavigate('events')}
-                            className="text-xs text-indigo-600 hover:text-indigo-800 flex items-center gap-1 font-medium"
-                          >
-                            Ver eventos <ArrowRight size={11} />
-                          </button>
-                        </div>
-                      </>
-                    );
-                  })()}
+                  {/* Pessoal */}
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-gray-600">Pessoal</span>
+                    <span className="font-medium text-emerald-700">{formatCurrency(stats.monthPessoal)}</span>
+                  </div>
+                  {stats.monthExpenses > 0 && (
+                    <div className="w-full bg-gray-100 rounded-full h-2">
+                      <div
+                        className="bg-emerald-500 h-2 rounded-full"
+                        style={{ width: `${((stats.monthPessoal / stats.monthExpenses) * 100).toFixed(1)}%` }}
+                      />
+                    </div>
+                  )}
+                  {/* Aluguel */}
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-gray-600">Aluguel</span>
+                    <span className="font-medium text-orange-600">{formatCurrency(stats.monthAluguel)}</span>
+                  </div>
+                  {stats.monthExpenses > 0 && (
+                    <div className="w-full bg-gray-100 rounded-full h-2">
+                      <div
+                        className="bg-orange-400 h-2 rounded-full"
+                        style={{ width: `${((stats.monthAluguel / stats.monthExpenses) * 100).toFixed(1)}%` }}
+                      />
+                    </div>
+                  )}
+                  {/* Rodapé */}
+                  <div className="flex justify-between items-center text-sm border-t border-gray-100 pt-2 mt-2">
+                    <span className="font-bold text-gray-700">
+                      {stats.monthEventsCount} evento(s) este mês
+                    </span>
+                    <button
+                      onClick={() => onNavigate('events')}
+                      className="text-xs text-indigo-600 hover:text-indigo-800 flex items-center gap-1 font-medium"
+                    >
+                      Ver eventos <ArrowRight size={11} />
+                    </button>
+                  </div>
                 </div>
               </>
             )}
@@ -565,12 +566,12 @@ export default function Dashboard({
         </h3>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
           {[
-            { label: 'Buscar Veículo', icon: Car, color: 'hover:bg-blue-50 hover:border-blue-300', nav: 'vehicles' },
-            { label: 'Novo Empréstimo', icon: Package, color: 'hover:bg-yellow-50 hover:border-yellow-300', nav: 'loans' },
-            { label: 'Novo Evento', icon: Calendar, color: 'hover:bg-emerald-50 hover:border-emerald-300', nav: 'events' },
-            { label: 'Ver Pessoal', icon: UserCheck, color: 'hover:bg-purple-50 hover:border-purple-300', nav: 'staff' },
-            { label: 'Terceiros', icon: Truck, color: 'hover:bg-orange-50 hover:border-orange-300', nav: 'thirdparty' },
-            { label: 'Relatórios', icon: BarChart2, color: 'hover:bg-indigo-50 hover:border-indigo-300', nav: 'reports' },
+            { label: 'Buscar Veículo',  icon: Car,       color: 'hover:bg-blue-50 hover:border-blue-300',    nav: 'vehicles'   },
+            { label: 'Novo Empréstimo', icon: Package,   color: 'hover:bg-yellow-50 hover:border-yellow-300', nav: 'loans'      },
+            { label: 'Novo Evento',     icon: Calendar,  color: 'hover:bg-emerald-50 hover:border-emerald-300', nav: 'events'   },
+            { label: 'Ver Pessoal',     icon: UserCheck, color: 'hover:bg-purple-50 hover:border-purple-300', nav: 'staff'      },
+            { label: 'Terceiros',       icon: Truck,     color: 'hover:bg-orange-50 hover:border-orange-300', nav: 'thirdparty' },
+            { label: 'Relatórios',      icon: BarChart2, color: 'hover:bg-indigo-50 hover:border-indigo-300', nav: 'reports'    },
           ].map(item => {
             const Icon = item.icon;
             return (

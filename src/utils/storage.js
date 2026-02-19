@@ -251,7 +251,7 @@ const addThirdPartyVehicle = async (vehicleData) => {
       .select('id')
       .eq('plate', normalizedPlate)
       .is('deleted_at', null)
-      .single();
+      .maybeSingle();
 
     if (existing) {
       throw new Error(`Veículo com placa ${normalizedPlate} já cadastrado`);
@@ -498,22 +498,24 @@ const addLoan = async (loanData) => {
     if (detailError) throw detailError;
 
     // 3. Atualizar quantidade disponível dos itens
-    for (const item of loanData.items) {
-      const { data: currentItem } = await supabase
-        .from('loan_items')
-        .select('quantity_available')
-        .eq('id', item.itemId)
-        .single();
+    const itemIds = loanData.items.map(item => item.itemId);
+    const { data: currentItems } = await supabase
+      .from('loan_items')
+      .select('id, quantity_available')
+      .in('id', itemIds);
 
-      if (currentItem) {
-        await supabase
+    await Promise.all(
+      loanData.items.map(item => {
+        const current = currentItems?.find(i => i.id === item.itemId);
+        if (!current) return Promise.resolve();
+        return supabase
           .from('loan_items')
           .update({
-            quantity_available: currentItem.quantity_available - item.quantity
+            quantity_available: current.quantity_available - item.quantity
           })
           .eq('id', item.itemId);
-      }
-    }
+      })
+    );
 
     return loanRecord;
   } catch (err) {

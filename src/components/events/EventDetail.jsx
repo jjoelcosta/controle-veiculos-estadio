@@ -1,134 +1,126 @@
-import React, { useState } from 'react';
-import { ArrowLeft, Plus, Edit, Trash2, Calendar, Users, Package, Save, X, Clock } from 'lucide-react';
+import React, { useState, useMemo, useCallback } from 'react';
+import {
+  ArrowLeft, Plus, Edit, Trash2, Calendar,
+  Users, Package, Save, X, Clock
+} from 'lucide-react';
 import { useToast } from '../ui/Toast';
 import LoadingButton from '../ui/LoadingButton';
 
+// ─────────────────────────────────────────────
+// Constantes
+// ─────────────────────────────────────────────
 const EXPENSE_TYPES_PESSOAL = ['Carregador', 'Coordenador', 'Segurança', 'Ascensorista', 'Segurança Motorizado'];
 const EXPENSE_TYPES_ALUGUEL = ['Fechamento Cego', 'Gradis'];
 
 const STATUS_COLORS = {
   planejado: 'bg-blue-100 text-blue-800',
   realizado: 'bg-green-100 text-green-800',
-  cancelado: 'bg-red-100 text-red-800'
+  cancelado: 'bg-red-100 text-red-800',
 };
 
 const CATEGORY_COLORS = {
-  Show: 'bg-purple-100 text-purple-800',
-  Jogo: 'bg-green-100 text-green-800',
+  Show:        'bg-purple-100 text-purple-800',
+  Jogo:        'bg-green-100 text-green-800',
   Treinamento: 'bg-blue-100 text-blue-800',
   Corporativo: 'bg-gray-100 text-gray-800',
-  Férias: 'bg-red-100 text-red-800',
-  Feira: 'bg-yellow-100 text-yellow-800',
-  Outro: 'bg-orange-100 text-orange-800'
+  Férias:      'bg-red-100 text-red-800',
+  Feira:       'bg-yellow-100 text-yellow-800',
+  Outro:       'bg-orange-100 text-orange-800',
 };
 
-const emptyExpense = {
+const EMPTY_EXPENSE = {
   expenseCategory: 'pessoal',
-  expenseType: 'Carregador',
-  expenseDate: '',
-  shifts: 1,
-  quantity: 1,
-  unitValue: '',
-  notes: ''
+  expenseType:     'Carregador',
+  expenseDate:     '',
+  shifts:          1,
+  quantity:        1,
+  unitValue:       '',
+  notes:           '',
 };
 
+// ─────────────────────────────────────────────
+// Helpers puros
+// ─────────────────────────────────────────────
+function parseDate(str) {
+  return new Date(str + 'T00:00:00');
+}
+
+function formatCurrency(value) {
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
+    .format(value || 0);
+}
+
+function formatDate(date) {
+  if (!date) return '-';
+  return parseDate(date).toLocaleDateString('pt-BR');
+}
+
+function calcExpenseTotal(expenseData) {
+  if (expenseData.expenseCategory === 'pessoal') {
+    return (expenseData.shifts || 0) * (expenseData.quantity || 0) * (parseFloat(expenseData.unitValue) || 0);
+  }
+  return parseFloat(expenseData.unitValue) || 0;
+}
+
+/**
+ * Classifica o dia em relação ao evento.
+ * Função pura — não depende de estado/props do componente.
+ */
+function getDayLabel(date, eventStartDate, eventEndDate) {
+  if (!date || date === 'sem-data') return null;
+
+  const d     = parseDate(date);
+  const start = parseDate(eventStartDate);
+  const end   = parseDate(eventEndDate || eventStartDate);
+
+  if (d < start) {
+    const diff = Math.round((start - d) / (1000 * 60 * 60 * 24));
+    return { label: `${diff} dia(s) antes`, color: 'bg-yellow-100 text-yellow-800' };
+  }
+  if (d > end) {
+    const diff = Math.round((d - end) / (1000 * 60 * 60 * 24));
+    return { label: `${diff} dia(s) depois`, color: 'bg-orange-100 text-orange-800' };
+  }
+  return { label: 'Dia do Evento', color: 'bg-emerald-100 text-emerald-800' };
+}
+
+function scrollToTop() {
+  setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 100);
+}
+
+// ─────────────────────────────────────────────
+// Componente
+// ─────────────────────────────────────────────
 export default function EventDetail({
   event,
   onBack,
   onEdit,
   onAddExpense,
   onUpdateExpense,
-  onDeleteExpense
+  onDeleteExpense,
 }) {
   const { error: showError } = useToast();
+
   const [showExpenseForm, setShowExpenseForm] = useState(false);
-  const [editingExpense, setEditingExpense] = useState(null);
-  const [saving, setSaving] = useState(false);
-  const [expenseData, setExpenseData] = useState(emptyExpense);
-  const [viewMode, setViewMode] = useState('timeline'); // 'timeline' ou 'tipo'
+  const [editingExpense,  setEditingExpense]  = useState(null);
+  const [saving,          setSaving]          = useState(false);
+  const [expenseData,     setExpenseData]     = useState(EMPTY_EXPENSE);
+  const [viewMode,        setViewMode]        = useState('timeline');
 
-  const formatCurrency = (value) =>
-    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0);
-
-  const formatDate = (date) => {
-    if (!date) return '-';
-    return new Date(date + 'T12:00:00').toLocaleDateString('pt-BR');
-  };
-
-  const calcTotal = () => {
-    if (expenseData.expenseCategory === 'pessoal') {
-      return (expenseData.shifts || 0) * (expenseData.quantity || 0) * (parseFloat(expenseData.unitValue) || 0);
-    }
-    return parseFloat(expenseData.unitValue) || 0;
-  };
-
-  const handleOpenAdd = () => {
-    setExpenseData({ ...emptyExpense, expenseDate: event.startDate || '' });
-    setEditingExpense(null);
-    setShowExpenseForm(true);
-    setTimeout(() => {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }, 100);
-  };
-
-  const handleOpenEdit = (expense) => {
-    setExpenseData({
-      expenseCategory: expense.expenseCategory,
-      expenseType: expense.expenseType,
-      expenseDate: expense.expenseDate || '',
-      shifts: expense.shifts || 1,
-      quantity: expense.quantity || 1,
-      unitValue: expense.unitValue || '',
-      notes: expense.notes || ''
+  // ─── Totais ──────────────────────────────────
+  const { totalPessoal, totalAluguel } = useMemo(() => {
+    let pessoal = 0, aluguel = 0;
+    (event.expenses || []).forEach(ex => {
+      if      (ex.expenseCategory === 'pessoal') pessoal += ex.totalValue || 0;
+      else if (ex.expenseCategory === 'aluguel') aluguel += ex.totalValue || 0;
     });
-    setEditingExpense(expense);
-    setShowExpenseForm(true);
-    setTimeout(() => {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }, 100);
-  };
+    return { totalPessoal: pessoal, totalAluguel: aluguel };
+  }, [event.expenses]);
 
-  const handleSaveExpense = async () => {
-    if (!expenseData.unitValue || parseFloat(expenseData.unitValue) <= 0) {
-      showError('Informe o valor unitário'); return;
-    }
-    setSaving(true);
-    try {
-      if (editingExpense) {
-        await onUpdateExpense(editingExpense.id, { ...expenseData, eventId: event.id });
-      } else {
-        await onAddExpense({ ...expenseData, eventId: event.id });
-      }
-      setShowExpenseForm(false);
-      setExpenseData(emptyExpense);
-      setEditingExpense(null);
-    } catch (err) {
-      showError(err.message || 'Erro ao salvar gasto');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleChangeExpense = (field, value) => {
-    setExpenseData(prev => {
-      const updated = { ...prev, [field]: value };
-      if (field === 'expenseCategory') {
-        updated.expenseType = value === 'pessoal'
-          ? EXPENSE_TYPES_PESSOAL[0]
-          : EXPENSE_TYPES_ALUGUEL[0];
-      }
-      return updated;
-    });
-  };
-
-  // ============================================
-  // AGRUPAR POR DATA (TIMELINE)
-  // ============================================
-  const getTimelineData = () => {
-    const expenses = event.expenses || [];
+  // ─── Timeline agrupada por data ──────────────
+  const timeline = useMemo(() => {
     const byDate = {};
-
-    expenses.forEach(ex => {
+    (event.expenses || []).forEach(ex => {
       const date = ex.expenseDate || 'sem-data';
       if (!byDate[date]) byDate[date] = [];
       byDate[date].push(ex);
@@ -143,36 +135,83 @@ export default function EventDetail({
       .map(([date, items]) => ({
         date,
         items,
-        total: items.reduce((sum, ex) => sum + (ex.totalValue || 0), 0)
+        total: items.reduce((sum, ex) => sum + (ex.totalValue || 0), 0),
       }));
-  };
+  }, [event.expenses]);
 
-  // Classifica o dia em relação ao evento
-  const getDayLabel = (date) => {
-    if (!date || date === 'sem-data') return null;
-    const d = new Date(date + 'T12:00:00');
-    const start = new Date(event.startDate + 'T12:00:00');
-    const end = new Date((event.endDate || event.startDate) + 'T12:00:00');
+  // ─── Preview do total do formulário ──────────
+  const previewTotal = useMemo(() => calcExpenseTotal(expenseData), [expenseData]);
 
-    if (d < start) {
-      const diff = Math.round((start - d) / (1000 * 60 * 60 * 24));
-      return { label: `${diff} dia(s) antes`, color: 'bg-yellow-100 text-yellow-800' };
+  // ─── Abrir formulário (add ou edit) ──────────
+  const openForm = useCallback((expense = null) => {
+    if (expense) {
+      setExpenseData({
+        expenseCategory: expense.expenseCategory,
+        expenseType:     expense.expenseType,
+        expenseDate:     expense.expenseDate || '',
+        shifts:          expense.shifts   || 1,
+        quantity:        expense.quantity || 1,
+        unitValue:       expense.unitValue || '',
+        notes:           expense.notes    || '',
+      });
+      setEditingExpense(expense);
+    } else {
+      setExpenseData({ ...EMPTY_EXPENSE, expenseDate: event.startDate || '' });
+      setEditingExpense(null);
     }
-    if (d > end) {
-      const diff = Math.round((d - end) / (1000 * 60 * 60 * 24));
-      return { label: `${diff} dia(s) depois`, color: 'bg-orange-100 text-orange-800' };
+    setShowExpenseForm(true);
+    scrollToTop();
+  }, [event.startDate]);
+
+  // ─── Cancelar formulário ─────────────────────
+  const handleCancel = useCallback(() => {
+    setShowExpenseForm(false);
+    setEditingExpense(null);
+    setExpenseData(EMPTY_EXPENSE);
+  }, []);
+
+  // ─── Salvar gasto ─────────────────────────────
+  const handleSaveExpense = useCallback(async () => {
+    if (!expenseData.unitValue || parseFloat(expenseData.unitValue) <= 0) {
+      showError('Informe o valor unitário');
+      return;
     }
-    return { label: 'Dia do Evento', color: 'bg-emerald-100 text-emerald-800' };
-  };
+    setSaving(true);
+    try {
+      if (editingExpense) {
+        await onUpdateExpense(editingExpense.id, { ...expenseData, eventId: event.id });
+      } else {
+        await onAddExpense({ ...expenseData, eventId: event.id });
+      }
+      handleCancel();
+    } catch (err) {
+      showError(err.message || 'Erro ao salvar gasto');
+    } finally {
+      setSaving(false);
+    }
+  }, [expenseData, editingExpense, event.id, onUpdateExpense, onAddExpense, handleCancel, showError]);
 
-  const timeline = getTimelineData();
-  const totalPessoal = (event.expenses || [])
-    .filter(e => e.expenseCategory === 'pessoal')
-    .reduce((sum, e) => sum + (e.totalValue || 0), 0);
-  const totalAluguel = (event.expenses || [])
-    .filter(e => e.expenseCategory === 'aluguel')
-    .reduce((sum, e) => sum + (e.totalValue || 0), 0);
+  // ─── Deletar gasto ────────────────────────────
+  const handleDeleteExpense = useCallback((expenseId) => {
+    if (window.confirm('Deletar este gasto?')) onDeleteExpense(expenseId);
+  }, [onDeleteExpense]);
 
+  // ─── Alterar campo do formulário ──────────────
+  const handleChangeExpense = useCallback((field, value) => {
+    setExpenseData(prev => {
+      const updated = { ...prev, [field]: value };
+      if (field === 'expenseCategory') {
+        updated.expenseType = value === 'pessoal'
+          ? EXPENSE_TYPES_PESSOAL[0]
+          : EXPENSE_TYPES_ALUGUEL[0];
+      }
+      return updated;
+    });
+  }, []);
+
+  // ─────────────────────────────────────────────
+  // RENDER
+  // ─────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-green-100 p-4 md:p-6">
       <div className="max-w-4xl mx-auto space-y-6">
@@ -198,15 +237,12 @@ export default function EventDetail({
                   <Calendar size={16} />
                   <span className="text-sm">
                     {formatDate(event.startDate)}
-                    {event.endDate && event.endDate !== event.startDate &&
-                      ` → ${formatDate(event.endDate)}`}
+                    {event.endDate && event.endDate !== event.startDate && ` → ${formatDate(event.endDate)}`}
                   </span>
                 </div>
               </div>
               <div className="text-right">
-                <div className="text-3xl font-bold text-white">
-                  {formatCurrency(event.totalExpenses)}
-                </div>
+                <div className="text-3xl font-bold text-white">{formatCurrency(event.totalExpenses)}</div>
                 <div className="text-emerald-200 text-sm">Total do Evento</div>
                 <button
                   onClick={() => onEdit(event)}
@@ -221,15 +257,15 @@ export default function EventDetail({
           {/* Resumo */}
           <div className="grid grid-cols-3 divide-x divide-gray-100 p-3">
             <div className="text-center px-2">
-              <div className="text-sm sm:text-xl font-bold text-emerald-700 trucante">{formatCurrency(totalPessoal)}</div>
+              <div className="text-sm sm:text-xl font-bold text-emerald-700 truncate">{formatCurrency(totalPessoal)}</div>
               <div className="text-xs text-gray-500 mt-0.5">Pessoal</div>
             </div>
             <div className="text-center px-2">
-              <div className="text-sm sm:text-xl font-bold text-orange-600 trucante">{formatCurrency(totalAluguel)}</div>
+              <div className="text-sm sm:text-xl font-bold text-orange-600 truncate">{formatCurrency(totalAluguel)}</div>
               <div className="text-xs text-gray-500 mt-0.5">Aluguéis</div>
             </div>
             <div className="text-center px-2">
-              <div className="text-sm sm:text-xl font-bold text-gray-800 trucante">{formatCurrency(event.totalExpenses)}</div>
+              <div className="text-sm sm:text-xl font-bold text-gray-800 truncate">{formatCurrency(event.totalExpenses)}</div>
               <div className="text-xs text-gray-500 mt-0.5">Total</div>
             </div>
           </div>
@@ -274,12 +310,12 @@ export default function EventDetail({
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Data do Gasto
-                    <span className="text-gray-400 font-normal text-xs ml-1">(opcional - para gastos em dias específicos)</span>
+                    <span className="text-gray-400 font-normal text-xs ml-1">(opcional)</span>
                   </label>
                   <input
                     type="date"
                     value={expenseData.expenseDate}
-                    onChange={(e) => handleChangeExpense('expenseDate', e.target.value)}
+                    onChange={e => handleChangeExpense('expenseDate', e.target.value)}
                     disabled={saving}
                     className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-emerald-500 focus:outline-none disabled:opacity-50"
                   />
@@ -288,7 +324,7 @@ export default function EventDetail({
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Tipo *</label>
                   <select
                     value={expenseData.expenseType}
-                    onChange={(e) => handleChangeExpense('expenseType', e.target.value)}
+                    onChange={e => handleChangeExpense('expenseType', e.target.value)}
                     disabled={saving}
                     className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-emerald-500 focus:outline-none"
                   >
@@ -308,7 +344,7 @@ export default function EventDetail({
                     <input
                       type="number" min="1"
                       value={expenseData.shifts}
-                      onChange={(e) => handleChangeExpense('shifts', parseInt(e.target.value) || 1)}
+                      onChange={e => handleChangeExpense('shifts', parseInt(e.target.value) || 1)}
                       disabled={saving}
                       className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-emerald-500 focus:outline-none"
                     />
@@ -318,7 +354,7 @@ export default function EventDetail({
                     <input
                       type="number" min="1"
                       value={expenseData.quantity}
-                      onChange={(e) => handleChangeExpense('quantity', parseInt(e.target.value) || 1)}
+                      onChange={e => handleChangeExpense('quantity', parseInt(e.target.value) || 1)}
                       disabled={saving}
                       className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-emerald-500 focus:outline-none"
                     />
@@ -328,7 +364,7 @@ export default function EventDetail({
                     <input
                       type="number" min="0" step="0.01"
                       value={expenseData.unitValue}
-                      onChange={(e) => handleChangeExpense('unitValue', e.target.value)}
+                      onChange={e => handleChangeExpense('unitValue', e.target.value)}
                       disabled={saving}
                       className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-emerald-500 focus:outline-none"
                       placeholder="0,00"
@@ -344,7 +380,7 @@ export default function EventDetail({
                   <input
                     type="number" min="0" step="0.01"
                     value={expenseData.unitValue}
-                    onChange={(e) => handleChangeExpense('unitValue', e.target.value)}
+                    onChange={e => handleChangeExpense('unitValue', e.target.value)}
                     disabled={saving}
                     className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-emerald-500 focus:outline-none"
                     placeholder="0,00"
@@ -353,7 +389,7 @@ export default function EventDetail({
               )}
 
               {/* Preview Total */}
-              {expenseData.unitValue > 0 && (
+              {parseFloat(expenseData.unitValue) > 0 && (
                 <div className="bg-emerald-50 border-2 border-emerald-200 rounded-xl p-4">
                   {expenseData.expenseCategory === 'pessoal' ? (
                     <div className="text-sm text-emerald-800">
@@ -366,7 +402,7 @@ export default function EventDetail({
                     </div>
                   )}
                   <div className="text-xl font-bold text-emerald-700 mt-1">
-                    = {formatCurrency(calcTotal())}
+                    = {formatCurrency(previewTotal)}
                   </div>
                 </div>
               )}
@@ -377,7 +413,7 @@ export default function EventDetail({
                 <input
                   type="text"
                   value={expenseData.notes}
-                  onChange={(e) => handleChangeExpense('notes', e.target.value)}
+                  onChange={e => handleChangeExpense('notes', e.target.value)}
                   disabled={saving}
                   className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-emerald-500 focus:outline-none"
                   placeholder="Observações opcionais..."
@@ -395,9 +431,9 @@ export default function EventDetail({
                   {editingExpense ? 'Salvar' : 'Adicionar'}
                 </LoadingButton>
                 <button
-                  onClick={() => { setShowExpenseForm(false); setEditingExpense(null); }}
+                  onClick={handleCancel}
                   disabled={saving}
-                  className="flex-1 bg-gray-400 hover:bg-gray-500 text-white py-3 rounded-lg font-medium"
+                  className="flex-1 bg-gray-400 hover:bg-gray-500 disabled:opacity-50 text-white py-3 rounded-lg font-medium"
                 >
                   Cancelar
                 </button>
@@ -409,30 +445,26 @@ export default function EventDetail({
         {/* CONTROLES DE VISUALIZAÇÃO + BOTÃO ADICIONAR */}
         <div className="flex items-center justify-between gap-3">
           <div className="flex gap-2">
-            <button
-              onClick={() => setViewMode('timeline')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                viewMode === 'timeline'
-                  ? 'bg-emerald-600 text-white'
-                  : 'bg-white text-gray-600 hover:bg-gray-50 shadow-sm'
-              }`}
-            >
-              📅 Timeline
-            </button>
-            <button
-              onClick={() => setViewMode('tipo')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                viewMode === 'tipo'
-                  ? 'bg-emerald-600 text-white'
-                  : 'bg-white text-gray-600 hover:bg-gray-50 shadow-sm'
-              }`}
-            >
-              👥 Por Tipo
-            </button>
+            {[
+              { id: 'timeline', label: '📅 Timeline' },
+              { id: 'tipo',     label: '👥 Por Tipo'  },
+            ].map(v => (
+              <button
+                key={v.id}
+                onClick={() => setViewMode(v.id)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  viewMode === v.id
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-white text-gray-600 hover:bg-gray-50 shadow-sm'
+                }`}
+              >
+                {v.label}
+              </button>
+            ))}
           </div>
           {!showExpenseForm && (
             <button
-              onClick={handleOpenAdd}
+              onClick={() => openForm()}
               className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm flex items-center gap-2 transition-colors shadow-md"
             >
               <Plus size={16} /> Adicionar Gasto
@@ -451,10 +483,9 @@ export default function EventDetail({
               </div>
             ) : (
               timeline.map(({ date, items, total }) => {
-                const dayLabel = getDayLabel(date);
+                const dayLabel = getDayLabel(date, event.startDate, event.endDate);
                 return (
                   <div key={date} className="bg-white rounded-2xl shadow-md overflow-hidden">
-                    {/* Data Header */}
                     <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-100">
                       <div className="flex items-center gap-3">
                         <Calendar size={16} className="text-emerald-600" />
@@ -470,7 +501,6 @@ export default function EventDetail({
                       <span className="font-bold text-emerald-700">{formatCurrency(total)}</span>
                     </div>
 
-                    {/* Itens do dia */}
                     <div className="divide-y divide-gray-50">
                       {items.map(expense => (
                         <div key={expense.id} className="flex items-center justify-between px-4 py-3 hover:bg-gray-50">
@@ -498,15 +528,13 @@ export default function EventDetail({
                             <span className="font-bold text-gray-800">{formatCurrency(expense.totalValue)}</span>
                             <div className="flex gap-1">
                               <button
-                                onClick={() => handleOpenEdit(expense)}
+                                onClick={() => openForm(expense)}
                                 className="text-blue-600 hover:text-blue-800 p-1 rounded"
                               >
                                 <Edit size={14} />
                               </button>
                               <button
-                                onClick={() => {
-                                  if (window.confirm('Deletar este gasto?')) onDeleteExpense(expense.id);
-                                }}
+                                onClick={() => handleDeleteExpense(expense.id)}
                                 className="text-red-500 hover:text-red-700 p-1 rounded"
                               >
                                 <Trash2 size={14} />
@@ -526,6 +554,7 @@ export default function EventDetail({
         {/* VISUALIZAÇÃO POR TIPO */}
         {viewMode === 'tipo' && (
           <div className="space-y-4">
+
             {/* Pessoal */}
             <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
               <div className="flex items-center justify-between p-4 border-b border-gray-100">
@@ -569,11 +598,11 @@ export default function EventDetail({
                             <td className="px-4 py-3 text-right font-bold text-emerald-700">{formatCurrency(expense.totalValue)}</td>
                             <td className="px-4 py-3 text-center">
                               <div className="flex gap-2 justify-center">
-                                <button onClick={() => handleOpenEdit(expense)} className="text-blue-600 hover:text-blue-800 p-1 rounded">
+                                <button onClick={() => openForm(expense)} className="text-blue-600 hover:text-blue-800 p-1 rounded">
                                   <Edit size={15} />
                                 </button>
                                 <button
-                                  onClick={() => { if (window.confirm('Deletar este gasto?')) onDeleteExpense(expense.id); }}
+                                  onClick={() => handleDeleteExpense(expense.id)}
                                   className="text-red-500 hover:text-red-700 p-1 rounded"
                                 >
                                   <Trash2 size={15} />
@@ -587,7 +616,7 @@ export default function EventDetail({
                       <tr>
                         <td colSpan={5} className="px-4 py-3 font-bold text-emerald-800">Total Pessoal</td>
                         <td className="px-4 py-3 text-right font-bold text-emerald-800">{formatCurrency(totalPessoal)}</td>
-                        <td></td>
+                        <td />
                       </tr>
                     </tfoot>
                   </table>
@@ -634,11 +663,11 @@ export default function EventDetail({
                             <td className="px-4 py-3 text-right font-bold text-orange-600">{formatCurrency(expense.totalValue)}</td>
                             <td className="px-4 py-3 text-center">
                               <div className="flex gap-2 justify-center">
-                                <button onClick={() => handleOpenEdit(expense)} className="text-blue-600 hover:text-blue-800 p-1 rounded">
+                                <button onClick={() => openForm(expense)} className="text-blue-600 hover:text-blue-800 p-1 rounded">
                                   <Edit size={15} />
                                 </button>
                                 <button
-                                  onClick={() => { if (window.confirm('Deletar este gasto?')) onDeleteExpense(expense.id); }}
+                                  onClick={() => handleDeleteExpense(expense.id)}
                                   className="text-red-500 hover:text-red-700 p-1 rounded"
                                 >
                                   <Trash2 size={15} />
@@ -652,7 +681,7 @@ export default function EventDetail({
                       <tr>
                         <td colSpan={3} className="px-4 py-3 font-bold text-orange-800">Total Aluguéis</td>
                         <td className="px-4 py-3 text-right font-bold text-orange-800">{formatCurrency(totalAluguel)}</td>
-                        <td></td>
+                        <td />
                       </tr>
                     </tfoot>
                   </table>
@@ -664,7 +693,7 @@ export default function EventDetail({
 
         {/* TOTAL GERAL */}
         <div className="bg-gradient-to-r from-emerald-600 to-green-700 rounded-2xl shadow-xl p-4 sm:p-6">
-          <div className="flex flex-col sm:items-center sm:justify-between gap-2">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <div>
               <div className="text-emerald-200 text-xs sm:text-sm font-medium">TOTAL GERAL DO EVENTO</div>
               <div className="text-white text-xs sm:text-sm mt-1">
