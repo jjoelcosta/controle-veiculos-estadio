@@ -90,7 +90,8 @@ export default function StaffDetail({
   const [showSwapForm, setShowSwapForm] = useState(false);
   const [swapForm, setSwapForm] = useState({
     target_id: '', original_date: '', swap_date: '',
-    status: 'aprovada', notes: ''
+    status: 'aprovada', notes: '',
+    swap_type: 'por_data'  // 'por_data' | 'definitiva'
   });
 
   // ── Afastamentos ──
@@ -100,9 +101,9 @@ export default function StaffDetail({
   const [absenceForm, setAbsenceForm] = useState({
     absence_type: 'Atestado Médico',
     start_date: '', end_date: '',
-    days_count: '', document_number: '', notes: ''
+    days_count: '', document_number: '', notes: '',
+    indeterminate: false
   });
-
   const [saving, setSaving] = useState(false);
   const [allStaff, setAllStaff] = useState([]);
 
@@ -233,19 +234,31 @@ export default function StaffDetail({
   // ─────────────────────────────────────────
   // TROCAS — handlers
   // ─────────────────────────────────────────
-  const handleSaveSwap = async () => {
-    if (!swapForm.target_id || !swapForm.original_date || !swapForm.swap_date) {
-      showError('Preencha todos os campos obrigatórios'); return;
+    const handleSaveSwap = async () => {
+    if (!swapForm.target_id) {
+      showError('Selecione o funcionário para troca'); return;
+    }
+    if (swapForm.swap_type === 'por_data') {
+      if (!swapForm.original_date || !swapForm.swap_date) {
+        showError('Preencha as datas da troca'); return;
+      }
+    } else {
+      // definitiva: só precisa da data original de cada um
+      if (!swapForm.original_date) {
+        showError('Informe a escala atual do funcionário'); return;
+      }
     }
     setSaving(true);
     try {
       await storage.addStaffShiftSwap({
         ...swapForm,
+        // Para troca definitiva swap_date não é necessário
+        swap_date: swapForm.swap_type === 'definitiva' ? null : swapForm.swap_date,
         requester_id: staff.id
       });
       success('✅ Troca registrada!');
       setShowSwapForm(false);
-      setSwapForm({ target_id: '', original_date: '', swap_date: '', status: 'aprovada', notes: '' });
+      setSwapForm({ target_id: '', original_date: '', swap_date: '', status: 'aprovada', notes: '', swap_type: 'por_data' });
       await loadAll();
     } catch (err) {
       showError(err.message || 'Erro ao registrar troca');
@@ -282,17 +295,25 @@ export default function StaffDetail({
     return Math.max(0, Math.round((e - s) / (1000 * 60 * 60 * 24)) + 1);
   };
 
-  const handleSaveAbsence = async () => {
+    const handleSaveAbsence = async () => {
     if (!absenceForm.start_date) {
       showError('Informe a data de início'); return;
     }
     setSaving(true);
     try {
-      const days = absenceForm.end_date
-        ? calcAbsenceDays(absenceForm.start_date, absenceForm.end_date)
-        : parseInt(absenceForm.days_count) || 0;
+      const days = absenceForm.indeterminate
+        ? 0
+        : absenceForm.end_date
+          ? calcAbsenceDays(absenceForm.start_date, absenceForm.end_date)
+          : parseInt(absenceForm.days_count) || 0;
 
-      const payload = { ...absenceForm, staff_id: staff.id, days_count: days };
+      const payload = {
+        ...absenceForm,
+        staff_id: staff.id,
+        days_count: days,
+        end_date: absenceForm.indeterminate ? null : absenceForm.end_date
+      };
+
       if (editingAbsence) {
         await storage.updateStaffAbsence(editingAbsence.id, payload);
         success('✅ Afastamento atualizado!');
@@ -300,9 +321,32 @@ export default function StaffDetail({
         await storage.addStaffAbsence(payload);
         success('✅ Afastamento registrado!');
       }
+
+      // ── Atualiza status do funcionário automaticamente ──
+      const today = new Date().toISOString().split('T')[0];
+      const isActive = absenceForm.end_date && absenceForm.end_date < today;
+      // Se afastamento ainda está em curso (indeterminado ou data fim >= hoje) → afastado
+      // Se data fim já passou → volta para ativo
+      const newStatus = (!absenceForm.indeterminate && absenceForm.end_date && absenceForm.end_date < today)
+        ? 'ativo'
+        : 'afastado';
+
+      if (staff.status !== newStatus) {
+        await storage.updateStaff(staff.id, { status: newStatus });
+        success(newStatus === 'afastado'
+          ? '✅ Afastamento registrado! Status atualizado para Afastado.'
+          : '✅ Afastamento registrado! Status atualizado para Ativo.'
+        );
+      }
+
       setShowAbsenceForm(false);
       setEditingAbsence(null);
-      setAbsenceForm({ absence_type: 'Atestado Médico', start_date: '', end_date: '', days_count: '', document_number: '', notes: '' });
+      setAbsenceForm({
+        absence_type: 'Atestado Médico',
+        start_date: '', end_date: '',
+        days_count: '', document_number: '',
+        notes: '', indeterminate: false
+      });
       await loadAll();
       if (onReload) onReload();
     } catch (err) {
@@ -312,7 +356,7 @@ export default function StaffDetail({
     }
   };
 
-  const handleDeleteAbsence = (abs) => {
+    const handleDeleteAbsence = (abs) => {
     openModal({
       title: 'Excluir afastamento?',
       message: 'Esta ação não pode ser desfeita.',
@@ -322,7 +366,23 @@ export default function StaffDetail({
         try {
           await storage.deleteStaffAbsence(abs.id);
           success('✅ Afastamento excluído!');
+
+          // Recarrega afastamentos e verifica se ainda tem algum ativo
+          const remaining = await storage.loadStaffAbsences(staff.id);
+          const today = new Date().toISOString().split('T')[0];
+          const stillAbsent = remaining.some(a => {
+            if (a.indeterminate) return true;
+            if (!a.end_date) return true;
+            return a.end_date >= today;
+          });
+
+          // Se não tem mais afastamento ativo, volta para ativo
+          if (!stillAbsent && staff.status === 'afastado') {
+            await storage.updateStaff(staff.id, { status: 'ativo' });
+          }
+
           await loadAll();
+          if (onReload) onReload();
         } catch (err) {
           showError('Erro ao excluir');
         }
@@ -704,9 +764,49 @@ export default function StaffDetail({
                   </button>
                 )}
 
-                {showSwapForm && (
+                  {showSwapForm && (
                   <div className="bg-indigo-50 border-2 border-indigo-200 rounded-xl p-4 space-y-3">
                     <h4 className="font-bold text-indigo-800">Nova Troca de Plantão</h4>
+
+                    {/* Tipo de troca */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setSwapForm(p => ({ ...p, swap_type: 'por_data' }))}
+                        className={`py-2 px-3 rounded-lg text-sm font-medium border-2 transition-colors ${
+                          swapForm.swap_type === 'por_data'
+                            ? 'bg-indigo-600 text-white border-indigo-600'
+                            : 'bg-white text-indigo-700 border-indigo-300 hover:bg-indigo-50'
+                        }`}
+                      >
+                        📅 Por Datas
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSwapForm(p => ({ ...p, swap_type: 'definitiva', swap_date: '' }))}
+                        className={`py-2 px-3 rounded-lg text-sm font-medium border-2 transition-colors ${
+                          swapForm.swap_type === 'definitiva'
+                            ? 'bg-purple-600 text-white border-purple-600'
+                            : 'bg-white text-purple-700 border-purple-300 hover:bg-purple-50'
+                        }`}
+                      >
+                        🔄 Definitiva
+                      </button>
+                    </div>
+
+                    {/* Descrição do tipo */}
+                    <div className={`text-xs px-3 py-2 rounded-lg ${
+                      swapForm.swap_type === 'definitiva'
+                        ? 'bg-purple-100 text-purple-700'
+                        : 'bg-indigo-100 text-indigo-700'
+                    }`}>
+                      {swapForm.swap_type === 'por_data'
+                        ? '📅 Troca pontual: dois funcionários trocam datas específicas de plantão.'
+                        : '🔄 Troca definitiva: mudança permanente de escala entre dois funcionários.'
+                      }
+                    </div>
+
+                    {/* Funcionário */}
                     <div>
                       <label className="block text-xs font-semibold text-gray-600 mb-1">
                         Trocar com *
@@ -722,24 +822,50 @@ export default function StaffDetail({
                         ))}
                       </select>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs font-semibold text-gray-600 mb-1">
-                          Data Original ({staff.name.split(' ')[0]}) *
-                        </label>
-                        <input type="date" value={swapForm.original_date}
-                          onChange={(e) => setSwapForm(p => ({ ...p, original_date: e.target.value }))}
-                          className="w-full max-w-full px-2 py-1.5 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none text-sm" />
+
+                    {/* Campos por tipo */}
+                    {swapForm.swap_type === 'por_data' ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-600 mb-1">
+                            Data Original ({staff.name.split(' ')[0]}) *
+                          </label>
+                          <input type="date" value={swapForm.original_date}
+                            onChange={(e) => setSwapForm(p => ({ ...p, original_date: e.target.value }))}
+                            className="w-full max-w-full px-2 py-1.5 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none text-sm" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-600 mb-1">
+                            Data da Troca *
+                          </label>
+                          <input type="date" value={swapForm.swap_date}
+                            onChange={(e) => setSwapForm(p => ({ ...p, swap_date: e.target.value }))}
+                            className="w-full max-w-full px-2 py-1.5 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none text-sm" />
+                        </div>
                       </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-gray-600 mb-1">
-                          Data da Troca *
-                        </label>
-                        <input type="date" value={swapForm.swap_date}
-                          onChange={(e) => setSwapForm(p => ({ ...p, swap_date: e.target.value }))}
-                          className="w-full max-w-full px-2 py-1.5 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none text-sm" />
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-600 mb-1">
+                            Escala Atual de {staff.name.split(' ')[0]} *
+                          </label>
+                          <input type="text" value={swapForm.original_date}
+                            onChange={(e) => setSwapForm(p => ({ ...p, original_date: e.target.value }))}
+                            className="w-full px-2 py-1.5 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:outline-none text-sm"
+                            placeholder="Ex: Dias Pares, Noturno..." />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-600 mb-1">
+                            Data de Vigência
+                          </label>
+                          <input type="date" value={swapForm.swap_date}
+                            onChange={(e) => setSwapForm(p => ({ ...p, swap_date: e.target.value }))}
+                            className="w-full max-w-full px-2 py-1.5 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:outline-none text-sm" />
+                          <p className="text-xs text-gray-400 mt-1">A partir de quando a troca vale</p>
+                        </div>
                       </div>
-                    </div>
+                    )}
+
                     <div>
                       <label className="block text-xs font-semibold text-gray-600 mb-1">Observações</label>
                       <input type="text" value={swapForm.notes}
@@ -749,10 +875,17 @@ export default function StaffDetail({
                     </div>
                     <div className="flex gap-2">
                       <LoadingButton loading={saving} onClick={handleSaveSwap}
-                        className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-2">
+                        className={`flex-1 text-white py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-2 ${
+                          swapForm.swap_type === 'definitiva'
+                            ? 'bg-purple-600 hover:bg-purple-700'
+                            : 'bg-indigo-600 hover:bg-indigo-700'
+                        }`}>
                         <Save size={14} /> Salvar
                       </LoadingButton>
-                      <button onClick={() => setShowSwapForm(false)}
+                      <button onClick={() => {
+                        setShowSwapForm(false);
+                        setSwapForm({ target_id: '', original_date: '', swap_date: '', status: 'aprovada', notes: '', swap_type: 'por_data' });
+                      }}
                         className="flex-1 bg-gray-400 hover:bg-gray-500 text-white py-2 rounded-lg text-sm">
                         Cancelar
                       </button>
@@ -781,8 +914,25 @@ export default function StaffDetail({
                                   <strong>{other?.name || 'Desconhecido'}</strong>
                                 </span>
                               </div>
-                              <div className="text-sm text-gray-600">
-                                {formatDate(swap.original_date)} → {formatDate(swap.swap_date)}
+                                                            <div className="text-sm text-gray-600">
+                                {swap.swap_type === 'definitiva' ? (
+                                  <span className="flex items-center gap-1 flex-wrap">
+                                    <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-bold">
+                                      🔄 Definitiva
+                                    </span>
+                                    <span>Escala: <strong>{swap.original_date}</strong></span>
+                                    {swap.swap_date && (
+                                      <span className="text-gray-400">· vigência {formatDate(swap.swap_date)}</span>
+                                    )}
+                                  </span>
+                                ) : (
+                                  <span>
+                                    <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-bold mr-1">
+                                      📅 Por data
+                                    </span>
+                                    {formatDate(swap.original_date)} → {formatDate(swap.swap_date)}
+                                  </span>
+                                )}
                               </div>
                               {swap.notes && <div className="text-xs text-gray-400 mt-1">{swap.notes}</div>}
                               <div className="text-xs text-gray-400 mt-1">
@@ -809,7 +959,7 @@ export default function StaffDetail({
               <div className="space-y-4">
                 {!showAbsenceForm && (
                   <button
-                    onClick={() => { setEditingAbsence(null); setAbsenceForm({ absence_type: 'Atestado Médico', start_date: '', end_date: '', days_count: '', document_number: '', notes: '' }); setShowAbsenceForm(true); }}
+                    onClick={() => { setEditingAbsence(null); setAbsenceForm({ absence_type: 'Atestado Médico', start_date: '', end_date: '', days_count: '', document_number: '', notes: '', indeterminate: false }); setShowAbsenceForm(true); }}
                     className="w-full bg-purple-600 hover:bg-purple-700 text-white py-2.5 rounded-xl font-medium flex items-center justify-center gap-2"
                   >
                     <Plus size={16} /> Registrar Afastamento
@@ -837,18 +987,41 @@ export default function StaffDetail({
                           className="w-full max-w-full px-2 py-1.5 border-2 border-gray-300 rounded-lg focus:border-orange-500 focus:outline-none text-sm" />
                       </div>
                       <div>
-                        <label className="block text-xs font-semibold text-gray-600 mb-1">
-                          Data Fim
-                          {absenceForm.start_date && absenceForm.end_date && (
-                            <span className="text-orange-600 font-normal ml-2">
-                              ({calcAbsenceDays(absenceForm.start_date, absenceForm.end_date)} dias)
-                            </span>
-                          )}
-                        </label>
-                        <input type="date" value={absenceForm.end_date}
-                          onChange={(e) => setAbsenceForm(p => ({ ...p, end_date: e.target.value }))}
-                          className="w-full max-w-full px-2 py-1.5 border-2 border-gray-300 rounded-lg focus:border-orange-500 focus:outline-none text-sm" />
-                      </div>
+                      <label className="block text-xs font-semibold text-gray-600 mb-1">
+                        Data Fim
+                        {!absenceForm.indeterminate && absenceForm.start_date && absenceForm.end_date && (
+                          <span className="text-orange-600 font-normal ml-2">
+                            ({calcAbsenceDays(absenceForm.start_date, absenceForm.end_date)} dias)
+                          </span>
+                        )}
+                      </label>
+                      <input
+                        type="date"
+                        value={absenceForm.end_date}
+                        onChange={(e) => setAbsenceForm(p => ({ ...p, end_date: e.target.value }))}
+                        disabled={absenceForm.indeterminate}
+                        className={`w-full max-w-full px-2 py-1.5 border-2 rounded-lg focus:outline-none text-sm transition-colors ${
+                          absenceForm.indeterminate
+                            ? 'border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed'
+                            : 'border-gray-300 focus:border-orange-500'
+                        }`}
+                      />
+                      <label className="flex items-center gap-2 mt-2 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={absenceForm.indeterminate}
+                          onChange={(e) => setAbsenceForm(p => ({
+                            ...p,
+                            indeterminate: e.target.checked,
+                            end_date: e.target.checked ? '' : p.end_date
+                          }))}
+                          className="w-4 h-4 accent-orange-500 cursor-pointer"
+                        />
+                        <span className="text-xs font-medium text-orange-700">
+                          Indeterminado (sem previsão de retorno)
+                        </span>
+                      </label>
+                    </div>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
@@ -904,7 +1077,10 @@ export default function StaffDetail({
                             </div>
                             <div className="text-sm font-medium text-gray-800">
                               {formatDate(abs.start_date)}
-                              {abs.end_date && ` → ${formatDate(abs.end_date)}`}
+                              {abs.indeterminate
+                                ? <span className="ml-2 text-xs font-bold text-orange-600 bg-orange-100 px-2 py-0.5 rounded-full">Indeterminado</span>
+                                : abs.end_date ? ` → ${formatDate(abs.end_date)}` : ''
+                              }
                             </div>
                             {abs.document_number && (
                               <div className="text-xs text-gray-500 mt-1">Doc: {abs.document_number}</div>
@@ -914,7 +1090,15 @@ export default function StaffDetail({
                           <div className="flex gap-1">
                             <button onClick={() => {
                               setEditingAbsence(abs);
-                              setAbsenceForm({ absence_type: abs.absence_type, start_date: abs.start_date, end_date: abs.end_date || '', days_count: abs.days_count || '', document_number: abs.document_number || '', notes: abs.notes || '' });
+                              setAbsenceForm({ 
+                                absence_type: abs.absence_type  || 'Atestado Médico',
+                                start_date:   abs.start_date    || '',
+                                end_date:     abs.end_date      || '',
+                                days_count:   abs.days_count    != null ? abs.days_count : '',
+                                document_number: abs.document_number || '',
+                                notes:        abs.notes         || '',
+                                indeterminate: !!abs.indeterminate || (!abs.end_date && !!abs.start_date && (abs.days_count === 0 || abs.days_count == null))
+                              });
                               setShowAbsenceForm(true);
                             }} className="text-blue-600 hover:text-blue-800 p-1.5 rounded-lg hover:bg-blue-50">
                               <Edit size={14} />

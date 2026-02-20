@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import {
   Plus, Search, UserCheck, Trash2, ArrowLeft, X,
-  Briefcase, Sun, Moon, Clock
+  Briefcase, Sun, Moon, Clock, AlertCircle, Calendar, FileText
 } from 'lucide-react';
 import { useModal } from '../ui/Modal';
 import { useToast } from '../ui/Toast';
@@ -36,7 +36,8 @@ export default function StaffList({
   const [activeTab, setActiveTab] = useState('operacional');
   const [search, setSearch] = useState('');
   const [filterPosition, setFilterPosition] = useState('todos');
-  const [filterStatus, setFilterStatus] = useState('todos');
+  const [filterStatus,   setFilterStatus]   = useState('todos');
+  const [filterAbsence,  setFilterAbsence]  = useState('todos'); // atestado/afastamento
 
   const operacional = useMemo(() =>
     staff.filter(s => s.team_type === 'operacional' || !s.team_type),
@@ -49,22 +50,95 @@ export default function StaffList({
   const currentList = activeTab === 'operacional' ? operacional : administrativo;
   const positions = activeTab === 'operacional' ? POSITIONS_OPERACIONAL : POSITIONS_ADMINISTRATIVO;
 
-  const filtered = useMemo(() => {
+    const filtered = useMemo(() => {
     return currentList.filter(s => {
-      const matchSearch = s.name.toLowerCase().includes(search.toLowerCase()) ||
+      const matchSearch   = s.name.toLowerCase().includes(search.toLowerCase()) ||
         s.cpf?.includes(search);
       const matchPosition = filterPosition === 'todos' || s.position === filterPosition;
-      const matchStatus = filterStatus === 'todos' || s.status === filterStatus;
-      return matchSearch && matchPosition && matchStatus;
+      const matchStatus   = filterStatus   === 'todos' || s.status   === filterStatus;
+
+      // Filtro por situação de afastamento/atestado
+      let matchAbsence = true;
+      if (filterAbsence === 'afastado') {
+        matchAbsence = s.status === 'afastado';
+      } else if (filterAbsence === 'ferias') {
+        matchAbsence = s.status === 'férias';
+      }
+
+      return matchSearch && matchPosition && matchStatus && matchAbsence;
     });
-  }, [currentList, search, filterPosition, filterStatus]);
+  }, [currentList, search, filterPosition, filterStatus, filterAbsence]);
 
   const stats = useMemo(() => ({
-    op_total: operacional.length,
-    op_ativo: operacional.filter(s => s.status === 'ativo').length,
-    adm_total: administrativo.length,
-    adm_ativo: administrativo.filter(s => s.status === 'ativo').length,
-  }), [operacional, administrativo]);
+  op_total: operacional.length,
+  op_ativo: operacional.filter(s => s.status === 'ativo').length,
+  adm_total: administrativo.length,
+  adm_ativo: administrativo.filter(s => s.status === 'ativo').length,
+}), [operacional, administrativo]);
+
+const today = new Date();
+const year2026 = new Date('2026-01-01');
+
+const statusCards = useMemo(() => {
+  const allStaff = [...operacional, ...administrativo];
+
+  const onVacation = allStaff.filter(s => s.status === 'férias');
+
+  const onAbsence = allStaff.filter(s => s.status === 'afastado');
+
+  // Férias a vencer nos próximos 90 dias (só a partir de 2026)
+  const vacationSoon = allStaff.filter(s => {
+    if (!s.hire_date) return false;
+    const hire = new Date(s.hire_date + 'T12:00:00');
+    let periodStart = new Date(hire);
+    while (periodStart < today) {
+      const periodEnd = new Date(periodStart);
+      periodEnd.setFullYear(periodEnd.getFullYear() + 1);
+      periodEnd.setDate(periodEnd.getDate() - 1);
+      const availableFrom = new Date(periodEnd);
+      availableFrom.setDate(availableFrom.getDate() + 1);
+      const expiresOn = new Date(availableFrom);
+      expiresOn.setFullYear(expiresOn.getFullYear() + 1);
+      expiresOn.setDate(expiresOn.getDate() - 1);
+      const daysUntilExpiry = Math.round((expiresOn - today) / (1000 * 60 * 60 * 24));
+      const isAvailable = availableFrom <= today;
+      const isExpired = expiresOn < today;
+      // Só alerta se a data de expiração for a partir de 2026
+      if (isAvailable && !isExpired && daysUntilExpiry <= 90 && expiresOn >= year2026) {
+        return true;
+      }
+      periodStart = new Date(periodEnd);
+      periodStart.setDate(periodStart.getDate() + 1);
+    }
+    return false;
+  });
+
+  // Férias vencidas (só a partir de 2026)
+  const vacationExpired = allStaff.filter(s => {
+    if (!s.hire_date) return false;
+    const hire = new Date(s.hire_date + 'T12:00:00');
+    let periodStart = new Date(hire);
+    while (periodStart < today) {
+      const periodEnd = new Date(periodStart);
+      periodEnd.setFullYear(periodEnd.getFullYear() + 1);
+      periodEnd.setDate(periodEnd.getDate() - 1);
+      const availableFrom = new Date(periodEnd);
+      availableFrom.setDate(availableFrom.getDate() + 1);
+      const expiresOn = new Date(availableFrom);
+      expiresOn.setFullYear(expiresOn.getFullYear() + 1);
+      expiresOn.setDate(expiresOn.getDate() - 1);
+      // Só alerta se venceu a partir de 2026
+      if (expiresOn < today && expiresOn >= year2026) {
+        return true;
+      }
+      periodStart = new Date(periodEnd);
+      periodStart.setDate(periodStart.getDate() + 1);
+    }
+    return false;
+  });
+
+  return { onVacation, onAbsence, vacationSoon, vacationExpired };
+}, [operacional, administrativo]);
 
   const formatDate = (date) => {
     if (!date) return '-';
@@ -234,11 +308,132 @@ export default function StaffList({
           </button>
         </div>
 
+                {/* ── CARDS DE STATUS ── */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+
+          {/* Em Férias */}
+          <div className="bg-white rounded-xl border-2 border-blue-200 p-4 shadow-sm">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-bold text-blue-600 uppercase tracking-wide">Em Férias</span>
+              <Sun size={18} className="text-blue-500" />
+            </div>
+            <div className="text-3xl font-bold text-blue-700 mb-1">
+              {statusCards.onVacation.length}
+            </div>
+            {statusCards.onVacation.length > 0 ? (
+              <div className="space-y-1 mt-2">
+                {statusCards.onVacation.slice(0, 3).map(s => (
+                  <div
+                    key={s.id}
+                    onClick={() => onViewDetail(s)}
+                    className="text-xs text-blue-700 bg-blue-50 px-2 py-1 rounded-lg cursor-pointer hover:bg-blue-100 truncate"
+                  >
+                    {s.name.split(' ')[0]} {s.name.split(' ')[1] || ''}
+                  </div>
+                ))}
+                {statusCards.onVacation.length > 3 && (
+                  <div className="text-xs text-blue-400">+{statusCards.onVacation.length - 3} mais</div>
+                )}
+              </div>
+            ) : (
+              <p className="text-xs text-gray-400">Nenhum no momento</p>
+            )}
+          </div>
+
+          {/* Férias a Vencer */}
+          <div className="bg-white rounded-xl border-2 border-yellow-200 p-4 shadow-sm">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-bold text-yellow-600 uppercase tracking-wide">Férias a Vencer</span>
+              <Calendar size={18} className="text-yellow-500" />
+            </div>
+            <div className="text-3xl font-bold text-yellow-700 mb-1">
+              {statusCards.vacationSoon.length}
+            </div>
+            {statusCards.vacationSoon.length > 0 ? (
+              <div className="space-y-1 mt-2">
+                {statusCards.vacationSoon.slice(0, 3).map(s => (
+                  <div
+                    key={s.id}
+                    onClick={() => onViewDetail(s)}
+                    className="text-xs text-yellow-700 bg-yellow-50 px-2 py-1 rounded-lg cursor-pointer hover:bg-yellow-100 truncate"
+                  >
+                    {s.name.split(' ')[0]} {s.name.split(' ')[1] || ''}
+                  </div>
+                ))}
+                {statusCards.vacationSoon.length > 3 && (
+                  <div className="text-xs text-yellow-400">+{statusCards.vacationSoon.length - 3} mais</div>
+                )}
+              </div>
+            ) : (
+              <p className="text-xs text-gray-400">Nenhuma nos próx. 90 dias</p>
+            )}
+          </div>
+
+          {/* Férias Vencidas */}
+          <div className="bg-white rounded-xl border-2 border-red-200 p-4 shadow-sm">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-bold text-red-600 uppercase tracking-wide">Férias Vencidas</span>
+              <AlertCircle size={18} className="text-red-500" />
+            </div>
+            <div className="text-3xl font-bold text-red-700 mb-1">
+              {statusCards.vacationExpired.length}
+            </div>
+            {statusCards.vacationExpired.length > 0 ? (
+              <div className="space-y-1 mt-2">
+                {statusCards.vacationExpired.slice(0, 3).map(s => (
+                  <div
+                    key={s.id}
+                    onClick={() => onViewDetail(s)}
+                    className="text-xs text-red-700 bg-red-50 px-2 py-1 rounded-lg cursor-pointer hover:bg-red-100 truncate"
+                  >
+                    {s.name.split(' ')[0]} {s.name.split(' ')[1] || ''}
+                  </div>
+                ))}
+                {statusCards.vacationExpired.length > 3 && (
+                  <div className="text-xs text-red-400">+{statusCards.vacationExpired.length - 3} mais</div>
+                )}
+              </div>
+            ) : (
+              <p className="text-xs text-gray-400">Nenhuma vencida</p>
+            )}
+          </div>
+
+          {/* Atestado / Afastado */}
+          <div className="bg-white rounded-xl border-2 border-orange-200 p-4 shadow-sm">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-bold text-orange-600 uppercase tracking-wide">Atestado / Afastado</span>
+              <FileText size={18} className="text-orange-500" />
+            </div>
+            <div className="text-3xl font-bold text-orange-700 mb-1">
+              {statusCards.onAbsence.length}
+            </div>
+            {statusCards.onAbsence.length > 0 ? (
+              <div className="space-y-1 mt-2">
+                {statusCards.onAbsence.slice(0, 3).map(s => (
+                  <div
+                    key={s.id}
+                    onClick={() => onViewDetail(s)}
+                    className="text-xs text-orange-700 bg-orange-50 px-2 py-1 rounded-lg cursor-pointer hover:bg-orange-100 truncate"
+                  >
+                    {s.name.split(' ')[0]} {s.name.split(' ')[1] || ''}
+                  </div>
+                ))}
+                {statusCards.onAbsence.length > 3 && (
+                  <div className="text-xs text-orange-400">+{statusCards.onAbsence.length - 3} mais</div>
+                )}
+              </div>
+            ) : (
+              <p className="text-xs text-gray-400">Nenhum no momento</p>
+            )}
+          </div>
+
+        </div>
+        
         {/* TABS PRINCIPAIS */}
         <div className="bg-white rounded-2xl shadow-md overflow-hidden mb-6">
           <div className="flex border-b border-gray-200">
             <button
-              onClick={() => { setActiveTab('operacional'); setFilterPosition('todos'); }}
+            onClick={() => { setActiveTab('operacional'); setFilterPosition('todos'); setFilterAbsence('todos'); }}
               className={`flex-1 flex items-center justify-center gap-2 px-6 py-4 font-semibold text-sm border-b-2 transition-colors ${
                 activeTab === 'operacional'
                   ? 'border-purple-500 text-purple-700 bg-purple-50'
@@ -256,7 +451,7 @@ export default function StaffList({
               </span>
             </button>
             <button
-              onClick={() => { setActiveTab('administrativo'); setFilterPosition('todos'); }}
+              onClick={() => { setActiveTab('administrativo'); setFilterPosition('todos'); setFilterAbsence('todos'); }}
               className={`flex-1 flex items-center justify-center gap-2 px-6 py-4 font-semibold text-sm border-b-2 transition-colors ${
                 activeTab === 'administrativo'
                   ? 'border-indigo-500 text-indigo-700 bg-indigo-50'
@@ -277,7 +472,7 @@ export default function StaffList({
 
           {/* FILTROS */}
           <div className="p-4 bg-gray-50 border-b border-gray-100">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
               <div className="relative">
                 <Search size={16} className="absolute left-3 top-3 text-gray-400" />
                 {search && (
@@ -301,7 +496,7 @@ export default function StaffList({
                 <option value="todos">Todos os cargos</option>
                 {positions.map(p => <option key={p} value={p}>{p}</option>)}
               </select>
-              <select
+                            <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
                 className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-purple-500 focus:outline-none text-sm"
@@ -310,6 +505,20 @@ export default function StaffList({
                 {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
                   <option key={key} value={key}>{cfg.icon} {cfg.label}</option>
                 ))}
+              </select>
+
+              <select
+                value={filterAbsence}
+                onChange={(e) => setFilterAbsence(e.target.value)}
+                className={`w-full px-3 py-2 border-2 rounded-lg focus:outline-none text-sm transition-colors ${
+                  filterAbsence !== 'todos'
+                    ? 'border-orange-400 bg-orange-50 text-orange-800'
+                    : 'border-gray-200 focus:border-purple-500'
+                }`}
+              >
+                <option value="todos">Todas as situações</option>
+                <option value="afastado">🟠 Afastados / Atestado</option>
+                <option value="ferias">🔵 Em Férias</option>
               </select>
             </div>
           </div>

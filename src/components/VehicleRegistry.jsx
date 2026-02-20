@@ -601,6 +601,7 @@ export default function VehicleRegistry() {
               events={events}
               team={securityTeam}
               hourBank={hourBank}
+              vacations={vacations}
               onBack={() => setShowEventReports(false)}
             />
           );
@@ -664,6 +665,7 @@ export default function VehicleRegistry() {
         return (
           <EventList
             events={events}
+            vacations={vacations}
             onAdd={() => setShowEventForm(true)}
             onViewDetail={(event) => setSelectedEvent(event)}
             onEdit={(event) => {

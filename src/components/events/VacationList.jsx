@@ -23,7 +23,8 @@ const emptyForm = {
   dailyRate: '',
   workedDays: '',       // ← dias trabalhados (editável)
   employeeOnVacation: '',
-  notes: ''
+  notes: '',
+  paymentMonth: ''
 };
 
 export default function VacationList({ vacations, onAdd, onUpdate, onDelete, onBack }) {
@@ -112,7 +113,7 @@ const calcTotal = () => {
     }
   };
 
- const handleEdit = (vacation) => {
+   const handleEdit = (vacation) => {
   setFormData({
     position: vacation.position,
     postLocation: vacation.postLocation,
@@ -120,10 +121,12 @@ const calcTotal = () => {
     endDate: vacation.endDate,
     workSchedule: vacation.workSchedule,
     dailyRate: vacation.dailyRate,
-    workedDays: vacation.totalDays, // ← carrega os dias salvos
+    workedDays: vacation.totalDays,
     employeeOnVacation: vacation.employeeOnVacation || '',
-    notes: vacation.notes || ''
+    notes: vacation.notes || '',
+    paymentMonth: vacation.paymentMonth || ''
   });
+
     setEditingId(vacation.id);
     setShowForm(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -381,6 +384,36 @@ const calcTotal = () => {
                 </div>
               )}
 
+              {/* Mês de Pagamento */}
+              <div className="bg-amber-50 border-2 border-amber-200 rounded-xl p-4">
+                <label className="block text-sm font-semibold text-amber-800 mb-1">
+                  Mês de Pagamento
+                  <span className="text-xs font-normal text-amber-600 ml-2">
+                    (deixe em branco para usar o mês da cobertura)
+                  </span>
+                </label>
+                <p className="text-xs text-amber-700 mb-2">
+                  Use quando o pagamento for em mês diferente do período de cobertura.
+                  Ex: cobertura em Janeiro, pagamento em Fevereiro.
+                </p>
+                <input
+                  type="month"
+                  value={formData.paymentMonth}
+                  onChange={(e) => handleChange('paymentMonth', e.target.value)}
+                  disabled={saving}
+                  className="w-full px-4 py-2.5 border-2 border-amber-300 rounded-lg focus:border-amber-500 focus:outline-none disabled:opacity-50 text-sm"
+                />
+                {formData.paymentMonth && (
+                  <button
+                    type="button"
+                    onClick={() => handleChange('paymentMonth', '')}
+                    className="mt-1 text-xs text-amber-600 hover:text-amber-800 underline"
+                  >
+                    ↺ Usar mês da cobertura
+                  </button>
+                )}
+              </div>
+
               {/* Observações */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Observações</label>
@@ -463,6 +496,13 @@ const calcTotal = () => {
                       </span>
                     </div>
 
+                      {vacation.paymentMonth && vacation.paymentMonth !== vacation.startDate?.substring(0, 7) && (
+                      <div className="flex items-center gap-1 mt-1">
+                        <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">
+                          💳 Pagamento: {new Date(vacation.paymentMonth + '-01T12:00:00').toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
+                        </span>
+                      </div>
+                    )}
                     {vacation.notes && (
                       <div className="text-xs text-gray-400 mt-1">{vacation.notes}</div>
                     )}

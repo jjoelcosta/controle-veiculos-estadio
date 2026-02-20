@@ -141,7 +141,8 @@ function EventCard({ event, onViewDetail, onEdit, onDelete }) {
 // ─────────────────────────────────────────────
 export default function EventList({
   events, onAdd, onViewDetail, onEdit, onDelete,
-  onBack, onManageTeam, onHourBank, onReports, onVacations
+  onBack, onManageTeam, onHourBank, onReports, onVacations,
+  vacations = []
 }) {
   const [search,          setSearch]          = useState('');
   const [filterCategory,  setFilterCategory]  = useState('todos');
@@ -220,6 +221,39 @@ export default function EventList({
     return Object.values(byType).sort((a, b) => b.totalValue - a.totalValue);
   }, [filtered]);
 
+    // ── Totais de férias (cobertura) ────────────
+  const vacationTotals = useMemo(() => {
+    const today = new Date();
+    // Filtra pelo mesmo mês selecionado se houver filtro de mês
+    const filtered = vacations.filter(v => {
+      if (!v.startDate) return false;
+      if (filterMonth !== 'todos' && !v.startDate.startsWith(filterMonth)) return false;
+      return true;
+    });
+    const totalValue = filtered.reduce((s, v) => s + (v.totalValue || 0), 0);
+    const totalDays  = filtered.reduce((s, v) => s + (v.totalDays  || 0), 0);
+    const count      = filtered.length;
+
+    // Por mês
+    const byMonth = {};
+    filtered.forEach(v => {
+      // Usa mês de pagamento se definido, senão usa mês da cobertura
+      const month = v.paymentMonth || v.startDate?.substring(0, 7);
+      if (!month) return;
+      if (!byMonth[month]) byMonth[month] = { month, totalValue: 0, totalDays: 0, count: 0 };
+      byMonth[month].totalValue += v.totalValue || 0;
+      byMonth[month].totalDays  += v.totalDays  || 0;
+      byMonth[month].count++;
+    });
+
+    return {
+      totalValue,
+      totalDays,
+      count,
+      byMonth: Object.values(byMonth).sort((a, b) => a.month.localeCompare(b.month))
+    };
+  }, [vacations, filterMonth]);
+
   const handleDelete = useCallback((event) => {
     if (window.confirm(`Deletar "${event.name}"?`)) onDelete(event.id);
   }, [onDelete]);
@@ -278,7 +312,7 @@ export default function EventList({
         </div>
 
         {/* ── DASHBOARD CARDS — simples e limpos ── */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
           <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg bg-emerald-100 flex items-center justify-center flex-shrink-0">
               <Calendar size={18} className="text-emerald-600" />
@@ -309,12 +343,24 @@ export default function EventList({
             </div>
           </div>
 
+                    <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0">
+              <Sun size={18} className="text-amber-600" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-sm font-bold text-gray-800 truncate">{formatCurrency(vacationTotals.totalValue)}</div>
+              <div className="text-xs text-gray-500">Coberturas de Férias</div>
+            </div>
+          </div>
+
           <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg bg-red-100 flex items-center justify-center flex-shrink-0">
               <TrendingUp size={18} className="text-red-600" />
             </div>
             <div className="min-w-0">
-              <div className="text-sm font-bold text-gray-800 truncate">{formatCurrency(totalGasto)}</div>
+              <div className="text-sm font-bold text-gray-800 truncate">
+                {formatCurrency(totalGasto + vacationTotals.totalValue)}
+              </div>
               <div className="text-xs text-gray-500">Total Geral</div>
             </div>
           </div>
@@ -451,6 +497,50 @@ export default function EventList({
             )}
           </div>
         )}
+
+            {/* Coberturas de Férias por Mês */}
+            {vacationTotals.byMonth.length > 0 && (
+              <div className="bg-white rounded-xl shadow-sm border border-amber-100 overflow-hidden">
+                <div className="px-4 py-3 border-b border-amber-100 flex items-center justify-between bg-amber-50">
+                  <h3 className="font-bold text-amber-800 text-sm flex items-center gap-2">
+                    <Sun size={15} className="text-amber-600" /> Coberturas de Férias por Mês
+                  </h3>
+                  <span className="text-xs text-amber-600 font-medium">
+                    {vacationTotals.count} cobertura(s)
+                  </span>
+                </div>
+                <div className="overflow-y-auto max-h-52">
+                  <table className="w-full">
+                    <thead className="bg-gray-50 sticky top-0">
+                      <tr>
+                        <th className="text-left px-3 py-2 text-xs font-semibold text-gray-500">Mês</th>
+                        <th className="text-center px-3 py-2 text-xs font-semibold text-gray-500">Coberturas</th>
+                        <th className="text-center px-3 py-2 text-xs font-semibold text-gray-500">Plantões</th>
+                        <th className="text-right px-3 py-2 text-xs font-semibold text-gray-500">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {vacationTotals.byMonth.map(m => (
+                        <tr key={m.month} className="hover:bg-amber-50 transition-colors">
+                          <td className="px-3 py-2 text-sm font-medium text-gray-700">{formatMonth(m.month)}</td>
+                          <td className="px-3 py-2 text-xs text-center text-gray-500">{m.count}</td>
+                          <td className="px-3 py-2 text-xs text-center text-gray-500">{m.totalDays}</td>
+                          <td className="px-3 py-2 text-xs text-right font-bold text-amber-700">{formatCurrency(m.totalValue)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot className="bg-amber-50 border-t border-amber-100">
+                      <tr>
+                        <td colSpan={3} className="px-3 py-2 text-xs font-bold text-amber-800">TOTAL</td>
+                        <td className="px-3 py-2 text-xs text-right font-bold text-amber-900">
+                          {formatCurrency(vacationTotals.totalValue)}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+            )}
 
         {/* FILTROS */}
         <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 mb-6">

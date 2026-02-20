@@ -1387,6 +1387,7 @@ const loadVacationExpenses = async () => {
       totalValue: v.total_value,
       employeeOnVacation: v.employee_on_vacation,
       notes: v.notes,
+      paymentMonth: v.payment_month || null,
       createdAt: new Date(v.created_at).toLocaleString('pt-BR')
     }));
   } catch (err) {
@@ -1399,7 +1400,7 @@ const addVacationExpense = async (vacationData) => {
   try {
     const totalValue = (vacationData.totalDays || 0) * (vacationData.dailyRate || 0);
 
-    const { data, error } = await supabase
+      const { data, error } = await supabase
       .from('vacation_expenses')
       .insert({
         position: vacationData.position,
@@ -1411,7 +1412,8 @@ const addVacationExpense = async (vacationData) => {
         daily_rate: vacationData.dailyRate,
         total_value: totalValue,
         employee_on_vacation: normalizeText(vacationData.employeeOnVacation),
-        notes: normalizeText(vacationData.notes)
+        notes: normalizeText(vacationData.notes),
+        payment_month: vacationData.paymentMonth || null
       })
       .select()
       .single();
@@ -1428,7 +1430,7 @@ const updateVacationExpense = async (vacationId, vacationData) => {
   try {
     const totalValue = (vacationData.totalDays || 0) * (vacationData.dailyRate || 0);
 
-    const { error } = await supabase
+      const { error } = await supabase
       .from('vacation_expenses')
       .update({
         position: vacationData.position,
@@ -1441,6 +1443,7 @@ const updateVacationExpense = async (vacationId, vacationData) => {
         total_value: totalValue,
         employee_on_vacation: normalizeText(vacationData.employeeOnVacation),
         notes: normalizeText(vacationData.notes),
+        payment_month: vacationData.paymentMonth || null,
         updated_at: new Date().toISOString()
       })
       .eq('id', vacationId);

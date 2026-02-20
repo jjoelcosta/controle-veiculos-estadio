@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import {
   ArrowLeft, FileText, Download, TrendingUp,
-  Calendar, Users, Package, BarChart2
+  Calendar, Users, Package, BarChart2, Sun
 } from 'lucide-react';
 import { useToast } from '../ui/Toast';
 import jsPDF from 'jspdf';
@@ -51,7 +51,7 @@ function getExpenseMonth(expense, eventStartDate) {
 // ─────────────────────────────────────────────
 // Componente
 // ─────────────────────────────────────────────
-export default function EventReports({ events, team, hourBank, onBack }) {
+export default function EventReports({ events, team, hourBank, vacations = [], onBack }) {
   const { success, error: showError } = useToast();
 
   const [filters, setFilters] = useState(() => {
@@ -102,11 +102,13 @@ export default function EventReports({ events, team, hourBank, onBack }) {
   // ─────────────────────────────────────────────
   // 3. ESTATÍSTICAS GERAIS
   // ─────────────────────────────────────────────
-  const stats = useMemo(() => {
+   const stats = useMemo(() => {
     const totalPessoal  = filteredEvents.reduce((s, e) => s + (eventTotals[e.id]?.pessoal || 0), 0);
     const totalAluguel  = filteredEvents.reduce((s, e) => s + (eventTotals[e.id]?.aluguel || 0), 0);
     const totalExpenses = filteredEvents.reduce((s, e) => s + (e.totalExpenses || 0), 0);
     const realizados    = filteredEvents.filter(e => e.status === 'realizado').length;
+    // Férias é calculado depois em vacationStats, mas precisamos do valor aqui para o total
+    // Usamos 0 de placeholder e atualizamos no render
     return { totalEvents: filteredEvents.length, realizados, totalExpenses, totalPessoal, totalAluguel };
   }, [filteredEvents, eventTotals]);
 
@@ -231,8 +233,46 @@ export default function EventReports({ events, team, hourBank, onBack }) {
       .sort((a, b) => b.totalHours - a.totalHours);
   }, [hourBank, team, filters.startDate, filters.endDate]);
 
+    // ─────────────────────────────────────────────
+  // 8. GASTOS DE FÉRIAS POR MÊS
   // ─────────────────────────────────────────────
-  // 8. GERAR PDF
+  const vacationStats = useMemo(() => {
+    const start = parseDate(filters.startDate);
+    const end   = parseDate(filters.endDate);
+    end.setHours(23, 59, 59);
+
+    const filtered = vacations.filter(v => {
+      if (!v.startDate) return false;
+      const d = parseDate(v.startDate);
+      return d >= start && d <= end;
+    });
+
+    const totalValue  = filtered.reduce((s, v) => s + (v.totalValue || 0), 0);
+    const totalDays   = filtered.reduce((s, v) => s + (v.totalDays  || 0), 0);
+    const totalCovers = filtered.length;
+
+    const byMonth = {};
+        filtered.forEach(v => {
+      // Usa mês de pagamento se definido, senão usa mês da cobertura
+      const month = v.paymentMonth || v.startDate?.substring(0, 7);
+      if (!month) return;
+      if (!byMonth[month]) byMonth[month] = { month, totalValue: 0, totalDays: 0, count: 0 };
+      byMonth[month].totalValue += v.totalValue || 0;
+      byMonth[month].totalDays  += v.totalDays  || 0;
+      byMonth[month].count++;
+    });
+
+    return {
+      filtered,
+      totalValue,
+      totalDays,
+      totalCovers,
+      byMonth: Object.values(byMonth).sort((a, b) => a.month.localeCompare(b.month)),
+    };
+  }, [vacations, filters.startDate, filters.endDate]);
+
+  // ─────────────────────────────────────────────
+  // 9. GERAR PDF
   // ─────────────────────────────────────────────
   const generatePDF = useCallback(async () => {
     if (!filtersAreValid) { showError('❌ Data inicial maior que a final'); return; }
@@ -353,7 +393,7 @@ export default function EventReports({ events, team, hourBank, onBack }) {
   }, [filteredEvents, eventTotals, stats, monthlyExpenses, expensesByType, hourBankMonthly, filters, filtersAreValid, success, showError]);
 
   // ─────────────────────────────────────────────
-  // 9. GERAR EXCEL
+  // 10. GERAR EXCEL
   // ─────────────────────────────────────────────
   const generateExcel = useCallback(async () => {
     if (!filtersAreValid) { showError('❌ Data inicial maior que a final'); return; }
@@ -529,7 +569,7 @@ export default function EventReports({ events, team, hourBank, onBack }) {
           </div>
 
           {/* Stats Cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 p-4">
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 p-4">
             <div className="bg-emerald-50 rounded-xl p-3 text-center border border-emerald-200">
               <div className="text-xl sm:text-2xl font-bold text-emerald-700">{stats.totalEvents}</div>
               <div className="text-xs text-gray-600">Eventos</div>
@@ -542,8 +582,14 @@ export default function EventReports({ events, team, hourBank, onBack }) {
               <div className="text-sm sm:text-lg font-bold text-orange-600 truncate">{formatCurrency(stats.totalAluguel)}</div>
               <div className="text-xs text-gray-600">Aluguéis</div>
             </div>
+            <div className="bg-amber-50 rounded-xl p-3 text-center border border-amber-200">
+              <div className="text-sm sm:text-lg font-bold text-amber-700 truncate">{formatCurrency(vacationStats.totalValue)}</div>
+              <div className="text-xs text-gray-600">Coberturas de Férias</div>
+            </div>
             <div className="bg-red-50 rounded-xl p-3 text-center border border-red-200 col-span-2 lg:col-span-1">
-              <div className="text-sm sm:text-lg font-bold text-red-700 truncate">{formatCurrency(stats.totalExpenses)}</div>
+              <div className="text-sm sm:text-lg font-bold text-red-700 truncate">
+                {formatCurrency(stats.totalExpenses + vacationStats.totalValue)}
+              </div>
               <div className="text-xs text-gray-600">Total Geral</div>
             </div>
           </div>
@@ -558,6 +604,7 @@ export default function EventReports({ events, team, hourBank, onBack }) {
               { id: 'tipo',    label: 'Por Tipo',       icon: Package    },
               { id: 'tipoMes', label: 'Tipo/Mês',       icon: Users      },
               { id: 'horas',   label: 'Banco de Horas', icon: Users      },
+              { id: 'ferias',  label: 'Férias',         icon: Sun        },
             ].map(tab => {
               const Icon = tab.icon;
               return (
@@ -807,6 +854,104 @@ export default function EventReports({ events, team, hourBank, onBack }) {
                       </div>
                     );
                   })
+                )}
+              </div>
+            
+            )}
+
+            {/* TAB: FÉRIAS */}
+            {activeTab === 'ferias' && (
+              <div className="space-y-4">
+                {/* Resumo */}
+                <div className="grid grid-cols-3 gap-3 mb-4">
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-center">
+                    <div className="text-2xl font-bold text-amber-700">{vacationStats.totalCovers}</div>
+                    <div className="text-xs text-gray-500">Coberturas</div>
+                  </div>
+                  <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 text-center">
+                    <div className="text-2xl font-bold text-orange-700">{vacationStats.totalDays}</div>
+                    <div className="text-xs text-gray-500">Plantões pagos</div>
+                  </div>
+                  <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-center">
+                    <div className="text-lg font-bold text-red-700 truncate">{formatCurrency(vacationStats.totalValue)}</div>
+                    <div className="text-xs text-gray-500">Total gasto</div>
+                  </div>
+                </div>
+
+                {/* Por mês */}
+                {vacationStats.byMonth.length > 0 && (
+                  <div className="border border-gray-200 rounded-xl overflow-hidden mb-4">
+                    <div className="bg-amber-50 px-4 py-2 font-bold text-amber-800 text-sm">Por Mês</div>
+                    <table className="w-full">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="text-left px-4 py-2 text-xs font-semibold text-gray-600">Mês</th>
+                          <th className="text-center px-4 py-2 text-xs font-semibold text-gray-600">Coberturas</th>
+                          <th className="text-center px-4 py-2 text-xs font-semibold text-gray-600">Plantões</th>
+                          <th className="text-right px-4 py-2 text-xs font-semibold text-gray-600">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {vacationStats.byMonth.map(m => (
+                          <tr key={m.month} className="hover:bg-gray-50">
+                            <td className="px-4 py-2 text-sm font-medium text-gray-700">{formatMonth(m.month)}</td>
+                            <td className="px-4 py-2 text-sm text-center text-gray-600">{m.count}</td>
+                            <td className="px-4 py-2 text-sm text-center text-gray-600">{m.totalDays}</td>
+                            <td className="px-4 py-2 text-sm text-right font-bold text-amber-700">{formatCurrency(m.totalValue)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot className="bg-amber-50">
+                        <tr>
+                          <td colSpan={3} className="px-4 py-2 text-xs font-bold text-amber-800">TOTAL</td>
+                          <td className="px-4 py-2 text-xs text-right font-bold text-amber-900">{formatCurrency(vacationStats.totalValue)}</td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                )}
+
+                {/* Listagem individual */}
+                {vacationStats.filtered.length === 0 ? (
+                  <div className="text-center py-12 text-gray-400">
+                    <Sun size={40} className="mx-auto mb-2 opacity-30" />
+                    <p>Nenhuma cobertura de férias no período</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600">Posto</th>
+                          <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600">Funcionário</th>
+                          <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600">Período</th>
+                          <th className="text-center px-4 py-3 text-xs font-semibold text-gray-600">Plantões</th>
+                          <th className="text-right px-4 py-3 text-xs font-semibold text-gray-600">Diária</th>
+                          <th className="text-right px-4 py-3 text-xs font-semibold text-gray-600">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {vacationStats.filtered.map(v => (
+                          <tr key={v.id} className="hover:bg-gray-50">
+                            <td className="px-4 py-3 font-medium text-gray-800">{v.postLocation}</td>
+                            <td className="px-4 py-3 text-sm text-gray-600">{v.employeeOnVacation || '-'}</td>
+                            <td className="px-4 py-3 text-sm text-gray-600">
+                              {formatDate(v.startDate)} → {formatDate(v.endDate)}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-center text-gray-600">{v.totalDays}</td>
+                            <td className="px-4 py-3 text-sm text-right text-gray-600">{formatCurrency(v.dailyRate)}</td>
+                            <td className="px-4 py-3 text-right font-bold text-amber-700">{formatCurrency(v.totalValue)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot className="bg-amber-50">
+                        <tr>
+                          <td colSpan={5} className="px-4 py-3 font-bold text-amber-800">TOTAL</td>
+                          <td className="px-4 py-3 text-right font-bold text-amber-900">{formatCurrency(vacationStats.totalValue)}</td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
                 )}
               </div>
             )}
