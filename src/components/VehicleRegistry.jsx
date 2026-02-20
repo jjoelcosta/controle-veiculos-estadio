@@ -1,83 +1,98 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { ToastProvider } from './ui/Toast';
 import { storage } from '../utils/storage';
 import { generateLoanPDF, generateReturnPDF } from '../utils/loanPDF';
-import VehicleList from './vehicle/VehicleList';
-import VehicleDetail from './vehicle/VehicleDetail';
-import OwnerList from './owner/OwnerList';
-import OwnerDetail from './owner/OwnerDetail';
 import VehicleEditModal from './vehicle/VehicleEditModal';
-import ThirdPartyVehicleList from './thirdparty/ThirdPartyVehicleList';
-import LoanList from './loan/LoanList';
-import LoanForm from './loan/LoanForm';
-import LoanInventory from './loan/LoanInventory';
-import LoanDetail from './loan/LoanDetail';
-import LoanReports from './loan/LoanReports';
-import LoanReturnForm from './loan/LoanReturnForm';
-import LoanEditForm from './loan/LoanEditForm';
-import Reports from './reports/Reports';
-import StaffList from './staff/StaffList';
-import StaffForm from './staff/StaffForm';
-import StaffDetail from './staff/StaffDetail';
-import EventList from './events/EventList';
-import EventForm from './events/EventForm';
-import EventDetail from './events/EventDetail';
-import TeamManager from './events/TeamManager';
-import HourBank from './events/HourBank';
-import EventReports from './events/EventReports';
-import VacationList from './events/VacationList';
-import UserManagement from './admin/UserManagement';
+import PageLoader from './ui/PageLoader';
+
+// Lazy load — só carrega quando a página é acessada
+const VehicleList           = lazy(() => import('./vehicle/VehicleList'));
+const VehicleDetail         = lazy(() => import('./vehicle/VehicleDetail'));
+const OwnerList             = lazy(() => import('./owner/OwnerList'));
+const OwnerDetail           = lazy(() => import('./owner/OwnerDetail'));
+const ThirdPartyVehicleList = lazy(() => import('./thirdparty/ThirdPartyVehicleList'));
+const LoanList              = lazy(() => import('./loan/LoanList'));
+const LoanForm              = lazy(() => import('./loan/LoanForm'));
+const LoanInventory         = lazy(() => import('./loan/LoanInventory'));
+const LoanDetail            = lazy(() => import('./loan/LoanDetail'));
+const LoanReports           = lazy(() => import('./loan/LoanReports'));
+const LoanReturnForm        = lazy(() => import('./loan/LoanReturnForm'));
+const LoanEditForm          = lazy(() => import('./loan/LoanEditForm'));
+const Reports               = lazy(() => import('./reports/Reports'));
+const StaffList             = lazy(() => import('./staff/StaffList'));
+const StaffForm             = lazy(() => import('./staff/StaffForm'));
+const StaffDetail           = lazy(() => import('./staff/StaffDetail'));
+const EventList             = lazy(() => import('./events/EventList'));
+const EventForm             = lazy(() => import('./events/EventForm'));
+const EventDetail           = lazy(() => import('./events/EventDetail'));
+const TeamManager           = lazy(() => import('./events/TeamManager'));
+const HourBank              = lazy(() => import('./events/HourBank'));
+const EventReports          = lazy(() => import('./events/EventReports'));
+const VacationList          = lazy(() => import('./events/VacationList'));
+const UserManagement        = lazy(() => import('./admin/UserManagement'));
 
 export default function VehicleRegistry() {
-  // Estados principais
-  const [vehicles, setVehicles] = useState([]);
-  const [owners, setOwners] = useState([]);
-  const [currentView, setCurrentView] = useState('vehicles');
-  const [selectedVehicle, setSelectedVehicle] = useState(null);
-  const [selectedOwner, setSelectedOwner] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [editingVehicleId, setEditingVehicleId] = useState(null);
-  const [editModalOpen, setEditModalOpen] = useState(false);
-  const [editingVehicle, setEditingVehicle] = useState(null);
-  const [thirdPartyVehicles, setThirdPartyVehicles] = useState([]);
-  const [loanItems, setLoanItems] = useState([]);
-  const [loans, setLoans] = useState([]);
-  const [showLoanForm, setShowLoanForm] = useState(false);
+  const [vehicles,          setVehicles]          = useState([]);
+  const [owners,            setOwners]            = useState([]);
+  const [currentView,       setCurrentView]       = useState('vehicles');
+  const [selectedVehicle,   setSelectedVehicle]   = useState(null);
+  const [selectedOwner,     setSelectedOwner]     = useState(null);
+  const [loading,           setLoading]           = useState(true);
+  const [error,             setError]             = useState(null);
+  const [editingVehicleId,  setEditingVehicleId]  = useState(null);
+  const [editModalOpen,     setEditModalOpen]     = useState(false);
+  const [editingVehicle,    setEditingVehicle]    = useState(null);
+  const [thirdPartyVehicles,setThirdPartyVehicles]= useState([]);
+  const [loanItems,         setLoanItems]         = useState([]);
+  const [loans,             setLoans]             = useState([]);
+  const [showLoanForm,      setShowLoanForm]      = useState(false);
   const [showLoanInventory, setShowLoanInventory] = useState(false);
-  const [selectedLoan, setSelectedLoan] = useState(null);
-  const [showLoanReturn, setShowLoanReturn] = useState(false);
-  const [showLoanEdit, setShowLoanEdit] = useState(false);
-  const [showLoanReports, setShowLoanReports] = useState(false);
-  const [staff, setStaff] = useState([]);
-  const [selectedStaff, setSelectedStaff] = useState(null);
-  const [showStaffForm, setShowStaffForm] = useState(false);
-  // Estados de Eventos
-  const [events, setEvents] = useState([]);
-  const [securityTeam, setSecurityTeam] = useState([]);
-  const [hourBank, setHourBank] = useState([]);
-  const [selectedEvent, setSelectedEvent] = useState(null);
-  const [showEventForm, setShowEventForm] = useState(false);
-  const [editingEvent, setEditingEvent] = useState(null);
-  const [showTeamManager, setShowTeamManager] = useState(false);
-  const [showHourBank, setShowHourBank] = useState(false);
-  const [showEventReports, setShowEventReports] = useState(false);
-  const [vacations, setVacations] = useState([]);
-  const [showVacationList, setShowVacationList] = useState(false);
-  const [staffTeamType, setStaffTeamType] = useState('operacional');
-  // Estado de role
-  const [userRole, setUserRole] = useState('operador');
+  const [selectedLoan,      setSelectedLoan]      = useState(null);
+  const [showLoanReturn,    setShowLoanReturn]    = useState(false);
+  const [showLoanEdit,      setShowLoanEdit]      = useState(false);
+  const [showLoanReports,   setShowLoanReports]   = useState(false);
+  const [staff,             setStaff]             = useState([]);
+  const [selectedStaff,     setSelectedStaff]     = useState(null);
+  const [showStaffForm,     setShowStaffForm]     = useState(false);
+  const [events,            setEvents]            = useState([]);
+  const [securityTeam,      setSecurityTeam]      = useState([]);
+  const [hourBank,          setHourBank]          = useState([]);
+  const [selectedEvent,     setSelectedEvent]     = useState(null);
+  const [showEventForm,     setShowEventForm]     = useState(false);
+  const [editingEvent,      setEditingEvent]      = useState(null);
+  const [showTeamManager,   setShowTeamManager]   = useState(false);
+  const [showHourBank,      setShowHourBank]      = useState(false);
+  const [showEventReports,  setShowEventReports]  = useState(false);
+  const [vacations,         setVacations]         = useState([]);
+  const [showVacationList,  setShowVacationList]  = useState(false);
+  const [staffTeamType,     setStaffTeamType]     = useState('operacional');
+  const [userRole,          setUserRole]          = useState('operador');
 
-  // ✅ CARREGAR DADOS DO SUPABASE
+  // Carrega só o essencial primeiro (vehicles + owners + role)
+  // O restante carrega em background logo após
   const loadData = async () => {
     try {
       setLoading(true);
       setError(null);
-      
-      const [vehiclesData, ownersData, thirdPartyData, loanItemsData, loansData,
-           eventsData, teamData, hourBankData, vacationsData, staffData, role] = await Promise.all([
+
+      // 1ª onda — o que aparece na tela inicial
+      const [vehiclesData, ownersData, role] = await Promise.all([
         storage.loadVehicles(),
         storage.loadOwners(),
+        storage.getUserRole(),
+      ]);
+
+      setVehicles(vehiclesData);
+      setOwners(ownersData);
+      setUserRole(role || 'operador');
+      setLoading(false); // ← tela já aparece aqui
+
+      // 2ª onda — resto em background (não bloqueia a UI)
+      const [
+        thirdPartyData, loanItemsData, loansData,
+        eventsData, teamData, hourBankData,
+        vacationsData, staffData,
+      ] = await Promise.all([
         storage.loadThirdPartyVehicles(),
         storage.loadLoanItems(),
         storage.loadLoans(),
@@ -86,12 +101,8 @@ export default function VehicleRegistry() {
         storage.loadHourBank(),
         storage.loadVacationExpenses(),
         storage.loadStaff(),
-        storage.getUserRole()
       ]);
 
-      setStaff(staffData);
-      setVehicles(vehiclesData);
-      setOwners(ownersData);
       setThirdPartyVehicles(thirdPartyData);
       setLoanItems(loanItemsData);
       setLoans(loansData);
@@ -99,12 +110,11 @@ export default function VehicleRegistry() {
       setSecurityTeam(teamData);
       setHourBank(hourBankData);
       setVacations(vacationsData);
-      setUserRole(role || 'operador');
+      setStaff(staffData);
 
     } catch (err) {
       console.error('❌ Erro ao carregar dados:', err);
       setError(err.message || 'Erro ao conectar com o banco de dados');
-    } finally {
       setLoading(false);
     }
   };
@@ -1019,9 +1029,12 @@ export default function VehicleRegistry() {
     }
   };
 
+
   return (
     <ToastProvider>
-      {renderView()}
+      <Suspense fallback={<PageLoader />}>
+        {renderView()}
+      </Suspense>
       <VehicleEditModal
         isOpen={editModalOpen}
         vehicle={editingVehicle}

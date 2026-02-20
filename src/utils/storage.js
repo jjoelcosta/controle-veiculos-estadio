@@ -590,7 +590,8 @@ const updateLoanItemReturn = async (detailId, returnData) => {
     if (error) throw error;
 
     // Atualizar quantidade disponível do item
-    if (returnData.quantityReturned > 0 && returnData.condition === 'OK') {
+      const condition = (returnData.condition || '').trim().toUpperCase();
+      if (returnData.quantityReturned > 0 && condition === 'OK') {
       const { data: detail } = await supabase
         .from('loan_items_detail')
         .select('item_id')
@@ -624,35 +625,49 @@ const updateLoanItemReturn = async (detailId, returnData) => {
 
 const deleteLoan = async (loanId) => {
   try {
-    // Restaurar quantidades antes de deletar
-    const { data: details } = await supabase
+    // 1) Buscar detalhes do empréstimo
+    const { data: details, error: detailsError } = await supabase
       .from('loan_items_detail')
       .select('item_id, quantity_borrowed, quantity_returned')
       .eq('loan_id', loanId);
 
-    if (details) {
-      for (const detail of details) {
-        const quantityToRestore = detail.quantity_borrowed - detail.quantity_returned;
-        if (quantityToRestore > 0) {
-          const { data: currentItem } = await supabase
-            .from('loan_items')
-            .select('quantity_available')
-            .eq('id', detail.item_id)
-            .single();
+    if (detailsError) throw detailsError;
 
-          if (currentItem) {
-            await supabase
-              .from('loan_items')
-              .update({
-                quantity_available: currentItem.quantity_available + quantityToRestore
-              })
-              .eq('id', detail.item_id);
-          }
-        }
-      }
+    // 2) Calcular quanto precisa restaurar
+    const detailsToRestore = (details || [])
+      .map(d => ({
+        ...d,
+        toRestore: (d.quantity_borrowed || 0) - (d.quantity_returned || 0),
+      }))
+      .filter(d => d.toRestore > 0);
+
+    // 3) Restaurar estoque em lote
+    if (detailsToRestore.length > 0) {
+      const itemIds = [...new Set(detailsToRestore.map(d => d.item_id))];
+
+      const { data: currentItems, error: itemsError } = await supabase
+        .from('loan_items')
+        .select('id, quantity_available')
+        .in('id', itemIds);
+
+      if (itemsError) throw itemsError;
+
+      await Promise.all(
+        detailsToRestore.map(d => {
+          const current = currentItems?.find(i => i.id === d.item_id);
+          if (!current) return Promise.resolve();
+
+          return supabase
+            .from('loan_items')
+            .update({
+              quantity_available: (current.quantity_available || 0) + d.toRestore,
+            })
+            .eq('id', d.item_id);
+        })
+      );
     }
 
-    // Deletar empréstimo (cascade deleta os detalhes)
+    // 4) Deletar empréstimo (cascade deleta detalhes)
     const { error } = await supabase
       .from('loans')
       .delete()
@@ -1142,8 +1157,14 @@ const loadStaff = async () => {
     .select('*')
     .is('deleted_at', null)
     .order('name');
+
   if (error) throw error;
-  return data || [];
+
+  return (data || []).map(s => ({
+    ...s,
+    createdAt: s.created_at ? new Date(s.created_at).toLocaleString('pt-BR') : null,
+    updatedAt: s.updated_at ? new Date(s.updated_at).toLocaleString('pt-BR') : null,
+  }));
 };
 
 const addStaff = async (staffData) => {
