@@ -1149,6 +1149,41 @@ const loadHourBankSummary = async () => {
 };
 
 // ============================================
+// CÁLCULO DE ESCALA ATUAL (12x36)
+// ============================================
+const getCurrentSchedule = (hireDate, initialSchedule) => {
+  if (!hireDate || !initialSchedule) return initialSchedule;
+
+  const hire = new Date(hireDate + 'T12:00:00');
+  const now = new Date();
+  
+  // Conta quantos meses de 31 dias passaram desde a admissão
+  let alternations = 0;
+  let current = new Date(hire);
+
+  while (current < now) {
+    const year = current.getFullYear();
+    const month = current.getMonth();
+    const lastDay = new Date(year, month + 1, 0).getDate();
+    
+    // Se o mês tem 31 dias, alterna
+    if (lastDay === 31) {
+      alternations++;
+    }
+    
+    // Avança para o próximo mês
+    current.setMonth(current.getMonth() + 1);
+  }
+
+  // Se número de alternações for ímpar, inverte a escala
+  if (alternations % 2 === 1) {
+    return initialSchedule === 'Dias Pares' ? 'Dias Ímpares' : 'Dias Pares';
+  }
+  
+  return initialSchedule;
+};
+
+// ============================================
 // STAFF (Pessoal Operacional)
 // ============================================
 const loadStaff = async () => {
@@ -1164,6 +1199,10 @@ const loadStaff = async () => {
     ...s,
     createdAt: s.created_at ? new Date(s.created_at).toLocaleString('pt-BR') : null,
     updatedAt: s.updated_at ? new Date(s.updated_at).toLocaleString('pt-BR') : null,
+    // Calcula escala atual para operacionais (baseado em meses de 31 dias)
+    current_schedule: s.team_type === 'operacional'
+      ? getCurrentSchedule(s.hire_date, s.current_schedule)
+      : s.current_schedule
   }));
 };
 
