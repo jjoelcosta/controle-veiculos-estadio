@@ -78,11 +78,12 @@ export default function StaffDetail({
   const [vacations, setVacations] = useState([]);
   const [showVacForm, setShowVacForm] = useState(false);
   const [editingVac, setEditingVac] = useState(null);
-  const [vacForm, setVacForm] = useState({
+    const [vacForm, setVacForm] = useState({
     acquisition_start: '', acquisition_end: '',
     available_from: '', expires_on: '',
     vacation_start: '', vacation_end: '',
-    days_taken: 30, status: 'disponível', notes: ''
+    days_taken: 30, status: 'disponível', notes: '',
+    gozadas_sem_data: false
   });
 
   // ── Trocas ──
@@ -165,8 +166,29 @@ export default function StaffDetail({
   };
 
   const statusCfg = STATUS_CONFIG[staff.status] || STATUS_CONFIG.ativo;
+
+// Chave única por período aquisitivo — função pura fora de hooks
+const periodKey = (p) => `${p.periodStart}|${p.periodEnd}`;
+
+// useMemo garante recalculo quando vacations mudar
+const { vacationPeriods, takenPeriodKeys, alertPeriods } = React.useMemo(() => {
   const vacationPeriods = calcVacationPeriods(staff.hire_date);
-  const alertPeriods = vacationPeriods.filter(p => p.isUrgent || p.isExpired);
+
+  const takenPeriodKeys = new Set(
+    (vacations || [])
+      .filter(v =>
+        (v.status === 'gozada' || v.gozadas_sem_data) &&
+        v.acquisition_start && v.acquisition_end
+      )
+      .map(v => `${v.acquisition_start}|${v.acquisition_end}`)
+  );
+
+  const alertPeriods = vacationPeriods
+    .filter(p => p.isUrgent || p.isExpired)
+    .filter(p => !takenPeriodKeys.has(periodKey(p)));
+
+  return { vacationPeriods, takenPeriodKeys, alertPeriods };
+}, [vacations, staff.hire_date]);
 
   // ─────────────────────────────────────────
   // FÉRIAS — handlers
@@ -188,13 +210,20 @@ export default function StaffDetail({
     setActiveTab('ferias');
   };
 
-  const handleSaveVacation = async () => {
-    if (!vacForm.vacation_start) {
+    const handleSaveVacation = async () => {
+    // Só exige data de início se NÃO for "gozada sem data"
+    if (!vacForm.gozadas_sem_data && !vacForm.vacation_start) {
       showError('Informe a data de início das férias'); return;
     }
     setSaving(true);
     try {
-      const payload = { ...vacForm, staff_id: staff.id };
+      const payload = {
+        ...vacForm,
+        staff_id:       staff.id,
+        vacation_start: vacForm.gozadas_sem_data ? null : (vacForm.vacation_start || null),
+        vacation_end:   vacForm.gozadas_sem_data ? null : (vacForm.vacation_end   || null),
+        status:         vacForm.gozadas_sem_data ? 'gozada' : vacForm.status,
+      };
       if (editingVac) {
         await storage.updateStaffVacation(editingVac.id, payload);
         success('✅ Férias atualizadas!');
@@ -230,6 +259,44 @@ export default function StaffDetail({
       }
     });
   };
+
+  const handleMarkVacationTakenNoDate = (period) => {
+  openModal({
+    title: 'Marcar férias como Gozadas (sem data)?',
+    message:
+      `Isso indica que o colaborador já tirou as férias do período ` +
+      `${formatDate(period.periodStart)} a ${formatDate(period.periodEnd)}, ` +
+      `mas você não possui as datas exatas do gozo. ` +
+      `O sistema vai parar de alertar este período como vencido/a vencer.`,
+    confirmText: 'Marcar como Gozadas',
+    variant: 'warning',
+    onConfirm: async () => {
+      setSaving(true);
+      try {
+        await storage.addStaffVacation({
+          staff_id:          staff.id,
+          acquisition_start: period.periodStart,
+          acquisition_end:   period.periodEnd,
+          available_from:    period.availableFrom,
+          expires_on:        period.expiresOn,
+          vacation_start:    null,
+          vacation_end:      null,
+          days_taken:        30,
+          status:            'gozada',
+          notes:             'Gozadas sem data (cadastro retroativo)',
+          gozadas_sem_data:  true
+        });
+        success('✅ Período marcado como férias gozadas!');
+        await loadAll();
+        if (onReload) onReload();
+      } catch (err) {
+        showError(err.message || 'Erro ao marcar como gozadas');
+      } finally {
+        setSaving(false);
+      }
+    }
+  });
+};
 
   // ─────────────────────────────────────────
   // TROCAS — handlers
@@ -594,14 +661,26 @@ export default function StaffDetail({
                                 Em andamento
                               </span>
                             )}
-                            {(p.isAvailable || p.isExpired) && (
-                              <button
-                                onClick={() => handleVacFormFromPeriod(p)}
-                                className="text-xs bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded-lg"
-                              >
-                                + Agendar
-                              </button>
-                            )}
+                            {takenPeriodKeys.has(periodKey(p)) ? (
+                          <span className="text-xs font-bold text-green-700 bg-green-100 px-2 py-1 rounded-full">
+                            ✅ GOZADAS
+                          </span>
+                        ) : (p.isAvailable || p.isExpired) ? (
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <button
+                              onClick={() => handleVacFormFromPeriod(p)}
+                              className="text-xs bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded-lg"
+                            >
+                              + Agendar
+                            </button>
+                            <button
+                              onClick={() => handleMarkVacationTakenNoDate(p)}
+                              className="text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded-lg"
+                            >
+                              ✓ Já gozadas
+                            </button>
+                          </div>
+                        ) : null}
                           </div>
                         </div>
                         <div className="text-xs text-gray-500 mt-1">
@@ -621,7 +700,17 @@ export default function StaffDetail({
               <div className="space-y-4">
                 {!showVacForm && (
                   <button
-                    onClick={() => { setEditingVac(null); setVacForm({ acquisition_start: '', acquisition_end: '', available_from: '', expires_on: '', vacation_start: '', vacation_end: '', days_taken: 30, status: 'agendada', notes: '' }); setShowVacForm(true); }}
+                    onClick={() => {
+                      setEditingVac(null);
+                      setVacForm({
+                        acquisition_start: '', acquisition_end: '',
+                        available_from: '', expires_on: '',
+                        vacation_start: '', vacation_end: '',
+                        days_taken: 30, status: 'agendada', notes: '',
+                        gozadas_sem_data: false
+                      });
+                      setShowVacForm(true);
+                    }}
                     className="w-full bg-purple-600 hover:bg-purple-700 text-white py-2.5 rounded-xl font-medium flex items-center justify-center gap-2"
                   >
                     <Plus size={16} /> Registrar Férias
@@ -647,17 +736,61 @@ export default function StaffDetail({
                           onChange={(e) => setVacForm(p => ({ ...p, acquisition_end: e.target.value }))}
                           className="w-full max-w-full px-2 py-1.5 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:outline-none text-sm" />
                       </div>
+                      {/* Checkbox Gozadas sem data */}
+                      <div className="sm:col-span-2">
+                        <label className="flex items-center gap-2 cursor-pointer select-none bg-green-50 border-2 border-green-200 rounded-lg px-3 py-2">
+                          <input
+                            type="checkbox"
+                            checked={vacForm.gozadas_sem_data}
+                            onChange={(e) => setVacForm(p => ({
+                              ...p,
+                              gozadas_sem_data: e.target.checked,
+                              vacation_start: e.target.checked ? '' : p.vacation_start,
+                              vacation_end:   e.target.checked ? '' : p.vacation_end,
+                              status:         e.target.checked ? 'gozada' : (p.status === 'gozada' ? 'agendada' : p.status)
+                            }))}
+                            className="w-4 h-4 accent-green-600 cursor-pointer"
+                          />
+                          <div>
+                            <span className="text-sm font-semibold text-green-800">
+                              ✅ Férias já gozadas (sem data)
+                            </span>
+                            <p className="text-xs text-green-700 mt-0.5">
+                              Use quando o colaborador já tirou as férias mas não temos as datas exatas.
+                            </p>
+                          </div>
+                        </label>
+                      </div>
+
                       <div>
-                        <label className="block text-xs font-semibold text-gray-600 mb-1">Início das Férias *</label>
-                        <input type="date" value={vacForm.vacation_start}
+                        <label className="block text-xs font-semibold text-gray-600 mb-1">
+                          Início das Férias {!vacForm.gozadas_sem_data && '*'}
+                        </label>
+                        <input
+                          type="date"
+                          value={vacForm.vacation_start}
                           onChange={(e) => setVacForm(p => ({ ...p, vacation_start: e.target.value }))}
-                          className="w-full max-w-full px-2 py-1.5 border-2 border-purple-300 rounded-lg focus:border-purple-500 focus:outline-none text-sm" />
+                          disabled={vacForm.gozadas_sem_data}
+                          className={`w-full max-w-full px-2 py-1.5 border-2 rounded-lg focus:outline-none text-sm transition-colors ${
+                            vacForm.gozadas_sem_data
+                              ? 'border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed'
+                              : 'border-purple-300 focus:border-purple-500'
+                          }`}
+                        />
                       </div>
                       <div>
                         <label className="block text-xs font-semibold text-gray-600 mb-1">Fim das Férias</label>
-                        <input type="date" value={vacForm.vacation_end}
+                        <input
+                          type="date"
+                          value={vacForm.vacation_end}
                           onChange={(e) => setVacForm(p => ({ ...p, vacation_end: e.target.value }))}
-                          className="w-full max-w-full px-2 py-1.5 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:outline-none text-sm" />
+                          disabled={vacForm.gozadas_sem_data}
+                          className={`w-full max-w-full px-2 py-1.5 border-2 rounded-lg focus:outline-none text-sm transition-colors ${
+                            vacForm.gozadas_sem_data
+                              ? 'border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed'
+                              : 'border-gray-300 focus:border-purple-500'
+                          }`}
+                        />
                       </div>
                       <div>
                         <label className="block text-xs font-semibold text-gray-600 mb-1">Dias de Férias</label>
@@ -674,6 +807,7 @@ export default function StaffDetail({
                           <option value="em_gozo">Em Gozo</option>
                           <option value="disponível">Disponível</option>
                           <option value="vencida">Vencida</option>
+                          <option value="gozada">Gozadas</option>
                         </select>
                       </div>
                     </div>
@@ -710,13 +844,19 @@ export default function StaffDetail({
                           <div className="flex-1">
                             <div className="flex flex-wrap gap-2 mb-1">
                               <span className={`text-xs px-2 py-1 rounded-full font-bold ${
-                                vac.status === 'em_gozo' ? 'bg-blue-100 text-blue-800'
-                                : vac.status === 'agendada' ? 'bg-yellow-100 text-yellow-800'
-                                : vac.status === 'vencida' ? 'bg-red-100 text-red-800'
-                                : 'bg-green-100 text-green-800'
+                                vac.status === 'em_gozo'   ? 'bg-blue-100 text-blue-800'
+                                : vac.status === 'agendada'  ? 'bg-yellow-100 text-yellow-800'
+                                : vac.status === 'vencida'   ? 'bg-red-100 text-red-800'
+                                : vac.status === 'gozada'    ? 'bg-green-100 text-green-800'
+                                : 'bg-gray-100 text-gray-800'
                               }`}>
                                 {vac.status}
                               </span>
+                              {vac.gozadas_sem_data && (
+                                <span className="text-xs bg-green-50 text-green-700 border border-green-200 px-2 py-1 rounded-full font-medium">
+                                  sem data
+                                </span>
+                              )}
                               <span className="text-xs text-gray-500">{vac.days_taken} dias</span>
                             </div>
                             {vac.vacation_start && (
@@ -733,7 +873,18 @@ export default function StaffDetail({
                             {vac.notes && <div className="text-xs text-gray-400 mt-1">{vac.notes}</div>}
                           </div>
                           <div className="flex gap-1">
-                            <button onClick={() => { setEditingVac(vac); setVacForm({ acquisition_start: vac.acquisition_start || '', acquisition_end: vac.acquisition_end || '', available_from: vac.available_from || '', expires_on: vac.expires_on || '', vacation_start: vac.vacation_start || '', vacation_end: vac.vacation_end || '', days_taken: vac.days_taken || 30, status: vac.status || 'agendada', notes: vac.notes || '' }); setShowVacForm(true); }}
+                        <button onClick={() => { setEditingVac(vac); setVacForm({
+                                              acquisition_start: vac.acquisition_start || '',
+                                              acquisition_end:   vac.acquisition_end   || '',
+                                              available_from:    vac.available_from    || '',
+                                              expires_on:        vac.expires_on        || '',
+                                              vacation_start:    vac.vacation_start    || '',
+                                              vacation_end:      vac.vacation_end      || '',
+                                              days_taken:        vac.days_taken        || 30,
+                                              status:            vac.status            || 'agendada',
+                                              notes:             vac.notes             || '',
+                                              gozadas_sem_data:  !!vac.gozadas_sem_data
+                                            }); setShowVacForm(true); }}
                               className="text-blue-600 hover:text-blue-800 p-1.5 rounded-lg hover:bg-blue-50">
                               <Edit size={14} />
                             </button>

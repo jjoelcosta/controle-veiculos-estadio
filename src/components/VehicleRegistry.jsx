@@ -473,7 +473,13 @@ export default function VehicleRegistry() {
                 await handleDeleteStaff(id);
                 setSelectedStaff(null);
               }}
-              onReload={loadData}
+              onReload={async () => {
+                await loadData();
+                // Atualiza o selectedStaff com os dados frescos do banco
+                const freshStaff = await storage.loadStaff();
+                const updated = freshStaff.find(s => s.id === selectedStaff.id);
+                if (updated) setSelectedStaff(updated);
+              }}
             />
           );
         }
