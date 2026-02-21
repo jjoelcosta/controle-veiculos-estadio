@@ -145,7 +145,7 @@ export default function Dashboard({
               <AlertTriangle size={24} className="text-red-300 flex-shrink-0" />
               <div>
                 <div className="font-bold text-white text-lg">{totalAlerts}</div>
-                <div className="text-red-200 text-xs">alerta(s) crítico(s)</div>
+                <div className="text-red-200 text-xs">aviso(s) importante(s)</div>
               </div>
             </div>
           ) : (
@@ -258,7 +258,7 @@ export default function Dashboard({
         <div className="bg-white rounded-2xl shadow-md border border-gray-200 overflow-hidden">
           <div className="bg-gradient-to-r from-red-500 to-orange-500 px-4 py-3 flex items-center gap-2">
             <AlertTriangle size={18} className="text-white" />
-            <h3 className="font-bold text-white">Alertas Críticos</h3>
+            <h3 className="font-bold text-white">Avisos Importantes</h3>
             {totalAlerts > 0 && (
               <span className="ml-auto bg-white/30 text-white text-xs font-bold px-2 py-0.5 rounded-full">
                 {totalAlerts}
